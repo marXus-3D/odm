@@ -17,6 +17,7 @@ import (
 type Record struct {
 	ID         string            `json:"id"`
 	URL        string            `json:"url"`
+	Kind       string            `json:"kind,omitempty"` // file (default) or hls
 	FinalURL   string            `json:"finalUrl,omitempty"`
 	Path       string            `json:"path,omitempty"`
 	Filename   string            `json:"filename"`

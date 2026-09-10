@@ -36,6 +36,7 @@ type AddRequest struct {
 	Cookie   string            `json:"cookie,omitempty"`
 	UA       string            `json:"userAgent,omitempty"`
 	Headers  map[string]string `json:"headers,omitempty"`
+	Kind     string            `json:"kind,omitempty"`
 }
 
 // State is the daemon's view of the world.

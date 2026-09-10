@@ -36,6 +36,7 @@ type request struct {
 	Cookie   string            `json:"cookie,omitempty"`
 	UA       string            `json:"userAgent,omitempty"`
 	Headers  map[string]string `json:"headers,omitempty"`
+	Kind     string            `json:"kind,omitempty"`
 	ID       string            `json:"id,omitempty"`
 }
 
@@ -120,6 +121,7 @@ func (h *handler) handle(req request) response {
 			Cookie:   req.Cookie,
 			UA:       req.UA,
 			Headers:  req.Headers,
+			Kind:     req.Kind,
 		})
 		if err != nil {
 			return response{OK: false, Error: err.Error()}

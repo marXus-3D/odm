@@ -86,8 +86,15 @@ type Media struct {
 	Segments       []Segment
 	InitURI        string // EXT-X-MAP, the fMP4 initialization segment
 	InitKey        *Key
-	EndList        bool // false means a live stream, which has no fixed end
-	Type           string
+
+	// The init segment may itself be a byte range of a larger file, which is
+	// how Apple's own fMP4 examples are packaged: every segment, init
+	// included, is a slice of one main.mp4.
+	InitHasRange    bool
+	InitRangeLength int64
+	InitRangeStart  int64
+	EndList         bool // false means a live stream, which has no fixed end
+	Type            string
 }
 
 // Duration is the total playlist length in seconds.
@@ -224,6 +231,13 @@ func ParseMedia(r io.Reader, base *url.URL) (*Media, error) {
 			if u := attrs["URI"]; u != "" {
 				m.InitURI = resolve(base, u)
 				m.InitKey = curKey
+				// BYTERANGE here is an attribute, not the EXT-X-BYTERANGE
+				// tag. Ignoring it would download the whole container as the
+				// initialization segment.
+				if br := attrs["BYTERANGE"]; br != "" {
+					m.InitRangeLength, m.InitRangeStart = parseByteRange(br, 0)
+					m.InitHasRange = m.InitRangeLength > 0
+				}
 			}
 
 		case strings.HasPrefix(line, "#EXT-X-BYTERANGE:"):

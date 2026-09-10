@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/marcus/dm/internal/engine"
+	"github.com/marcus/dm/internal/hls"
 	"github.com/marcus/dm/internal/store"
 )
 
@@ -25,7 +27,7 @@ var ErrNotFound = errors.New("download not found")
 
 type entry struct {
 	rec store.Record
-	dl  *engine.Download
+	job job
 }
 
 // Manager runs downloads subject to a concurrency limit and broadcasts
@@ -70,8 +72,19 @@ func New(ctx context.Context, st *store.Store) *Manager {
 	return m
 }
 
+// AddRequest is a request to queue a download. It is the manager's own type
+// rather than engine.Request because Kind decides which engine runs it.
+type AddRequest struct {
+	URL      string
+	Filename string
+	Dir      string
+	MaxConns int
+	Headers  map[string]string
+	Kind     string // "", "file" or "hls"; empty means detect from the URL
+}
+
 // Add queues a new download and returns its record.
-func (m *Manager) Add(req engine.Request) (store.Record, error) {
+func (m *Manager) Add(req AddRequest) (store.Record, error) {
 	if req.URL == "" {
 		return store.Record{}, errors.New("url is required")
 	}
@@ -83,9 +96,14 @@ func (m *Manager) Add(req engine.Request) (store.Record, error) {
 		req.MaxConns = cfg.MaxConns
 	}
 
+	kind := DetectKind(req.URL)
+	if req.Kind != "" {
+		kind = req.Kind // the extension may have sniffed the content type
+	}
 	rec := store.Record{
 		ID:       store.NewID(),
 		URL:      req.URL,
+		Kind:     kind,
 		Filename: req.Filename,
 		Headers:  req.Headers,
 		Dir:      req.Dir,
@@ -114,7 +132,7 @@ func (m *Manager) Pause(id string) error {
 		m.mu.Unlock()
 		return ErrNotFound
 	}
-	dl := e.dl
+	j := e.job
 	// Drop it from the pending queue if it never started.
 	for i, qid := range m.queue {
 		if qid == id {
@@ -124,8 +142,8 @@ func (m *Manager) Pause(id string) error {
 	}
 	m.mu.Unlock()
 
-	if dl != nil {
-		dl.Pause()
+	if j != nil {
+		j.Pause()
 		return nil
 	}
 	m.setState(id, engine.StatePaused, "")
@@ -166,7 +184,7 @@ func (m *Manager) Remove(id string, deleteFile bool) error {
 		m.mu.Unlock()
 		return ErrNotFound
 	}
-	dl := e.dl
+	j := e.job
 	rec := e.rec
 	delete(m.entries, id)
 	for i, qid := range m.queue {
@@ -177,8 +195,8 @@ func (m *Manager) Remove(id string, deleteFile bool) error {
 	}
 	m.mu.Unlock()
 
-	if dl != nil {
-		dl.Pause()
+	if j != nil {
+		j.Pause()
 	}
 	m.st.Delete(id)
 
@@ -187,6 +205,8 @@ func (m *Manager) Remove(id string, deleteFile bool) error {
 		// download to the same name resume into a stale plan.
 		os.Remove(rec.Path + ".dm")
 		os.Remove(rec.Path + ".dm.tmp")
+		os.Remove(rec.Path + ".dmh")
+		os.Remove(rec.Path + ".dmh.tmp")
 		if err := os.Remove(rec.Path); err != nil && !os.IsNotExist(err) {
 			// Best effort: the file may still be held open by a worker that
 			// has not noticed the cancellation yet.
@@ -241,28 +261,16 @@ func (m *Manager) pump() {
 			continue
 		}
 		m.running++
-		req := engine.Request{
-			URL:      e.rec.URL,
-			Headers:  e.rec.Headers,
-			Filename: e.rec.Filename,
-			Dir:      e.rec.Dir,
-			MaxConns: e.rec.MaxConns,
-		}
-		dl := engine.New(id, req, engine.Options{
-			MaxConns: e.rec.MaxConns,
-			Limiter:  m.limiter,
-		})
-		dl.Path = e.rec.Path // non-empty means resume in place
-		dl.OnUpdate = func(s engine.Stats) { m.onUpdate(id, s) }
-		e.dl = dl
+		j := m.newJob(e.rec, func() { m.onUpdate(id) })
+		e.job = j
 		m.mu.Unlock()
 
-		go m.run(id, dl)
+		go m.run(id, j)
 	}
 }
 
-func (m *Manager) run(id string, dl *engine.Download) {
-	err := dl.Run(m.ctx)
+func (m *Manager) run(id string, j job) {
+	err := j.Run(m.ctx)
 
 	m.mu.Lock()
 	m.running--
@@ -273,23 +281,25 @@ func (m *Manager) run(id string, dl *engine.Download) {
 		m.pump()
 		return
 	}
-	e.dl = nil
-	e.rec.Path = dl.Path
-	if dl.Probe != nil {
-		e.rec.Size = dl.Probe.Size
-		e.rec.FinalURL = dl.Probe.FinalURL
-		if e.rec.Filename == "" {
-			e.rec.Filename = dl.Probe.Filename
+	e.job = nil
+	e.rec.Path = j.OutPath()
+	if e.rec.Filename == "" && e.rec.Path != "" {
+		e.rec.Filename = filepath.Base(e.rec.Path)
+	}
+	if done, size, _ := j.Summary(); true {
+		e.rec.Downloaded = done
+		if size > 0 {
+			e.rec.Size = size
 		}
 	}
-	e.rec.Downloaded = dl.Downloaded()
 
 	switch {
 	case err == nil:
 		e.rec.State = string(engine.StateDone)
 		e.rec.Error = ""
 		e.rec.Finished = time.Now()
-	case errors.Is(err, engine.ErrPaused), errors.Is(err, context.Canceled):
+	case errors.Is(err, engine.ErrPaused), errors.Is(err, hls.ErrPaused),
+		errors.Is(err, context.Canceled):
 		e.rec.State = string(engine.StatePaused)
 		e.rec.Error = ""
 	default:
@@ -304,22 +314,23 @@ func (m *Manager) run(id string, dl *engine.Download) {
 	m.pump()
 }
 
-func (m *Manager) onUpdate(id string, s engine.Stats) {
+func (m *Manager) onUpdate(id string) {
 	m.mu.Lock()
 	e, ok := m.entries[id]
-	if !ok {
+	if !ok || e.job == nil {
 		m.mu.Unlock()
 		return
 	}
-	e.rec.State = string(s.State)
-	e.rec.Downloaded = s.Downloaded
-	if s.Total > 0 {
-		e.rec.Size = s.Total
+	done, size, state := e.job.Summary()
+	e.rec.State = state
+	e.rec.Downloaded = done
+	if size > 0 {
+		e.rec.Size = size
 	}
-	if e.dl != nil {
-		e.rec.Path = e.dl.Path
-		if e.rec.Filename == "" && e.dl.Probe != nil {
-			e.rec.Filename = e.dl.Probe.Filename
+	if p := e.job.OutPath(); p != "" {
+		e.rec.Path = p
+		if e.rec.Filename == "" {
+			e.rec.Filename = filepath.Base(p)
 		}
 	}
 	rec := e.rec
@@ -331,18 +342,20 @@ func (m *Manager) onUpdate(id string, s engine.Stats) {
 
 // Progress returns live engine stats for a running download; ok is false when
 // the download is not currently active.
-func (m *Manager) Progress(id string) (engine.Stats, bool) {
+// Progress returns live stats for a running download. The concrete shape
+// depends on the kind, so callers just serialize it.
+func (m *Manager) Progress(id string) (any, bool) {
 	m.mu.Lock()
 	e, ok := m.entries[id]
-	var dl *engine.Download
+	var j job
 	if ok {
-		dl = e.dl
+		j = e.job
 	}
 	m.mu.Unlock()
-	if dl == nil {
-		return engine.Stats{}, false
+	if j == nil {
+		return nil, false
 	}
-	return dl.Stats(), true
+	return j.Snapshot(), true
 }
 
 func (m *Manager) setState(id string, s engine.State, errMsg string) {
@@ -395,15 +408,15 @@ func (m *Manager) broadcast(ev Event) {
 // all resume state on disk.
 func (m *Manager) PauseAll() {
 	m.mu.Lock()
-	dls := make([]*engine.Download, 0, len(m.entries))
+	jobs := make([]job, 0, len(m.entries))
 	for _, e := range m.entries {
-		if e.dl != nil {
-			dls = append(dls, e.dl)
+		if e.job != nil {
+			jobs = append(jobs, e.job)
 		}
 	}
 	m.mu.Unlock()
-	for _, dl := range dls {
-		dl.Pause()
+	for _, j := range jobs {
+		j.Pause()
 	}
 }
 

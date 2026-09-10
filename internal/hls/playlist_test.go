@@ -244,3 +244,42 @@ func TestLiveStreamDetected(t *testing.T) {
 		t.Error("a playlist with no ENDLIST is live and must not claim otherwise")
 	}
 }
+
+// Apple's own fMP4 examples package every segment, the initialization
+// segment included, as a byte range of one main.mp4. Ignoring the BYTERANGE
+// attribute on EXT-X-MAP would download the entire container as the init.
+const fmp4ByteRangePlaylist = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-VERSION:7
+#EXT-X-MEDIA-SEQUENCE:1
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXT-X-MAP:URI="main.mp4",BYTERANGE="719@0"
+#EXTINF:6.00000,
+#EXT-X-BYTERANGE:274201@719
+main.mp4
+#EXTINF:6.00000,
+#EXT-X-BYTERANGE:280451@274920
+main.mp4
+#EXT-X-ENDLIST
+`
+
+func TestParseMediaInitByteRange(t *testing.T) {
+	m, err := ParseMedia(strings.NewReader(fmp4ByteRangePlaylist),
+		mustURL(t, "https://example.com/v2/prog_index.m3u8"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got, want := m.InitURI, "https://example.com/v2/main.mp4"; got != want {
+		t.Errorf("init uri = %q, want %q", got, want)
+	}
+	if !m.InitHasRange {
+		t.Fatal("EXT-X-MAP BYTERANGE was ignored")
+	}
+	if m.InitRangeStart != 0 || m.InitRangeLength != 719 {
+		t.Errorf("init range = %d@%d, want 719@0", m.InitRangeLength, m.InitRangeStart)
+	}
+	if m.Segments[0].RangeStart != 719 || m.Segments[0].RangeLength != 274201 {
+		t.Errorf("segment 0 range = %d@%d, want 274201@719",
+			m.Segments[0].RangeLength, m.Segments[0].RangeStart)
+	}
+}

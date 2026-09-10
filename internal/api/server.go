@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marcus/dm/internal/engine"
 	"github.com/marcus/dm/internal/manager"
 	"github.com/marcus/dm/internal/store"
 )
@@ -124,6 +123,10 @@ type addRequest struct {
 	Referer  string            `json:"referer,omitempty"`
 	Cookie   string            `json:"cookie,omitempty"`
 	UA       string            `json:"userAgent,omitempty"`
+
+	// Kind lets a caller that already sniffed the content type say so:
+	// "hls" for a playlist, "file" for anything else. Empty means detect.
+	Kind string `json:"kind,omitempty"`
 }
 
 func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
@@ -157,12 +160,13 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 		headers["User-Agent"] = req.UA
 	}
 
-	rec, err := s.mgr.Add(engine.Request{
+	rec, err := s.mgr.Add(manager.AddRequest{
 		URL:      req.URL,
 		Filename: req.Filename,
 		Dir:      req.Dir,
 		MaxConns: req.MaxConns,
 		Headers:  headers,
+		Kind:     req.Kind,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

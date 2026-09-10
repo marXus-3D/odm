@@ -105,7 +105,13 @@ func (f *Fetcher) Fetch(ctx context.Context, m *Media, w io.Writer, skip int) er
 	// The fMP4 initialization segment must lead the file, so it is only
 	// written on a fresh start.
 	if m.InitURI != "" && skip == 0 {
-		init := Segment{URI: m.InitURI, Key: m.InitKey}
+		init := Segment{
+			URI:         m.InitURI,
+			Key:         m.InitKey,
+			HasRange:    m.InitHasRange,
+			RangeLength: m.InitRangeLength,
+			RangeStart:  m.InitRangeStart,
+		}
 		data, err := f.fetchSegment(ctx, init)
 		if err != nil {
 			return fmt.Errorf("initialization segment: %w", err)

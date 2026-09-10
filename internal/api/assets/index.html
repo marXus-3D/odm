@@ -141,6 +141,13 @@ function human(n) {
   return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
 }
 
+function clock(seconds) {
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  const pad = (n) => String(n).padStart(2, "0");
+  return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+}
+
 function eta(seconds) {
   if (!seconds || seconds <= 0) return "";
   const s = Math.round(seconds);
@@ -167,7 +174,10 @@ function renderItem(r) {
   const st = live.get(r.id);
   const total = r.size > 0 ? r.size : 0;
   const done = r.downloaded || 0;
-  const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
+  let pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
+  if (st && st.segmentsTotal > 0) {
+    pct = Math.min(100, (st.segmentsDone / st.segmentsTotal) * 100);
+  }
 
   const el = document.createElement("div");
   el.className = "item " + r.state;
@@ -181,7 +191,9 @@ function renderItem(r) {
   head.appendChild(Object.assign(document.createElement("div"), { className: "spacer" }));
   const badge = document.createElement("span");
   badge.className = "badge " + r.state;
-  badge.textContent = r.state + (st && st.throttled ? " · throttled" : "");
+  badge.textContent = r.state +
+    (r.kind === "hls" ? " · hls" : "") +
+    (st && st.throttled ? " · throttled" : "");
   head.appendChild(badge);
   el.appendChild(head);
 
@@ -199,7 +211,7 @@ function renderItem(r) {
 
   // Show the live segment map only while the engine is actually working, so
   // the split behaviour is visible rather than just claimed.
-  if (st && st.segments && st.segments.length > 1 && r.state === "downloading") {
+  if (!isHls && st && st.segments && st.segments.length > 1 && r.state === "downloading") {
     const segs = document.createElement("div");
     segs.className = "segs";
     for (const s of st.segments) {
@@ -216,10 +228,21 @@ function renderItem(r) {
 
   const meta = document.createElement("div");
   meta.className = "meta";
-  const bits = [`${human(done)} / ${total ? human(total) : "?"}`];
+  const isHls = r.kind === "hls" || (st && st.kind === "hls");
+  const bits = [];
+  if (isHls && st && st.segmentsTotal) {
+    // For a playlist the byte total is an estimate until the last segment
+    // lands, so segments are the honest measure of progress.
+    bits.push(`${st.segmentsDone} / ${st.segmentsTotal} segments`);
+    bits.push(`${human(done)}${total > 0 ? " of ~" + human(total) : ""}`);
+  } else {
+    bits.push(`${human(done)} / ${total ? human(total) : "?"}`);
+  }
   if (st && st.speedBps > 0) bits.push(`${human(st.speedBps)}/s`);
   if (st && st.conns) bits.push(`${st.conns} conn`);
-  if (st && st.segments) bits.push(`${st.segments.length} seg`);
+  if (!isHls && st && st.segments) bits.push(`${st.segments.length} seg`);
+  if (isHls && st && st.durationSeconds > 0) bits.push(clock(st.durationSeconds));
+  if (isHls && st && st.variant) bits.push(st.variant);
   if (st && st.eta > 0) bits.push("ETA " + eta(st.eta / 1e9));
   for (const b of bits) {
     const sp = document.createElement("span");
