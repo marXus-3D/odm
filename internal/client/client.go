@@ -28,21 +28,27 @@ type Client struct {
 
 // AddRequest mirrors the daemon's POST /api/downloads body.
 type AddRequest struct {
-	URL      string            `json:"url"`
-	Filename string            `json:"filename,omitempty"`
-	Dir      string            `json:"dir,omitempty"`
-	MaxConns int               `json:"maxConns,omitempty"`
-	Referer  string            `json:"referer,omitempty"`
-	Cookie   string            `json:"cookie,omitempty"`
-	UA       string            `json:"userAgent,omitempty"`
-	Headers  map[string]string `json:"headers,omitempty"`
-	Kind     string            `json:"kind,omitempty"`
+	URL         string            `json:"url"`
+	Filename    string            `json:"filename,omitempty"`
+	Dir         string            `json:"dir,omitempty"`
+	MaxConns    int               `json:"maxConns,omitempty"`
+	Referer     string            `json:"referer,omitempty"`
+	Cookie      string            `json:"cookie,omitempty"`
+	UA          string            `json:"userAgent,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	Kind        string            `json:"kind,omitempty"`
+	Category    string            `json:"category,omitempty"`
+	Description string            `json:"description,omitempty"`
 }
 
 // State is the daemon's view of the world.
 type State struct {
 	Downloads []store.Record `json:"downloads"`
 	Config    store.Config   `json:"config"`
+	FFmpeg    string         `json:"ffmpeg"`
+
+	StartWithWindows          bool `json:"startWithWindows"`
+	StartWithWindowsSupported bool `json:"startWithWindowsSupported"`
 }
 
 // NewLocal returns a client for a daemon whose address and token are
@@ -201,6 +207,37 @@ func (c *Client) Progress(id string) (map[string]any, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// PauseAll stops everything that is running.
+func (c *Client) PauseAll() error {
+	return c.do(http.MethodPost, "/api/all/pause", nil, nil)
+}
+
+// ResumeAll restarts everything that is not finished.
+func (c *Client) ResumeAll() error {
+	return c.do(http.MethodPost, "/api/all/resume", nil, nil)
+}
+
+// StopAll pauses everything and clears the pending queue.
+func (c *Client) StopAll() error {
+	return c.do(http.MethodPost, "/api/all/stop", nil, nil)
+}
+
+// Flags are the boolean settings; a nil field is left alone.
+type Flags struct {
+	StartWithWindows   *bool `json:"startWithWindows,omitempty"`
+	ShowStartDialog    *bool `json:"showStartDialog,omitempty"`
+	ShowCompleteDialog *bool `json:"showCompleteDialog,omitempty"`
+}
+
+// SetFlags updates the boolean settings.
+func (c *Client) SetFlags(f Flags) (*store.Config, error) {
+	var out store.Config
+	if err := c.do(http.MethodPut, "/api/flags", f, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // Shutdown asks the daemon to stop gracefully.

@@ -15,6 +15,7 @@ import (
 
 	"github.com/marcus/dm/internal/hls"
 	"github.com/marcus/dm/internal/manager"
+	"github.com/marcus/dm/internal/startup"
 	"github.com/marcus/dm/internal/store"
 )
 
@@ -48,6 +49,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/downloads/{id}/reveal", s.guard(s.handleReveal))
 	mux.HandleFunc("POST /api/downloads/{id}/open", s.guard(s.handleOpen))
 	mux.HandleFunc("PUT /api/config", s.guard(s.handleSetConfig))
+	mux.HandleFunc("POST /api/all/pause", s.guard(s.handlePauseAll))
+	mux.HandleFunc("POST /api/all/resume", s.guard(s.handleResumeAll))
+	mux.HandleFunc("POST /api/all/stop", s.guard(s.handleStopAll))
+	mux.HandleFunc("PUT /api/flags", s.guard(s.handleSetFlags))
 	mux.HandleFunc("GET /api/events", s.guard(s.handleEvents))
 	mux.HandleFunc("POST /api/shutdown", s.guard(s.handleShutdown))
 	mux.HandleFunc("GET /api/ping", s.guard(func(w http.ResponseWriter, r *http.Request) {
@@ -128,6 +133,9 @@ type addRequest struct {
 	// Kind lets a caller that already sniffed the content type say so:
 	// "hls" for a playlist, "file" for anything else. Empty means detect.
 	Kind string `json:"kind,omitempty"`
+
+	Category    string `json:"category,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
@@ -162,12 +170,14 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rec, err := s.mgr.Add(manager.AddRequest{
-		URL:      req.URL,
-		Filename: req.Filename,
-		Dir:      req.Dir,
-		MaxConns: req.MaxConns,
-		Headers:  headers,
-		Kind:     req.Kind,
+		URL:         req.URL,
+		Filename:    req.Filename,
+		Dir:         req.Dir,
+		MaxConns:    req.MaxConns,
+		Headers:     headers,
+		Kind:        req.Kind,
+		Category:    req.Category,
+		Description: req.Description,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -184,6 +194,10 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		// this, so the UI should be able to say so rather than leave the
 		// user guessing.
 		"ffmpeg": hls.FFmpegPath(),
+		// Reported from the system rather than the config file, so a login
+		// item removed behind our back is shown accurately.
+		"startWithWindows":          startup.Enabled(),
+		"startWithWindowsSupported": startup.Supported(),
 	})
 }
 
@@ -227,6 +241,51 @@ func (s *Server) handleProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, st)
+}
+
+func (s *Server) handlePauseAll(w http.ResponseWriter, r *http.Request) {
+	s.mgr.PauseAll()
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleResumeAll(w http.ResponseWriter, r *http.Request) {
+	n := s.mgr.ResumeAll()
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "affected": n})
+}
+
+func (s *Server) handleStopAll(w http.ResponseWriter, r *http.Request) {
+	n := s.mgr.StopAll()
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "affected": n})
+}
+
+// handleSetFlags carries the boolean settings, which cannot ride along with
+// the merge-non-empty rules the rest of the config uses.
+func (s *Server) handleSetFlags(w http.ResponseWriter, r *http.Request) {
+	var f struct {
+		StartWithWindows   *bool `json:"startWithWindows,omitempty"`
+		ShowStartDialog    *bool `json:"showStartDialog,omitempty"`
+		ShowCompleteDialog *bool `json:"showCompleteDialog,omitempty"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&f); err != nil {
+		http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.st.SetFlags(store.Flags{
+		StartWithWindows:   f.StartWithWindows,
+		ShowStartDialog:    f.ShowStartDialog,
+		ShowCompleteDialog: f.ShowCompleteDialog,
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Registering at login touches the system, so it follows the setting
+	// rather than being a separate switch the user has to find.
+	if f.StartWithWindows != nil && startup.Supported() {
+		if err := startup.Set(*f.StartWithWindows); err != nil {
+			log.Printf("run at login: %v", err)
+		}
+	}
+	writeJSON(w, http.StatusOK, s.st.Config())
 }
 
 func (s *Server) handleSetConfig(w http.ResponseWriter, r *http.Request) {

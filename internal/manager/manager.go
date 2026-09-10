@@ -6,7 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 	"time"
@@ -87,6 +89,28 @@ type AddRequest struct {
 	MaxConns int
 	Headers  map[string]string
 	Kind     string // "", "file" or "hls"; empty means detect from the URL
+
+	// Category overrides the one guessed from the filename; Description is
+	// the user's note. Both come from the Download File Info dialog.
+	Category    string
+	Description string
+}
+
+// filenameFromURL guesses a name from a URL path, for choosing a category
+// before the download has been probed.
+func filenameFromURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	base := path.Base(u.Path)
+	if base == "/" || base == "." {
+		return ""
+	}
+	if unesc, err := url.PathUnescape(base); err == nil {
+		base = unesc
+	}
+	return base
 }
 
 // Add queues a new download and returns its record.
@@ -95,11 +119,23 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 		return store.Record{}, errors.New("url is required")
 	}
 	cfg := m.st.Config()
-	if req.Dir == "" {
-		req.Dir = cfg.Dir
-	}
 	if req.MaxConns <= 0 {
 		req.MaxConns = cfg.MaxConns
+	}
+
+	// Work out the category from whatever name we can guess before the
+	// probe: the caller's filename, else the tail of the URL. The Download
+	// File Info dialog shows this and can override it.
+	guess := req.Filename
+	if guess == "" {
+		guess = filenameFromURL(req.URL)
+	}
+	cat := cfg.CategoryFor(guess)
+	if req.Category != "" {
+		cat = cfg.CategoryByName(req.Category)
+	}
+	if req.Dir == "" {
+		req.Dir = cfg.DirFor(cat)
 	}
 
 	kind := DetectKind(req.URL)
@@ -110,16 +146,18 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 		return store.Record{}, ErrDASHUnsupported
 	}
 	rec := store.Record{
-		ID:       store.NewID(),
-		URL:      req.URL,
-		Kind:     kind,
-		Filename: req.Filename,
-		Headers:  req.Headers,
-		Dir:      req.Dir,
-		MaxConns: req.MaxConns,
-		Size:     -1,
-		State:    string(engine.StateQueued),
-		Created:  time.Now(),
+		ID:          store.NewID(),
+		URL:         req.URL,
+		Kind:        kind,
+		Filename:    req.Filename,
+		Headers:     req.Headers,
+		Dir:         req.Dir,
+		MaxConns:    req.MaxConns,
+		Category:    cat.Name,
+		Description: req.Description,
+		Size:        -1,
+		State:       string(engine.StateQueued),
+		Created:     time.Now(),
 	}
 	m.st.Put(&rec)
 
@@ -228,6 +266,50 @@ func (m *Manager) Remove(id string, deleteFile bool) error {
 	m.broadcast(Event{Type: "removed", Item: rec})
 	m.pump()
 	return nil
+}
+
+// ResumeAll re-queues everything that is not already running or finished.
+func (m *Manager) ResumeAll() int {
+	m.mu.Lock()
+	var ids []string
+	for id, e := range m.entries {
+		switch engine.State(e.rec.State) {
+		case engine.StateDownloading, engine.StateProbing,
+			engine.StateQueued, engine.StateDone:
+			continue
+		}
+		ids = append(ids, id)
+	}
+	m.mu.Unlock()
+
+	for _, id := range ids {
+		m.Resume(id)
+	}
+	return len(ids)
+}
+
+// StopAll pauses everything and empties the pending queue, so nothing
+// starts back up on its own. Pause All only stops what is running; this is
+// the "and stay stopped" version.
+func (m *Manager) StopAll() int {
+	m.mu.Lock()
+	queued := m.queue
+	m.queue = nil
+	var running []job
+	for _, e := range m.entries {
+		if e.job != nil {
+			running = append(running, e.job)
+		}
+	}
+	m.mu.Unlock()
+
+	for _, id := range queued {
+		m.setState(id, engine.StatePaused, "")
+	}
+	for _, j := range running {
+		j.Pause()
+	}
+	return len(queued) + len(running)
 }
 
 // SetLimit changes the global throughput ceiling, in KiB/s. Zero is

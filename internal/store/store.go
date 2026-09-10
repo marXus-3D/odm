@@ -28,8 +28,13 @@ type Record struct {
 	Headers    map[string]string `json:"headers,omitempty"`
 	Dir        string            `json:"dir,omitempty"`
 	MaxConns   int               `json:"maxConns,omitempty"`
-	Created    time.Time         `json:"created"`
-	Finished   time.Time         `json:"finished,omitempty"`
+
+	// Category groups the download for filing; Description is the user's
+	// own note, both shown in the Download File Info dialog.
+	Category    string    `json:"category,omitempty"`
+	Description string    `json:"description,omitempty"`
+	Created     time.Time `json:"created"`
+	Finished    time.Time `json:"finished,omitempty"`
 }
 
 // Config holds user-tunable daemon settings.
@@ -42,16 +47,36 @@ type Config struct {
 	// LimitKBps caps total throughput across all downloads, in KiB/s.
 	// Zero means unlimited.
 	LimitKBps int `json:"limitKBps"`
+
+	// Categories file finished downloads by type.
+	Categories []Category `json:"categories"`
+
+	// StartWithWindows registers DM to run at login.
+	StartWithWindows bool `json:"startWithWindows"`
+
+	// ShowStartDialog asks where to save before a download begins;
+	// ShowCompleteDialog reports when one finishes. Both mirror IDM, and
+	// both are switched off from inside their own dialog.
+	ShowStartDialog    bool `json:"showStartDialog"`
+	ShowCompleteDialog bool `json:"showCompleteDialog"`
+
+	// Theme is "system", "light" or "dark".
+	Theme string `json:"theme"`
 }
 
 // DefaultConfig is used the first time the daemon starts.
 func DefaultConfig(downloadDir string) Config {
 	return Config{
-		Dir:           downloadDir,
-		MaxConns:      8,
-		MaxConcurrent: 3,
-		Port:          9111,
-		LimitKBps:     0,
+		Dir:                downloadDir,
+		MaxConns:           8,
+		MaxConcurrent:      3,
+		Port:               9111,
+		LimitKBps:          0,
+		Categories:         DefaultCategories(),
+		StartWithWindows:   false,
+		ShowStartDialog:    false,
+		ShowCompleteDialog: true,
+		Theme:              "system",
 	}
 }
 
@@ -99,6 +124,17 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 			if c.LimitKBps >= 0 {
 				s.cfg.LimitKBps = c.LimitKBps
 			}
+			if len(c.Categories) > 0 {
+				s.cfg.Categories = c.Categories
+			}
+			if c.Theme != "" {
+				s.cfg.Theme = c.Theme
+			}
+			// Booleans are read straight through: false is a real choice,
+			// so the "only take non-zero values" rule cannot apply.
+			s.cfg.StartWithWindows = c.StartWithWindows
+			s.cfg.ShowStartDialog = c.ShowStartDialog
+			s.cfg.ShowCompleteDialog = c.ShowCompleteDialog
 		}
 	}
 
@@ -142,7 +178,10 @@ func (s *Store) Config() Config {
 	return s.cfg
 }
 
-// SetConfig replaces the settings and writes them through immediately.
+// SetConfig merges non-empty fields and writes the settings through.
+//
+// Booleans cannot be merged this way, since false is indistinguishable from
+// unset; use SetFlags for those.
 func (s *Store) SetConfig(c Config) error {
 	s.mu.Lock()
 	if c.Dir != "" {
@@ -159,6 +198,42 @@ func (s *Store) SetConfig(c Config) error {
 	}
 	if c.LimitKBps >= 0 {
 		s.cfg.LimitKBps = c.LimitKBps
+	}
+	if len(c.Categories) > 0 {
+		s.cfg.Categories = c.Categories
+	}
+	if c.Theme != "" {
+		s.cfg.Theme = c.Theme
+	}
+	cfg := s.cfg
+	s.mu.Unlock()
+
+	b, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeAtomic(s.configPath(), b, 0o600)
+}
+
+// Flags are the boolean settings, passed around as a set so that turning
+// one off is not mistaken for leaving it alone.
+type Flags struct {
+	StartWithWindows   *bool
+	ShowStartDialog    *bool
+	ShowCompleteDialog *bool
+}
+
+// SetFlags updates whichever booleans are supplied and persists them.
+func (s *Store) SetFlags(f Flags) error {
+	s.mu.Lock()
+	if f.StartWithWindows != nil {
+		s.cfg.StartWithWindows = *f.StartWithWindows
+	}
+	if f.ShowStartDialog != nil {
+		s.cfg.ShowStartDialog = *f.ShowStartDialog
+	}
+	if f.ShowCompleteDialog != nil {
+		s.cfg.ShowCompleteDialog = *f.ShowCompleteDialog
 	}
 	cfg := s.cfg
 	s.mu.Unlock()

@@ -18,7 +18,8 @@ import (
 func runCommand(args []string) bool {
 	switch args[0] {
 	case "add", "ls", "list", "pause", "resume", "rm", "remove",
-		"open", "show", "ui", "limit", "daemon":
+		"open", "show", "ui", "limit", "daemon",
+		"pause-all", "resume-all", "stop-all", "startup":
 	default:
 		return false
 	}
@@ -50,6 +51,14 @@ func runCommand(args []string) bool {
 		cmdLimit(c, rest)
 	case "daemon":
 		cmdDaemon(c, rest)
+	case "pause-all":
+		must(c.PauseAll(), "everything paused")
+	case "resume-all":
+		must(c.ResumeAll(), "everything resumed")
+	case "stop-all":
+		must(c.StopAll(), "everything stopped")
+	case "startup":
+		cmdStartup(c, rest)
 	}
 	return true
 }
@@ -165,8 +174,46 @@ func cmdLimit(c *client.Client, args []string) {
 	}
 }
 
-// forEachID applies fn to every id, reporting failures per id rather than
-// aborting the batch. done is the past tense used in the success line.
+// must reports a failed whole-list operation, or prints what happened.
+func must(err error, done string) {
+	if err != nil {
+		fail("%v", err)
+	}
+	fmt.Println(done)
+}
+
+// cmdStartup shows or changes whether DM runs at login.
+func cmdStartup(c *client.Client, args []string) {
+	if len(args) == 0 {
+		st, err := c.State()
+		if err != nil {
+			fail("%v", err)
+		}
+		if !st.StartWithWindowsSupported {
+			fmt.Println("run at login is not supported on this platform")
+			return
+		}
+		if st.StartWithWindows {
+			fmt.Println("DM runs at login")
+		} else {
+			fmt.Println("DM does not run at login")
+		}
+		return
+	}
+	on := args[0] == "on" || args[0] == "enable" || args[0] == "true"
+	if !on && args[0] != "off" && args[0] != "disable" && args[0] != "false" {
+		fail("usage: dm startup [on|off]")
+	}
+	if _, err := c.SetFlags(client.Flags{StartWithWindows: &on}); err != nil {
+		fail("%v", err)
+	}
+	if on {
+		fmt.Println("DM will run at login")
+	} else {
+		fmt.Println("DM will no longer run at login")
+	}
+}
+
 func cmdDaemon(c *client.Client, args []string) {
 	if len(args) > 0 && (args[0] == "stop" || args[0] == "quit") {
 		if err := c.Shutdown(); err != nil {
@@ -178,6 +225,8 @@ func cmdDaemon(c *client.Client, args []string) {
 	fmt.Printf("daemon is up at %s\n", c.Base)
 }
 
+// forEachID applies fn to every id, reporting failures per id rather than
+// aborting the batch. done is the past tense used in the success line.
 func forEachID(ids []string, verb, done string, fn func(string) error) {
 	if len(ids) == 0 {
 		fail("usage: dm %s <id>...", verb)

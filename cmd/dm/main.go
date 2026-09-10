@@ -106,6 +106,10 @@ func usage() {
   dm pause|resume <id>...    control a queued download
   dm rm [-f] <id>...         forget one; -f also deletes the file
   dm open|show <id>          open the file, or reveal it in Explorer
+  dm pause-all               pause everything that is running
+  dm resume-all              resume everything unfinished
+  dm stop-all                pause everything and clear the queue
+  dm startup [on|off]        show or set whether DM runs at login
   dm limit [<KiB/s>|off]     show or set the global speed limit
   dm ui                      print the web UI url
   dm daemon [stop]           daemon status, or stop it gracefully
