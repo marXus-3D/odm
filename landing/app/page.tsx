@@ -1,153 +1,185 @@
-import FileSection from "@/components/FileSection";
-import Measurement from "@/components/Measurement";
-import Handoff from "@/components/Handoff";
+import CopyCommand from "@/components/CopyCommand";
 
 // Where the setup program lives. Point this at a release once there is one.
 const setupUrl = "/DM-Setup.exe";
 
+const downloads = [
+  {
+    name: "ubuntu-24.04.1-desktop-amd64.iso",
+    host: "releases.ubuntu.com",
+    size: "5.8 GB",
+    lanes: [100, 100, 78, 62, 40, 22, 12, 6],
+    status: <><b>41.4 MB/s</b> · 40%</>,
+  },
+  {
+    name: "lecture-07-distributed-systems.mp4",
+    host: "HLS, 412 of 580 segments",
+    size: "1.2 GB",
+    lanes: [100, 100, 100, 100, 100, 70, 0, 0],
+    status: <><b>12.9 MB/s</b> · 71%</>,
+  },
+  {
+    name: "blender-4.2-windows-x64.zip",
+    host: "download.blender.org",
+    size: "336 MB",
+    lanes: [100, 100, 100, 100, 100, 100, 100, 100],
+    status: <><b>done</b> · 8.1 s</>,
+  },
+];
+
+const cells = [
+  ["×8", "Eight connections, one file", "Hosts cap the socket, not you. Ranges are split as the transfer runs and every byte is written to its final offset. No part files, no merge."],
+  ["↺", "Exact resume", "Finished ranges are recorded as they land. Restart the app, the PC or the network and DM continues from the byte it stopped at."],
+  ["▶", "Streams to MP4", "HLS playlists are fetched segment by segment and, with ffmpeg present, written out as one MP4."],
+  ["⌂", "Native window", "Dark Windows app with a tray icon, save-as and progress dialogs, and finish actions: open, open folder, sleep, shut down."],
+  ["$", "Web UI and CLI", "The same list on localhost for the browser, and dm add, dm ls, dm pause for scripts."],
+  ["◫", "No admin prompt", "Installs to your user folder. The same file uninstalls and keeps your download list unless told otherwise."],
+];
+
 export default function Page() {
   return (
-    <div className="sheet">
-      <header className="top">
-        <span className="label">DM, download manager for Windows</span>
-        <nav>
-          <a href="#figures">Figures</a>
-          <a href="#notes">Notes</a>
-          <a href="#install">Install</a>
-        </nav>
-      </header>
-
-      <section className="hero">
-        <div>
-          <h1 className="display">One file, eight connections, drawn to scale</h1>
-          <p>
-            DM downloads a file over eight connections, splits the remaining bytes as it goes
-            and writes every piece to its final offset. The browser extension hands over the
-            link with your cookies. Windows, no admin rights.
-          </p>
-          <a className="button solid" href={setupUrl}>
-            Download DM-Setup.exe
-          </a>
-          <a className="button" href="#figures">
-            Read the drawing
-          </a>
-          <small>28 MB. The same file uninstalls.</small>
-        </div>
-        <FileSection />
-      </section>
-
-      <div className="figs" id="figures">
-        <section>
-          <h2 className="display">The measurement</h2>
-          <p>
-            An 83 MiB file from dl.google.com, one connection against eight, same machine,
-            byte-identical output.
-          </p>
-          <Measurement />
-        </section>
-        <section>
-          <h2 className="display">The hand-off</h2>
-          <p>
-            The browser starts a download; the extension intercepts it and passes link and
-            cookies to DM over the browser&apos;s native-messaging channel.
-          </p>
-          <Handoff />
-        </section>
+    <>
+      <div className="light" aria-hidden="true">
+        <div className="core" />
+        <div className="cone" />
+        <div className="rays soft" />
+        <div className="rays" />
+        <div className="dust" />
       </div>
 
-      <div className="notes" id="notes">
-        <div>
-          <h2 className="display">General notes</h2>
-          <ol>
-            <li>
-              <b>Resume is exact.</b> Finished ranges are recorded as they land. After a
-              restart of the app, the PC or the network, transfer continues from the byte it
-              stopped at.
-            </li>
-            <li>
-              <b>Streaming video becomes one file.</b> HLS playlists are fetched segment by
-              segment and, with ffmpeg present, written out as MP4.
-            </li>
-            <li>
-              <b>The window is native.</b> Dark Windows app with a tray icon, save-as and
-              progress dialogs, a finished dialog, and finish actions: open the file, open the
-              folder, sleep, shut down, restart.
-            </li>
-            <li>
-              <b>Other ways in.</b> A web page on localhost shows the same list. A command line
-              adds, lists, pauses and resumes for scripts.
-            </li>
-            <li>
-              <b>Nothing to clean up.</b> The installer needs no administrator prompt and the
-              uninstaller keeps your download list unless told otherwise.
-            </li>
-          </ol>
-        </div>
-        <div>
-          <h2 className="display">Materials</h2>
-          <table className="spec">
-            <tbody>
-              <tr>
-                <th>Language</th>
-                <td>Go, no third-party modules</td>
-              </tr>
-              <tr>
-                <th>Idle memory</th>
-                <td>about 9 MB</td>
-              </tr>
-              <tr>
-                <th>Connections per file</th>
-                <td>8, split dynamically</td>
-              </tr>
-              <tr>
-                <th>Install location</th>
-                <td>your user folder</td>
-              </tr>
-              <tr>
-                <th>Setup size</th>
-                <td>28 MB</td>
-              </tr>
-              <tr>
-                <th>Optional</th>
-                <td>ffmpeg for MP4 output</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div className="page">
+        <header className="top">
+          <div className="in">
+            <a className="brand" href="#">
+              <i />
+              dm
+            </a>
+            <nav>
+              <a href="#features">Features</a>
+              <a href="#handoff">Extension</a>
+              <a href="#install">Docs</a>
+              <a className="solid" href={setupUrl}>
+                Download
+              </a>
+            </nav>
+          </div>
+        </header>
+
+        <section className="hero">
+          <div className="in">
+            <span className="eyebrow">
+              <b>v0.1</b> Windows 10 and 11, no admin rights
+            </span>
+            <h1>The download manager for Windows.</h1>
+            <p className="lede">
+              Eight connections per file, exact resume after anything, streaming video to MP4,
+              and a browser extension that hands links over with your cookies. One 28 MB file
+              installs it.
+            </p>
+            <CopyCommand command="DM-Setup.exe -silent" />
+            <div className="acts">
+              <a className="btn" href={setupUrl}>
+                Download DM-Setup.exe
+              </a>
+              <a className="btn ghost" href="#features">
+                How it works
+              </a>
+            </div>
+
+            <div className="win" role="img" aria-label="DM download list">
+              <div className="bar">
+                <span>DM</span>
+                <span>— ▢ ✕</span>
+              </div>
+              {downloads.map((d) => (
+                <div className="row" key={d.name}>
+                  <div className="n">
+                    {d.name}
+                    <small>{d.host}</small>
+                  </div>
+                  <div className="s">{d.size}</div>
+                  <div className="bar8">
+                    {d.lanes.map((p, i) => (
+                      <i key={i} style={{ "--p": `${p}%` } as React.CSSProperties} />
+                    ))}
+                  </div>
+                  <div className="t">{d.status}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="nums" aria-label="Numbers">
+          <div className="in">
+            <div>
+              <b>8</b>
+              <span>connections per file</span>
+            </div>
+            <div>
+              <b>6.5 s</b>
+              <span>for 83 MiB, browser took 13.7 s</span>
+            </div>
+            <div>
+              <b>9 MB</b>
+              <span>idle memory</span>
+            </div>
+            <div>
+              <b>0</b>
+              <span>third-party modules</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="cells" id="features">
+          <div className="in">
+            {cells.map(([ic, h, p]) => (
+              <div className="cell" key={h}>
+                <div className="ic">{ic}</div>
+                <h3>{h}</h3>
+                <p>{p}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="log" id="handoff">
+          <div className="in">
+            <div>
+              <h2>The extension hands over the link.</h2>
+              <p>
+                Chrome, Edge, Brave and Vivaldi. When the browser starts a download the extension
+                intercepts it and passes URL and cookies to DM over native messaging. Files behind
+                a login download the way they would in the browser, only faster. Video pages get a
+                button.
+              </p>
+            </div>
+            <div>
+              <pre>
+                <i>12:04:01.203</i> <b>ext</b>   download intercepted  ubuntu-24.04.1-desktop-amd64.iso{"\n"}
+                <i>12:04:01.204</i> <b>ext</b>   cookies attached      2{"\n"}
+                <i>12:04:01.211</i> <b>dm</b>    HEAD ok  5.8 GB  ranges: yes{"\n"}
+                <i>12:04:01.212</i> <b>dm</b>    preallocated, 8 connections{"\n"}
+                <i>12:04:01.240</i> <b>dm</b>    c1 200  0-3 116 000 000{"\n"}
+                <i>12:04:01.241</i> <b>dm</b>    c2 206  3 116 000 000-5 800 000 000{"\n"}
+                <i>12:04:03.902</i> <b>dm</b>    c4 idle, split c1: takes 1 558 000 000-{"\n"}
+                <i>12:04:07.115</i> <b>dm</b>    41.4 MB/s  40%
+              </pre>
+            </div>
+          </div>
+        </section>
+
+        <footer className="foot" id="install">
+          <div className="in">
+            <span>DM, a download manager for Windows. Written in Go.</span>
+            <span>
+              <a href={setupUrl}>Download</a>
+              <a href="#">Changelog</a>
+              <a href="#">Source</a>
+            </span>
+          </div>
+        </footer>
       </div>
-
-      <section className="get" id="install">
-        <div>
-          <h2 className="display">Install from one file</h2>
-          <p>
-            DM-Setup.exe installs the app, registers the browser hook and offers the extension.
-            Unattended: <code>DM-Setup.exe -silent</code>.
-          </p>
-        </div>
-        <a className="button solid" href={setupUrl}>
-          Download DM-Setup.exe
-        </a>
-      </section>
-
-      <footer className="title-block">
-        <div>
-          <span className="label">Title</span>
-          <span className="v big">DM</span>
-          <span className="v">Download manager for Windows</span>
-        </div>
-        <div>
-          <span className="label">Drawn in</span>
-          <span className="v">Go</span>
-        </div>
-        <div>
-          <span className="label">Revision</span>
-          <span className="v">0.1.0</span>
-        </div>
-        <div>
-          <span className="label">Sheet</span>
-          <span className="v">1 of 1</span>
-        </div>
-      </footer>
-    </div>
+    </>
   );
 }

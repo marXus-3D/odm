@@ -1,28 +1,28 @@
 import type { Metadata } from "next";
-import { Barlow, Barlow_Semi_Condensed } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const barlow = Barlow({
-  variable: "--font-body",
+const geist = Geist({
+  variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
 });
 
-const barlowCondensed = Barlow_Semi_Condensed({
-  variable: "--font-display",
+const geistMono = Geist_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
-  title: "DM, a download manager for Windows",
+  title: "DM, the download manager for Windows",
   description:
     "Eight connections per file, exact resume, streaming video to MP4, and a browser extension that hands links over with your cookies.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable}`}>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
       <body>{children}</body>
     </html>
   );

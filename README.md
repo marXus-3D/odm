@@ -463,10 +463,10 @@ npm run dev        # http://localhost:3000
 npm run build      # writes the site to landing/out
 ```
 
-It is the blueprint direction: a drawing sheet with the download as a
-dimensioned section, three figures, notes and a title block. GSAP traces the
-drawing in once on load and extends the measurement bars when they scroll
-into view; both stay still when the system asks for reduced motion.
+It is draft 20: black, Geist, a lit hero with a fan of light shafts over
+the download window, then numbers, six feature cells and the browser
+hand-off as a log. Rules and backgrounds run edge to edge; text sits in a
+1320 px column. The shafts sway slowly and stay still under reduced motion.
 
 Twenty drafts are kept in `site/pages` and served by
 `go run ./cmd/dm-site` at <http://127.0.0.1:8090/1> through `/20`.
