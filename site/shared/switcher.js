@@ -2,7 +2,7 @@
 // page draft. Left/right arrow keys move between drafts as well.
 (function () {
   var names = ["Segments", "Datasheet", "Poster", "Fluent", "Essay", "Blueprint", "Ledger", "Swiss", "Industrial",
-    "Auth", "Spotlight", "Glass", "SaaS", "Bento", "Terminal", "Sticker", "Serif", "Win95", "Aurora"];
+    "Auth", "Spotlight", "Glass", "SaaS", "Bento", "Terminal", "Sticker", "Serif", "Win95", "Aurora", "Sunlit"];
   var total = names.length;
   var m = location.pathname.match(/\/([1-9][0-9]?)\/?$/);
   var current = m ? +m[1] : 1;

@@ -468,5 +468,5 @@ dimensioned section, three figures, notes and a title block. GSAP traces the
 drawing in once on load and extends the measurement bars when they scroll
 into view; both stay still when the system asks for reduced motion.
 
-Nineteen drafts are kept in `site/pages` and served by
-`go run ./cmd/dm-site` at <http://127.0.0.1:8090/1> through `/19`.
+Twenty drafts are kept in `site/pages` and served by
+`go run ./cmd/dm-site` at <http://127.0.0.1:8090/1> through `/20`.
