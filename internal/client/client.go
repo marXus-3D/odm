@@ -45,6 +45,16 @@ type State struct {
 	Config    store.Config   `json:"config"`
 }
 
+// NewLocal returns a client for a daemon whose address and token are
+// already known, which is the case inside the daemon process itself.
+func NewLocal(base, token string) *Client {
+	return &Client{
+		Base:  strings.TrimSuffix(base, "/"),
+		Token: token,
+		http:  http.Client{Timeout: 20 * time.Second},
+	}
+}
+
 // Discover reads the token and port the daemon wrote to its state directory.
 // It does not check that the daemon is actually up; call Ping for that.
 func Discover() (*Client, error) {

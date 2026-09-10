@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/marcus/dm/internal/manager"
+	"github.com/marcus/dm/internal/nativeui"
 	"github.com/marcus/dm/internal/store"
 	"github.com/marcus/dm/internal/trayicon"
 )
@@ -26,7 +27,15 @@ func runTray(uiURL string, mgr *manager.Manager, st *store.Store, shutdown func(
 	items := []trayicon.MenuItem{
 		// The first enabled entry is also what a left click runs, so the
 		// most useful action goes first.
-		{Label: "Open DM", OnClick: func() { openURL(uiURL) }},
+		{Label: "Open DM", OnClick: func() {
+			// Bring the desktop window back if it exists; otherwise there
+			// is no window in this process and the web UI is the next best
+			// thing.
+			if !nativeui.Show() {
+				openURL(uiURL)
+			}
+		}},
+		{Label: "Open web UI", OnClick: func() { openURL(uiURL) }},
 		{Label: "Downloads folder", OnClick: func() {
 			openPath(st.Config().Dir)
 		}},

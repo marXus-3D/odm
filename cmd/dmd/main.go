@@ -11,12 +11,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/marcus/dm/internal/api"
+	"github.com/marcus/dm/internal/client"
 	"github.com/marcus/dm/internal/engine"
 	"github.com/marcus/dm/internal/manager"
+	"github.com/marcus/dm/internal/nativeui"
 	"github.com/marcus/dm/internal/store"
 	"github.com/marcus/dm/internal/trayicon"
 )
@@ -28,8 +31,9 @@ func main() {
 		printURL   = flag.Bool("print-url", false, "print the UI url and token, then exit")
 		background = flag.Bool("background", false,
 			"started automatically; do not open the web UI")
-		noTray = flag.Bool("no-tray", false, "do not show a notification-area icon")
-		openUI = flag.Bool("open", false, "open the web UI even when running in the background")
+		noTray   = flag.Bool("no-tray", false, "do not show a notification-area icon")
+		noWindow = flag.Bool("no-window", false, "run headless; do not open the desktop window")
+		openUI   = flag.Bool("open", false, "open the web UI in a browser instead of the desktop window")
 	)
 	flag.Parse()
 
@@ -101,21 +105,40 @@ func main() {
 		}
 	}()
 
-	// Launched by hand rather than by the browser: show the user something,
-	// otherwise double-clicking the binary looks like nothing happened.
-	if *openUI || !*background {
+	// Launched by hand rather than by the browser, so show the user
+	// something: otherwise double-clicking the binary looks like nothing
+	// happened at all.
+	showWindow := !*background && !*noWindow && !*openUI
+	if *openUI || (!*background && *noWindow) {
 		openURL(uiURL)
 	}
 
+	// Windows delivers messages to the thread that created a window, so the
+	// tray and the main window each get their own locked thread and pump
+	// their own loop.
+	go func() {
+		<-ctx.Done()
+		trayicon.StopActive()
+		nativeui.Quit()
+	}()
+
 	if !*noTray {
-		// The tray owns the main goroutine because Windows requires the
-		// thread that created the window to pump its messages. Shutdown
-		// arrives either from the tray menu or from a signal.
 		go func() {
-			<-ctx.Done()
-			trayicon.StopActive()
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+			runTray(uiURL, mgr, st, shutdown)
 		}()
-		if !runTray(uiURL, mgr, st, shutdown) {
+	}
+
+	if showWindow {
+		runtime.LockOSThread()
+		err := nativeui.Run(client.NewLocal(uiURL, token), shutdown)
+		runtime.UnlockOSThread()
+		if err != nil {
+			// No desktop window on this platform, or it failed to start:
+			// fall back to the browser rather than leaving nothing.
+			log.Printf("desktop window unavailable: %v", err)
+			openURL(uiURL)
 			<-ctx.Done()
 		}
 	} else {
