@@ -47,9 +47,10 @@ const cmdOnFinishBase = 1200
 // wmAppRefresh asks the UI thread to apply rows fetched elsewhere.
 // wmAppQuit tears the window down for real, as opposed to hiding it.
 const (
-	wmAppRefresh = wmApp + 1
-	wmAppQuit    = wmApp + 2
-	wmAppDialog  = wmApp + 3
+	wmAppRefresh   = wmApp + 1
+	wmAppQuit      = wmApp + 2
+	wmAppDialog    = wmApp + 3
+	wmAppExtPrompt = wmApp + 4
 )
 
 const (
@@ -101,6 +102,9 @@ type App struct {
 	// pendingComplete those whose completion has not been announced.
 	pendingConfirm  []store.Record
 	pendingComplete []store.Record
+
+	// extPrompted stops the extension prompt reappearing every refresh.
+	extPrompted bool
 
 	// started guards the first refresh, so opening the app does not replay
 	// a completion dialog for everything already in the list.
@@ -456,6 +460,7 @@ func (a *App) refresh() {
 	}
 
 	a.syncOptionsMenu(st)
+	a.maybePromptExtension(st)
 
 	title := "DM Download Manager"
 	if active > 0 {

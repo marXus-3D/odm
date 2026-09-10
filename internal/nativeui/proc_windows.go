@@ -43,6 +43,15 @@ func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) ui
 		}
 		return 0
 
+	case wmAppExtPrompt:
+		if a != nil && a.showExtPrompt() {
+			off := true
+			go func() {
+				a.client.SetFlags(client.Flags{ExtensionPromptDismissed: &off})
+			}()
+		}
+		return 0
+
 	case wmCommand:
 		if a != nil {
 			a.onCommand(uint32(wparam & 0xFFFF))

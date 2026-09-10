@@ -63,6 +63,10 @@ type Config struct {
 	// Theme is "system", "light" or "dark".
 	Theme string `json:"theme"`
 
+	// ExtensionPromptDismissed stops the app nagging about the browser
+	// extension.
+	ExtensionPromptDismissed bool `json:"extensionPromptDismissed"`
+
 	// OnComplete is what to do once every download has finished: none,
 	// exit, sleep, hibernate, shutdown or restart. It is one-shot and
 	// resets itself after firing, so a machine does not shut down every
@@ -117,9 +121,10 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 		// plain Config cannot tell "absent" from "false", so a config file
 		// written before a flag existed would silently turn it off.
 		var flags struct {
-			StartWithWindows   *bool `json:"startWithWindows"`
-			ShowStartDialog    *bool `json:"showStartDialog"`
-			ShowCompleteDialog *bool `json:"showCompleteDialog"`
+			StartWithWindows         *bool `json:"startWithWindows"`
+			ExtensionPromptDismissed *bool `json:"extensionPromptDismissed"`
+			ShowStartDialog          *bool `json:"showStartDialog"`
+			ShowCompleteDialog       *bool `json:"showCompleteDialog"`
 		}
 		json.Unmarshal(b, &flags)
 
@@ -150,6 +155,9 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 			if flags.StartWithWindows != nil {
 				s.cfg.StartWithWindows = *flags.StartWithWindows
 			}
+			if flags.ExtensionPromptDismissed != nil {
+				s.cfg.ExtensionPromptDismissed = *flags.ExtensionPromptDismissed
+			}
 			if flags.ShowStartDialog != nil {
 				s.cfg.ShowStartDialog = *flags.ShowStartDialog
 			}
@@ -168,6 +176,13 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 		}
 	}
 	return s, nil
+}
+
+// ExtensionSeen reports whether a browser extension has ever connected
+// through the native messaging host.
+func (s *Store) ExtensionSeen() bool {
+	_, err := os.Stat(filepath.Join(s.dir, "extension_seen"))
+	return err == nil
 }
 
 func (s *Store) dbPath() string     { return filepath.Join(s.dir, "downloads.json") }
@@ -242,9 +257,10 @@ func (s *Store) SetConfig(c Config) error {
 // Flags are the boolean settings, passed around as a set so that turning
 // one off is not mistaken for leaving it alone.
 type Flags struct {
-	StartWithWindows   *bool
-	ShowStartDialog    *bool
-	ShowCompleteDialog *bool
+	StartWithWindows         *bool
+	ShowStartDialog          *bool
+	ShowCompleteDialog       *bool
+	ExtensionPromptDismissed *bool
 }
 
 // SetFlags updates whichever booleans are supplied and persists them.
@@ -258,6 +274,9 @@ func (s *Store) SetFlags(f Flags) error {
 	}
 	if f.ShowCompleteDialog != nil {
 		s.cfg.ShowCompleteDialog = *f.ShowCompleteDialog
+	}
+	if f.ExtensionPromptDismissed != nil {
+		s.cfg.ExtensionPromptDismissed = *f.ExtensionPromptDismissed
 	}
 	cfg := s.cfg
 	s.mu.Unlock()

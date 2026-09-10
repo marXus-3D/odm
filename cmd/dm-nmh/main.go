@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/marcus/dm/internal/client"
 	"github.com/marcus/dm/internal/store"
@@ -95,7 +96,18 @@ func (h *handler) connect() error {
 		return err
 	}
 	h.c = c
+	markExtensionSeen()
 	return nil
+}
+
+// markExtensionSeen records that a browser really did reach the host, so
+// the app can stop telling the user to install the extension.
+func markExtensionSeen() {
+	path := filepath.Join(store.StateDir(), "extension_seen")
+	now := time.Now().UTC().Format(time.RFC3339)
+	if err := os.WriteFile(path, []byte(now), 0o600); err != nil {
+		log.Printf("record extension: %v", err)
+	}
 }
 
 func (h *handler) handle(req request) response {

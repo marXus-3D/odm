@@ -201,6 +201,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		// item removed behind our back is shown accurately.
 		"startWithWindows":          startup.Enabled(),
 		"startWithWindowsSupported": startup.Supported(),
+		"extensionSeen":             s.st.ExtensionSeen(),
 	})
 }
 
@@ -293,18 +294,20 @@ func (s *Server) handleStopAll(w http.ResponseWriter, r *http.Request) {
 // the merge-non-empty rules the rest of the config uses.
 func (s *Server) handleSetFlags(w http.ResponseWriter, r *http.Request) {
 	var f struct {
-		StartWithWindows   *bool `json:"startWithWindows,omitempty"`
-		ShowStartDialog    *bool `json:"showStartDialog,omitempty"`
-		ShowCompleteDialog *bool `json:"showCompleteDialog,omitempty"`
+		StartWithWindows         *bool `json:"startWithWindows,omitempty"`
+		ShowStartDialog          *bool `json:"showStartDialog,omitempty"`
+		ShowCompleteDialog       *bool `json:"showCompleteDialog,omitempty"`
+		ExtensionPromptDismissed *bool `json:"extensionPromptDismissed,omitempty"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&f); err != nil {
 		http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err := s.st.SetFlags(store.Flags{
-		StartWithWindows:   f.StartWithWindows,
-		ShowStartDialog:    f.ShowStartDialog,
-		ShowCompleteDialog: f.ShowCompleteDialog,
+		StartWithWindows:         f.StartWithWindows,
+		ShowStartDialog:          f.ShowStartDialog,
+		ShowCompleteDialog:       f.ShowCompleteDialog,
+		ExtensionPromptDismissed: f.ExtensionPromptDismissed,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

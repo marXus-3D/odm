@@ -59,6 +59,7 @@ type State struct {
 
 	StartWithWindows          bool `json:"startWithWindows"`
 	StartWithWindowsSupported bool `json:"startWithWindowsSupported"`
+	ExtensionSeen             bool `json:"extensionSeen"`
 }
 
 // NewLocal returns a client for a daemon whose address and token are
@@ -241,9 +242,10 @@ func (c *Client) StopAll() error {
 
 // Flags are the boolean settings; a nil field is left alone.
 type Flags struct {
-	StartWithWindows   *bool `json:"startWithWindows,omitempty"`
-	ShowStartDialog    *bool `json:"showStartDialog,omitempty"`
-	ShowCompleteDialog *bool `json:"showCompleteDialog,omitempty"`
+	StartWithWindows         *bool `json:"startWithWindows,omitempty"`
+	ShowStartDialog          *bool `json:"showStartDialog,omitempty"`
+	ShowCompleteDialog       *bool `json:"showCompleteDialog,omitempty"`
+	ExtensionPromptDismissed *bool `json:"extensionPromptDismissed,omitempty"`
 }
 
 // SetFlags updates the boolean settings.

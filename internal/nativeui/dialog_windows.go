@@ -203,6 +203,17 @@ func openURL(url string) {
 	_ = cmd.Start()
 }
 
+// execCommand builds a hidden-window command, or nil when the program is
+// not on PATH.
+func execCommand(name string, args ...string) *exec.Cmd {
+	if _, err := exec.LookPath(name); err != nil {
+		return nil
+	}
+	cmd := exec.Command(name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd
+}
+
 func openPath(path string) {
 	if path == "" {
 		return
