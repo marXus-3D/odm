@@ -42,6 +42,20 @@ Get-ChildItem bin -Filter "*.exe~" -ErrorAction SilentlyContinue | ForEach-Objec
 }
 
 if (-not $SkipTests) {
+    # The daemon, engine, CLI and web UI are meant to build everywhere; only
+    # the desktop window and tray are Windows-only. Compiling for the other
+    # platforms catches a stub drifting out of step with the real one.
+    Write-Host "`nchecking cross-platform builds"
+    foreach ($t in @("linux/amd64", "darwin/arm64")) {
+        $parts = $t.Split("/")
+        $env:GOOS = $parts[0]; $env:GOARCH = $parts[1]
+        go build ./... 2>&1 | Write-Host
+        $failed = $LASTEXITCODE -ne 0
+        Remove-Item Env:GOOS, Env:GOARCH
+        if ($failed) { throw "build failed for $t" }
+        Write-Host "  $t ok"
+    }
+
     Write-Host "`nrunning tests"
     go test ./... 2>&1 | Where-Object { $_ -notmatch "no test files" } | Write-Host
     if ($LASTEXITCODE -ne 0) { throw "tests failed" }
