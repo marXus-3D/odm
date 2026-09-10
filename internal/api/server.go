@@ -24,10 +24,15 @@ type Server struct {
 	st    *store.Store
 	token string
 	addr  string
+
+	// shutdown asks the daemon to stop. It is how "dm daemon stop" reaches
+	// the same graceful path as Ctrl-C, which matters on Windows where a
+	// console process with no window cannot be signalled from outside.
+	shutdown func()
 }
 
-func New(mgr *manager.Manager, st *store.Store, token, addr string) *Server {
-	return &Server{mgr: mgr, st: st, token: token, addr: addr}
+func New(mgr *manager.Manager, st *store.Store, token, addr string, shutdown func()) *Server {
+	return &Server{mgr: mgr, st: st, token: token, addr: addr, shutdown: shutdown}
 }
 
 // Handler builds the routing table.
@@ -44,6 +49,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/downloads/{id}/open", s.guard(s.handleOpen))
 	mux.HandleFunc("PUT /api/config", s.guard(s.handleSetConfig))
 	mux.HandleFunc("GET /api/events", s.guard(s.handleEvents))
+	mux.HandleFunc("POST /api/shutdown", s.guard(s.handleShutdown))
 	mux.HandleFunc("GET /api/ping", s.guard(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}))
@@ -275,6 +281,18 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "data: %s\n\n", b)
 			flusher.Flush()
 		}
+	}
+}
+
+// handleShutdown answers before stopping, so the caller sees a clean reply
+// rather than a dropped connection.
+func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "stopping"})
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+	if s.shutdown != nil {
+		go s.shutdown()
 	}
 }
 

@@ -49,7 +49,7 @@ func runCommand(args []string) bool {
 	case "limit":
 		cmdLimit(c, rest)
 	case "daemon":
-		fmt.Printf("daemon is up at %s\n", c.Base)
+		cmdDaemon(c, rest)
 	}
 	return true
 }
@@ -167,6 +167,17 @@ func cmdLimit(c *client.Client, args []string) {
 
 // forEachID applies fn to every id, reporting failures per id rather than
 // aborting the batch. done is the past tense used in the success line.
+func cmdDaemon(c *client.Client, args []string) {
+	if len(args) > 0 && (args[0] == "stop" || args[0] == "quit") {
+		if err := c.Shutdown(); err != nil {
+			fail("%v", err)
+		}
+		fmt.Println("daemon stopping; running downloads were paused and can be resumed")
+		return
+	}
+	fmt.Printf("daemon is up at %s\n", c.Base)
+}
+
 func forEachID(ids []string, verb, done string, fn func(string) error) {
 	if len(ids) == 0 {
 		fail("usage: dm %s <id>...", verb)

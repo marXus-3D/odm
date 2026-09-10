@@ -51,13 +51,17 @@ func main() {
 		return
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// A separate cancel so the API can request the same graceful shutdown
+	// that Ctrl-C triggers.
+	ctx, shutdown := context.WithCancel(sigCtx)
+	defer shutdown()
 
 	mgr := manager.New(ctx, st)
 	mgr.StartFlusher(ctx, 2*time.Second)
 
-	srv := api.New(mgr, st, token, addr)
+	srv := api.New(mgr, st, token, addr, shutdown)
 	ln, httpSrv, err := srv.Listen()
 	if err != nil {
 		log.Fatalf("listen on %s: %v (is another dmd already running?)", addr, err)
@@ -83,15 +87,26 @@ func main() {
 	<-ctx.Done()
 	log.Printf("shutting down, saving resume state...")
 
-	// Pause first so every worker writes its sidecar, then let the HTTP
-	// server drain.
+	// Pause first so every worker writes its resume sidecar.
 	mgr.PauseAll()
+	time.Sleep(300 * time.Millisecond) // let in-flight sidecar writes land
+
+	// Persist the download list while the listener is still bound. The bound
+	// port is what stops a second daemon from starting, so flushing after we
+	// release it opens a window where a new daemon loads the old list and our
+	// write then clobbers whatever it does next.
+	if err := st.Flush(); err != nil {
+		log.Printf("final flush: %v", err)
+	}
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = httpSrv.Shutdown(shutdownCtx)
-	time.Sleep(300 * time.Millisecond) // let in-flight sidecar writes land
+
+	// A pause that landed during Shutdown still needs recording; the port is
+	// gone by now, but so is any writer that could race us.
 	if err := st.Flush(); err != nil {
-		log.Printf("final flush: %v", err)
+		log.Printf("post-shutdown flush: %v", err)
 	}
 	log.Printf("bye")
 }

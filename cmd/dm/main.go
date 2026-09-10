@@ -108,6 +108,7 @@ func usage() {
   dm open|show <id>          open the file, or reveal it in Explorer
   dm limit [<KiB/s>|off]     show or set the global speed limit
   dm ui                      print the web UI url
+  dm daemon [stop]           daemon status, or stop it gracefully
 
 flags for the direct form:
 `)

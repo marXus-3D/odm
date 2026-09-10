@@ -190,6 +190,11 @@ func (c *Client) Progress(id string) (map[string]any, error) {
 	return out, nil
 }
 
+// Shutdown asks the daemon to stop gracefully.
+func (c *Client) Shutdown() error {
+	return c.do(http.MethodPost, "/api/shutdown", nil, nil)
+}
+
 func (c *Client) SetConfig(cfg store.Config) (*store.Config, error) {
 	var out store.Config
 	if err := c.do(http.MethodPut, "/api/config", cfg, &out); err != nil {
