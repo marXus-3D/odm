@@ -100,6 +100,9 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 	if req.Kind != "" {
 		kind = req.Kind // the extension may have sniffed the content type
 	}
+	if kind == KindDASH {
+		return store.Record{}, ErrDASHUnsupported
+	}
 	rec := store.Record{
 		ID:       store.NewID(),
 		URL:      req.URL,

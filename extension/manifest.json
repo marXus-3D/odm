@@ -11,7 +11,9 @@
     "contextMenus",
     "storage",
     "nativeMessaging",
-    "notifications"
+    "notifications",
+    "webRequest",
+    "tabs"
   ],
   "host_permissions": [
     "<all_urls>"

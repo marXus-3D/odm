@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 
@@ -54,7 +55,13 @@ func (j hlsJob) Summary() (int64, int64, string) {
 const (
 	KindFile = "file"
 	KindHLS  = "hls"
+	KindDASH = "dash"
 )
+
+// ErrDASHUnsupported is returned rather than saving the manifest XML under a
+// video filename, which is what treating a .mpd as a plain file would do.
+var ErrDASHUnsupported = errors.New(
+	"DASH (.mpd) streams are not supported yet; only HLS (.m3u8) playlists are")
 
 // DetectKind guesses from the URL whether this is a streaming playlist.
 //
@@ -75,6 +82,9 @@ func DetectKind(rawURL string) string {
 	// Some CDNs put the playlist in a query parameter instead.
 	if strings.Contains(strings.ToLower(u.RawQuery), ".m3u8") {
 		return KindHLS
+	}
+	if strings.HasSuffix(p, ".mpd") {
+		return KindDASH
 	}
 	return KindFile
 }

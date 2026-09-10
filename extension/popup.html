@@ -19,6 +19,15 @@
   .row.error .bar > i { background: #f4586a; }
   .meta { opacity: .7; font-size: 11px; display: flex; gap: 10px; flex-wrap: wrap; }
   .msg { padding: 20px 12px; text-align: center; opacity: .7; }
+  .section { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase;
+             letter-spacing: .6px; opacity: .6; }
+  .media-row { display: flex; gap: 8px; align-items: center; padding: 8px 12px;
+               border-bottom: 1px solid #8882; }
+  .media-row .u { flex: 1; min-width: 0; font-size: 12px; overflow: hidden;
+                  text-overflow: ellipsis; white-space: nowrap; direction: rtl;
+                  text-align: left; }
+  .tag { font-size: 10px; border: 1px solid #4f9cf9; color: #4f9cf9;
+         border-radius: 999px; padding: 1px 6px; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -28,6 +37,7 @@
   <button id="openUI">Open DM</button>
   <button id="opts">Settings</button>
 </header>
+<div id="media"></div>
 <div id="list"><div class="msg">Connecting...</div></div>
 <script src="popup.js"></script>
 </body>

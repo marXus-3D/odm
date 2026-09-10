@@ -163,3 +163,102 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     .catch((e) => sendResponse({ ok: false, error: e.message }));
   return true; // keep the channel open for the async reply
 });
+
+// --- streaming media detection ----------------------------------------------
+//
+// Streaming sites never expose the video as a file, so there is nothing for
+// the downloads API to intercept. What they do is fetch a playlist. Watching
+// for those requests is how the "download this video" panel knows there is a
+// video worth offering.
+
+const MEDIA_KEY = "detectedMedia"; // tabId -> [{url, kind, title, ts}]
+const MEDIA_PER_TAB = 20;
+
+function classify(url) {
+  const path = url.split("?")[0].toLowerCase();
+  if (path.endsWith(".m3u8") || path.endsWith(".m3u")) return "hls";
+  if (path.endsWith(".mpd")) return "dash";
+  return null;
+}
+
+async function readMedia() {
+  const got = await chrome.storage.session.get(MEDIA_KEY);
+  return got[MEDIA_KEY] || {};
+}
+
+async function recordMedia(tabId, url, kind) {
+  if (tabId < 0) return;
+  const all = await readMedia();
+  const list = all[String(tabId)] || [];
+  if (list.some((m) => m.url === url)) return;
+
+  // A master playlist is the useful entry point; variant playlists fetched
+  // by the player afterwards would just clutter the list.
+  list.unshift({ url, kind, ts: Date.now() });
+  all[String(tabId)] = list.slice(0, MEDIA_PER_TAB);
+  await chrome.storage.session.set({ [MEDIA_KEY]: all });
+  updateBadge(tabId, all[String(tabId)].length);
+}
+
+function updateBadge(tabId, count) {
+  chrome.action.setBadgeText({ tabId, text: count ? String(count) : "" },
+    () => void chrome.runtime.lastError);
+  chrome.action.setBadgeBackgroundColor({ tabId, color: "#4f9cf9" },
+    () => void chrome.runtime.lastError);
+}
+
+chrome.webRequest.onBeforeRequest.addListener(
+  (details) => {
+    const kind = classify(details.url);
+    if (kind) void recordMedia(details.tabId, details.url, kind);
+  },
+  { urls: ["http://*/*", "https://*/*"] }
+);
+
+// Some CDNs serve playlists from extension-less URLs, so fall back to the
+// content type the response actually declares.
+chrome.webRequest.onHeadersReceived.addListener(
+  (details) => {
+    if (classify(details.url)) return; // already recorded by URL
+    const ct = (details.responseHeaders || [])
+      .find((h) => h.name.toLowerCase() === "content-type");
+    if (!ct) return;
+    const v = (ct.value || "").toLowerCase();
+    if (v.includes("mpegurl")) {
+      void recordMedia(details.tabId, details.url, "hls");
+    } else if (v.includes("dash+xml")) {
+      void recordMedia(details.tabId, details.url, "dash");
+    }
+  },
+  { urls: ["http://*/*", "https://*/*"] },
+  ["responseHeaders"]
+);
+
+// A new page means the old list is stale.
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+  if (!changeInfo.url) return;
+  const all = await readMedia();
+  if (all[String(tabId)]) {
+    delete all[String(tabId)];
+    await chrome.storage.session.set({ [MEDIA_KEY]: all });
+  }
+  updateBadge(tabId, 0);
+});
+
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const all = await readMedia();
+  if (all[String(tabId)]) {
+    delete all[String(tabId)];
+    await chrome.storage.session.set({ [MEDIA_KEY]: all });
+  }
+});
+
+// The popup asks for the current tab's finds.
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (!msg || msg.scope !== "dm-media") return false;
+  (async () => {
+    const all = await readMedia();
+    sendResponse({ ok: true, media: all[String(msg.tabId)] || [] });
+  })();
+  return true;
+});

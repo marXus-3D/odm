@@ -57,6 +57,61 @@ function render(downloads) {
   }
 }
 
+// Streams the page fetched are not downloads Chrome ever started, so they
+// have to be offered explicitly.
+async function loadMedia() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return;
+  const reply = await chrome.runtime.sendMessage({ scope: "dm-media", tabId: tab.id });
+  const box = document.getElementById("media");
+  box.textContent = "";
+  if (!reply || !reply.ok || !reply.media.length) return;
+
+  const head = document.createElement("div");
+  head.className = "section";
+  head.textContent = `Video on this page (${reply.media.length})`;
+  box.appendChild(head);
+
+  for (const m of reply.media) {
+    const row = document.createElement("div");
+    row.className = "media-row";
+
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = m.kind;
+    row.appendChild(tag);
+
+    const u = document.createElement("div");
+    u.className = "u";
+    u.textContent = m.url;
+    u.title = m.url;
+    row.appendChild(u);
+
+    const btn = document.createElement("button");
+    btn.textContent = "Download";
+    if (m.kind === "dash") {
+      // The daemon would reject it anyway; say so before the click.
+      btn.disabled = true;
+      btn.title = "DASH (.mpd) is not supported yet";
+    }
+    btn.onclick = async () => {
+      btn.disabled = true;
+      btn.textContent = "Sending...";
+      const res = await chrome.runtime.sendMessage({
+        scope: "dm",
+        payload: { type: "add", url: m.url, kind: m.kind, referer: tab.url || "" },
+      });
+      btn.textContent = res && res.ok ? "Queued" : "Failed";
+      if (!res || !res.ok) {
+        btn.title = (res && res.error) || "unknown error";
+        btn.disabled = false;
+      }
+    };
+    row.appendChild(btn);
+    box.appendChild(row);
+  }
+}
+
 function connect() {
   try {
     port = chrome.runtime.connectNative("com.dm.host");
@@ -92,7 +147,9 @@ document.getElementById("opts").onclick = () => chrome.runtime.openOptionsPage()
 
 window.addEventListener("unload", () => {
   clearInterval(timer);
-  if (port) port.disconnect();
+  if (port) port.disloadMedia().catch(() => {});
+connect();
 });
 
+loadMedia().catch(() => {});
 connect();
