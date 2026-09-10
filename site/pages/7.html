@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, every download on one line</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#ffffff;--ink:#16191d;--ink-2:#6b7280;--rule:#d9dde3;--rule-strong:#16191d;--teal:#0f766e;--teal-tint:#e6f4f2;--amber:#b45309}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;color:var(--ink);background:var(--paper);font:400 15px/1.6 "JetBrains Mono",ui-monospace,Consolas,monospace;-webkit-font-smoothing:antialiased}
+.page{width:min(1080px,calc(100% - 40px));margin:0 auto}
+a{color:var(--teal)}
+
+.top{display:flex;justify-content:space-between;align-items:baseline;padding:22px 0;border-bottom:2px solid var(--rule-strong)}
+.top .name{font-weight:700;font-size:18px;text-decoration:none;color:inherit}
+.top nav a{color:var(--ink-2);text-decoration:none;margin-left:20px}
+.top nav a:hover{color:var(--ink)}
+
+.hero{padding:48px 0 30px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:40px;align-items:end}
+h1{font-size:clamp(28px,4vw,46px);line-height:1.15;font-weight:700;letter-spacing:-.02em;margin:0 0 18px;max-width:24ch}
+.hero p{margin:0;color:var(--ink-2);max-width:56ch}
+.hero .side{border-left:2px solid var(--rule-strong);padding-left:20px}
+.hero .side p{margin:0 0 14px;font-size:13.5px}
+.button{display:inline-block;padding:12px 18px;background:var(--ink);color:#fff;text-decoration:none;font-weight:500}
+.button:hover{background:var(--teal)}
+.button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+@media (max-width:820px){.hero{grid-template-columns:1fr}.hero .side{border-left:0;padding-left:0;border-top:2px solid var(--rule-strong);padding-top:16px}}
+
+/* the ledger */
+.ledger{margin:30px 0 0;border-top:2px solid var(--rule-strong);border-bottom:2px solid var(--rule-strong);overflow-x:auto}
+.ledger table{width:100%;min-width:780px;border-collapse:collapse;font-size:14px;white-space:nowrap}
+.ledger th{text-align:left;font-weight:500;color:var(--ink-2);padding:10px 12px 10px 0;border-bottom:1px solid var(--rule)}
+.ledger td{padding:11px 12px 11px 0;border-bottom:1px solid var(--rule);vertical-align:middle;font-variant-numeric:tabular-nums}
+.ledger tr:last-child td{border-bottom:0}
+.ledger td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis}
+.ledger td.num{text-align:right}
+.bar{display:inline-block;width:160px;height:10px;background:var(--rule);vertical-align:middle;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--teal);width:var(--p)}
+.bar.done i{background:var(--ink)}
+.bar.paused i{background:var(--amber)}
+td.st{color:var(--ink-2)}
+td.st.ok{color:var(--teal);font-weight:500}
+td.st.pause{color:var(--amber)}
+.ledger .cmd{padding:12px 0;color:var(--ink-2);border-bottom:1px solid var(--rule);font-size:14px}
+.ledger .cmd b{color:var(--ink);font-weight:500}
+.cursor::after{content:"▍";color:var(--ink);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.cursor::after{animation:none}}
+.note{color:var(--ink-2);font-size:13.5px;margin:12px 0 0}
+
+/* the argument */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:48px;padding:64px 0 20px}
+.two h2,.split h2,.get h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:0 0 14px}
+.two p{margin:0 0 14px;color:var(--ink-2);max-width:52ch}
+.two p b{color:var(--ink);font-weight:500}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 22px;font-size:14px}
+dt{color:var(--ink-2)}dd{margin:0;font-weight:500;font-variant-numeric:tabular-nums}
+@media (max-width:820px){.two{grid-template-columns:1fr;gap:28px}}
+
+.split{padding:40px 0 20px}
+.split pre{margin:0;padding:22px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);font:inherit;font-size:14px;line-height:1.7;overflow-x:auto;color:var(--ink)}
+.split pre b{font-weight:700;color:var(--teal)}
+.split pre .dim{color:var(--ink-2)}
+.split p{color:var(--ink-2);max-width:60ch;margin:14px 0 0}
+
+.get{padding:56px 0 130px;display:grid;grid-template-columns:1fr 1fr;gap:48px;border-top:2px solid var(--rule-strong);margin-top:40px}
+.get p{color:var(--ink-2);margin:0 0 18px;max-width:46ch}
+.get pre{margin:0;font:inherit;font-size:14px;line-height:1.8;color:var(--ink)}
+.get pre .dim{color:var(--ink-2)}
+@media (max-width:820px){.get{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="top"><a class="name" href="/7">dm</a><nav><a href="#why">why fast</a><a href="#split">the split</a><a href="#get">install</a></nav></header>
+
+<section class="hero">
+  <div>
+    <h1>Everything DM knows about a download fits on one line.</h1>
+    <p>A download manager for Windows. Eight connections per file, exact resume, streaming video to MP4, and a browser extension that hands links over with your cookies. Below is the list as the command line prints it.</p>
+  </div>
+  <div class="side">
+    <p>Windows 10 or 11. One setup file, installs to your user folder without an administrator prompt.</p>
+    <a class="button" href="#get">Download DM-Setup.exe</a>
+  </div>
+</section>
+
+<div class="ledger" role="region" aria-label="Download list as printed by dm ls">
+  <div class="cmd"><b>&gt; dm ls</b> <span class="cursor"></span></div>
+  <table>
+    <thead><tr><th>id</th><th>name</th><th>size</th><th>progress</th><th></th><th>conns</th><th>speed</th><th>state</th></tr></thead>
+    <tbody id="rows">
+      <tr data-p="38" data-speed="41.2"><td>a91f</td><td class="name">ubuntu-24.04.1-desktop-amd64.iso</td><td class="num">5.8 GB</td><td><span class="bar"><i></i></span></td><td class="num pct"></td><td class="num">8</td><td class="num spd"></td><td class="st">downloading</td></tr>
+      <tr data-p="71" data-speed="12.6"><td>b204</td><td class="name">lecture-07-distributed-systems.m3u8</td><td class="num">1.2 GB</td><td><span class="bar"><i></i></span></td><td class="num pct"></td><td class="num">4</td><td class="num spd"></td><td class="st">hls, 412 of 580 segments</td></tr>
+      <tr data-p="12" data-speed="27.9"><td>c7e0</td><td class="name">blender-4.2-windows-x64.zip</td><td class="num">341 MB</td><td><span class="bar"><i></i></span></td><td class="num pct"></td><td class="num">8</td><td class="num spd"></td><td class="st">downloading</td></tr>
+      <tr data-p="54" data-paused><td>d13b</td><td class="name">taocp-vol-4b.pdf</td><td class="num">48 MB</td><td><span class="bar paused"><i></i></span></td><td class="num pct">54%</td><td class="num">0</td><td class="num">–</td><td class="st pause">paused, resumes at byte 27 262 976</td></tr>
+      <tr data-p="100"><td>e88a</td><td class="name">go1.23.windows-amd64.msi</td><td class="num">72 MB</td><td><span class="bar done"><i></i></span></td><td class="num pct">100%</td><td class="num">–</td><td class="num">–</td><td class="st ok">done, 5.9 s</td></tr>
+      <tr data-p="100"><td>f3c1</td><td class="name">talk-keeping-connections-busy.mp4</td><td class="num">890 MB</td><td><span class="bar done"><i></i></span></td><td class="num pct">100%</td><td class="num">–</td><td class="num">–</td><td class="st ok">done, mp4 written</td></tr>
+    </tbody>
+  </table>
+</div>
+<p class="note">The same list is in the Windows app and on a local web page. The three views never disagree, because there is one list.</p>
+
+<section class="two" id="why">
+  <div>
+    <h2>Why eight connections are faster</h2>
+    <p><b>Hosts cap each socket, not each person.</b> Eight sockets get eight times the cap.</p>
+    <p><b>TCP shares a bottleneck per flow.</b> Eight flows claim eight shares, and each ramps up on its own, which matters most on long high-bandwidth paths.</p>
+    <p><b>The split is decided late.</b> An idle connection halves the largest remaining range and takes the tail, so a slow socket owns less and less of the file.</p>
+  </div>
+  <div>
+    <h2>Measured</h2>
+    <dl>
+      <dt>file</dt><dd>83 MiB from dl.google.com</dd>
+      <dt>1 connection</dt><dd>13.7 s</dd>
+      <dt>8 connections</dt><dd>6.5 s</dd>
+      <dt>output</dt><dd>byte-identical</dd>
+      <dt>idle memory</dt><dd>about 9 MB</dd>
+      <dt>runtime</dt><dd>Go, no third-party modules</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="split" id="split">
+  <h2>What a split looks like</h2>
+<pre><span class="dim">t=0.00s</span>  range 0        [0 .. 87031808)                  worker 1
+<span class="dim">t=0.01s</span>  range 1        [43515904 .. 87031808)           worker 2   <span class="dim">split from 0</span>
+<span class="dim">t=0.02s</span>  range 2        [65273856 .. 87031808)           worker 3   <span class="dim">split from 1</span>
+<span class="dim">t=0.02s</span>  range 3        [21757952 .. 43515904)           worker 4   <span class="dim">split from 0</span>
+<span class="dim">…</span>
+<span class="dim">t=5.91s</span>  range 0        done, 21 757 952 bytes written   worker 1   <span class="dim">idle, looking</span>
+<span class="dim">t=5.91s</span>  range 11       [84 213 760 .. 87 031 808)       worker 1   <span class="dim">split from 9, <b>the slow one</b></span>
+<span class="dim">t=6.48s</span>  all ranges done                                 <b>6.5 s</b>, one file, no merge</pre>
+  <p>Every range writes into the same preallocated file at its own offset. Finished ranges are recorded as they land, which is why the paused download above knows the exact byte it will resume from.</p>
+</section>
+
+<section class="get" id="get">
+  <div>
+    <h2>Install</h2>
+    <p>One file installs the app, registers the browser hook and offers the extension to Chrome, Edge, Brave or Vivaldi. It uninstalls itself, and keeps your list unless you say otherwise.</p>
+    <a class="button" href="#">Download DM-Setup.exe</a>
+  </div>
+  <div>
+    <h2>Unattended</h2>
+<pre>DM-Setup.exe -silent                 <span class="dim">install with defaults</span>
+DM-Setup.exe -silent -no-startup     <span class="dim">skip the sign-in entry</span>
+DM-Setup.exe -uninstall -silent      <span class="dim">remove, keep the list</span>
+dm add https://…/file.iso            <span class="dim">from any shell, once installed</span></pre>
+  </div>
+</section>
+</div>
+<script>
+(function(){
+  // The three active rows creep forward so the ledger reads as live output.
+  var rows=[].slice.call(document.querySelectorAll('#rows tr[data-speed]'));
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function paint(r,p){r.querySelector('.bar').style.setProperty('--p',p+'%');r.querySelector('.pct').textContent=Math.floor(p)+'%';
+    var s=+r.dataset.speed+(Math.random()-.5)*1.4;r.querySelector('.spd').textContent=s.toFixed(1)+' MB/s';}
+  document.querySelectorAll('#rows tr:not([data-speed])').forEach(function(r){r.querySelector('.bar').style.setProperty('--p',r.dataset.p+'%');});
+  rows.forEach(function(r){r.p=+r.dataset.p;paint(r,r.p);});
+  if(reduce) return;
+  setInterval(function(){rows.forEach(function(r){r.p+= (+r.dataset.speed)/900; if(r.p>=100) r.p=+r.dataset.p; paint(r,r.p);});},250);
+})();
+</script>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

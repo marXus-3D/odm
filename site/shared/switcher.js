@@ -1,8 +1,9 @@
 // Draft switcher: a small pill group fixed to the bottom of every landing
 // page draft. Left/right arrow keys move between drafts as well.
 (function () {
-  var names = ["Segments", "Datasheet", "Poster", "Fluent", "Essay"];
-  var m = location.pathname.match(/\/([1-5])\/?$/);
+  var names = ["Segments", "Datasheet", "Poster", "Fluent", "Essay", "Blueprint", "Ledger", "Swiss", "Industrial"];
+  var total = names.length;
+  var m = location.pathname.match(/\/([1-9])\/?$/);
   var current = m ? +m[1] : 1;
 
   var css = document.createElement("style");
@@ -26,9 +27,9 @@
   nav.className = "dm-switch";
   nav.setAttribute("aria-label", "Landing page drafts");
   var label = document.createElement("span");
-  label.textContent = "Draft " + current + " of 5, " + names[current - 1];
+  label.textContent = "Draft " + current + " of " + total + ", " + names[current - 1];
   nav.appendChild(label);
-  for (var i = 1; i <= 5; i++) {
+  for (var i = 1; i <= total; i++) {
     var a = document.createElement("a");
     a.href = "/" + i;
     a.textContent = i;
@@ -40,7 +41,7 @@
 
   document.addEventListener("keydown", function (e) {
     if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
-    if (e.key === "ArrowRight" && current < 5) location.href = "/" + (current + 1);
+    if (e.key === "ArrowRight" && current < total) location.href = "/" + (current + 1);
     if (e.key === "ArrowLeft" && current > 1) location.href = "/" + (current - 1);
   });
 })();

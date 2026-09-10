@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, heavy-duty downloads</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,500;75,700;100,400;100,500;125,800&display=swap" rel="stylesheet">
+<style>
+:root{--black:#000;--panel:#0e0e0e;--ink:#f3f3f0;--ink-2:#a3a39c;--rule:#2a2a2a;--yellow:#ffcc00;--yellow-ink:#111}
+*{box-sizing:border-box}
+html{background:var(--black)}
+body{margin:0;color:var(--ink);background:var(--black);font:400 16px/1.55 Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.page{width:min(1200px,calc(100% - 40px));margin:0 auto}
+.hazard{height:14px;background:repeating-linear-gradient(-45deg,var(--yellow) 0 18px,var(--black) 18px 36px)}
+.cond{font-stretch:75%}
+
+.top{display:flex;justify-content:space-between;align-items:center;padding:18px 0;border-bottom:1px solid var(--rule)}
+.top .name{font-weight:800;font-stretch:125%;font-size:26px;letter-spacing:-.02em}
+.top nav a{color:var(--ink-2);text-decoration:none;font-weight:500;font-stretch:75%;font-size:16px;margin-left:22px;letter-spacing:.02em}
+.top nav a:hover{color:var(--yellow)}
+
+.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:40px;padding:48px 0 44px;border-bottom:1px solid var(--rule)}
+h1{font-size:clamp(46px,7vw,104px);line-height:.9;letter-spacing:-.035em;font-weight:800;font-stretch:125%;margin:0 0 24px}
+h1 span{display:block;color:var(--yellow)}
+.hero p{color:var(--ink-2);font-size:18px;max-width:46ch;margin:0 0 26px}
+.button{display:inline-block;background:var(--yellow);color:var(--yellow-ink);text-decoration:none;font-weight:700;font-stretch:75%;font-size:18px;letter-spacing:.02em;padding:15px 24px;border:2px solid var(--yellow)}
+.button:hover{background:transparent;color:var(--yellow)}
+.button.hollow{background:transparent;color:var(--ink);border-color:var(--ink)}
+.button.hollow:hover{border-color:var(--yellow);color:var(--yellow)}
+.button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.button + .button{margin-left:8px}
+.hero small{display:block;margin-top:12px;color:var(--ink-2);font-size:14px}
+
+/* rating plate */
+.plate{background:var(--panel);border:1px solid var(--rule);padding:22px 24px 24px;align-self:start}
+.plate h2{margin:0 0 4px;font-size:15px;font-weight:700;font-stretch:75%;letter-spacing:.04em;color:var(--ink-2)}
+.plate .big{font-size:clamp(56px,6vw,84px);font-weight:800;font-stretch:125%;letter-spacing:-.04em;line-height:1;color:var(--yellow);margin:0 0 4px}
+.plate .big small{font-size:.32em;color:var(--ink);letter-spacing:0;margin-left:.1em;font-stretch:100%}
+.plate p{margin:0 0 18px;color:var(--ink-2);font-size:14px}
+.plate table{width:100%;border-collapse:collapse;font-size:14.5px}
+.plate th,.plate td{text-align:left;padding:8px 0;border-top:1px solid var(--rule);vertical-align:top}
+.plate th{font-weight:500;color:var(--ink-2);width:48%;padding-right:12px;font-stretch:75%;font-size:15px}
+.plate td{font-weight:500;font-variant-numeric:tabular-nums}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+
+/* the load test */
+.load{padding:52px 0;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:40px}
+.load h2,.parts h2,.get h2{font-size:clamp(28px,3.4vw,44px);letter-spacing:-.03em;line-height:.98;font-weight:800;font-stretch:125%;margin:0 0 12px}
+.load p{color:var(--ink-2);margin:0;max-width:44ch}
+.lane{display:grid;grid-template-columns:140px 1fr 80px;gap:16px;align-items:center;padding:12px 0;border-top:1px solid var(--rule)}
+.lane:last-of-type{border-bottom:1px solid var(--rule)}
+.lane .l{font-weight:500;font-stretch:75%;font-size:16px}
+.lane .l small{display:block;color:var(--ink-2);font-weight:400}
+.lane .b{height:30px;background:var(--rule)}
+.lane.dm .b{background:var(--yellow)}
+.lane .t{font-weight:800;font-stretch:125%;font-size:26px;letter-spacing:-.04em;text-align:right;font-variant-numeric:tabular-nums}
+.load .strips{margin-top:26px}
+.strip{display:grid;grid-template-columns:140px 1fr;gap:16px;align-items:center;margin:10px 0;font-weight:500;font-stretch:75%;font-size:16px}
+.strip .bar{display:flex;height:26px;gap:2px}
+.strip .bar i{background:var(--ink)}
+.strip .bar i.slow{background:repeating-linear-gradient(-45deg,var(--yellow) 0 5px,var(--black) 5px 10px)}
+.load .cap{color:var(--ink-2);font-size:14px;margin:12px 0 0;max-width:60ch}
+@media (max-width:860px){.load{grid-template-columns:1fr}.lane{grid-template-columns:1fr;gap:6px}.lane .t{text-align:left}.strip{grid-template-columns:1fr;gap:6px}}
+
+/* parts list */
+.parts{padding:52px 0;border-bottom:1px solid var(--rule)}
+.parts p.lead{color:var(--ink-2);margin:0 0 24px;max-width:56ch}
+.parts ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:0 28px}
+.parts li{padding:16px 0;border-top:1px solid var(--rule)}
+.parts li b{display:block;font-weight:700;font-stretch:75%;font-size:18px;letter-spacing:.01em;margin-bottom:4px}
+.parts li span{color:var(--ink-2);font-size:15px}
+@media (max-width:860px){.parts ul{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.parts ul{grid-template-columns:1fr}}
+
+.get{padding:52px 0 130px;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+.get p{color:var(--ink-2);margin:0 0 22px;max-width:44ch}
+.get pre{margin:0;padding:18px 20px;background:var(--panel);border:1px solid var(--rule);font:500 14px/1.8 Consolas,ui-monospace,monospace;color:var(--ink);overflow-x:auto}
+.get pre .dim{color:var(--ink-2)}
+@media (max-width:860px){.get{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="hazard" aria-hidden="true"></div>
+<div class="page">
+<header class="top"><div class="name">DM</div><nav><a href="#load">Load test</a><a href="#parts">Parts</a><a href="#get">Install</a></nav></header>
+
+<section class="hero">
+  <div>
+    <h1>Built to pull <span>eight ways</span> at once.</h1>
+    <p>A heavy-duty download manager for Windows. Eight connections per file, exact resume after anything, streaming video to MP4, and a browser extension that hands links over with your cookies.</p>
+    <a class="button" href="#get">Download DM-Setup.exe</a><a class="button hollow" href="#load">See the load test</a>
+    <small>28 MB. Installs to your user folder, no administrator prompt.</small>
+  </div>
+  <aside class="plate">
+    <h2>Rating plate</h2>
+    <div class="big">8<small>connections</small></div>
+    <p>per file, split dynamically while the transfer runs</p>
+    <table>
+      <tr><th>Idle memory</th><td>about 9 MB</td></tr>
+      <tr><th>Resume</th><td>exact, to the byte</td></tr>
+      <tr><th>Streaming video</th><td>HLS to MP4, with ffmpeg</td></tr>
+      <tr><th>Browsers</th><td>Chrome, Edge, Brave, Vivaldi</td></tr>
+      <tr><th>Interfaces</th><td>native app, web UI, command line</td></tr>
+      <tr><th>Runtime</th><td>Go, no third-party modules</td></tr>
+      <tr><th>Install</th><td>one file, per user</td></tr>
+    </table>
+  </aside>
+</section>
+
+<section class="load" id="load">
+  <div>
+    <h2>Load test</h2>
+    <p>An 83 MiB file from dl.google.com with no rate limit of its own. One connection, then eight, on the same machine. The output matched byte for byte.</p>
+  </div>
+  <div>
+    <div class="lane"><div class="l">One connection<small>the browser's way</small></div><div class="b" style="width:100%"></div><div class="t">13.7 s</div></div>
+    <div class="lane dm"><div class="l">Eight<small>DM</small></div><div class="b" style="width:47.4%"></div><div class="t">6.5 s</div></div>
+    <div class="strips">
+      <div class="strip"><span>Fixed chunks</span><div class="bar" aria-label="Eight equal chunks, one slow"><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i class="slow" style="flex:1"></i></div></div>
+      <div class="strip"><span>DM</span><div class="bar" aria-label="Ranges of shrinking size, the slow one is a sliver"><i style="flex:8"></i><i style="flex:4"></i><i style="flex:4"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:1"></i><i style="flex:1"></i><i class="slow" style="flex:.3"></i></div></div>
+    </div>
+    <p class="cap">Striped is the slow socket. Hosts cap each connection, not each person, and TCP shares a busy link per flow. Then, instead of cutting the file into eight fixed pieces, DM lets every idle connection halve the largest remaining range and take the tail. The slow one ends up owning a sliver. Every range writes straight into one preallocated file at its own offset: no part files, no merge.</p>
+  </div>
+</section>
+
+<section class="parts" id="parts">
+  <h2>Parts list</h2>
+  <p class="lead">Everything in the box, and nothing you have to assemble.</p>
+  <ul>
+    <li><b>Native Windows window</b><span>Dark by default, tray icon, save-as when a download arrives, progress while it runs, a dialog when it is done.</span></li>
+    <li><b>Background service</b><span>Runs at sign-in if you want. Holds the list and keeps transferring with no window open.</span></li>
+    <li><b>Browser extension</b><span>Signed and shipped inside the installer. Catches downloads and streams, passes them over with cookies.</span></li>
+    <li><b>Exact resume</b><span>Finished ranges are recorded as they land. Restart the app, the PC or the router and it carries on from the same byte.</span></li>
+    <li><b>Finish actions</b><span>Open the file or folder, or sleep, shut down or restart the PC when the last download lands.</span></li>
+    <li><b>Web UI and command line</b><span>The same list on localhost, and a small command for scripts: add, list, pause, resume.</span></li>
+  </ul>
+</section>
+
+<section class="get" id="get">
+  <div>
+    <h2>Install</h2>
+    <p>One file installs the app, registers the browser hook and offers the extension. The same file uninstalls, and keeps your download list unless you choose to remove it.</p>
+    <a class="button" href="#">Download DM-Setup.exe</a>
+  </div>
+  <pre>DM-Setup.exe -silent                 <span class="dim">install with defaults</span>
+DM-Setup.exe -silent -no-startup     <span class="dim">skip the sign-in entry</span>
+DM-Setup.exe -uninstall -silent      <span class="dim">remove, keep the list</span></pre>
+</section>
+</div>
+<div class="hazard" aria-hidden="true"></div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

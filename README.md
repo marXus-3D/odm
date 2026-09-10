@@ -454,7 +454,7 @@ installed.
 
 ## Landing page drafts
 
-Five landing page directions live in `site/pages`, one file each. Serve them
+Nine landing page directions live in `site/pages`, one file each. Serve them
 with
 
 ```
@@ -463,4 +463,4 @@ go run ./cmd/dm-site
 
 and open <http://127.0.0.1:8090/1>. Every draft carries a switcher at the
 bottom of the page (or use the left and right arrow keys) to jump between
-`/1` and `/5`. Nothing in the product depends on this folder.
+`/1` and `/9`. Nothing in the product depends on this folder.

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, drawing no. 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#1b3f7c;--blue-deep:#153263;--line:#e3ecff;--line-soft:rgba(227,236,255,.55);--grid:rgba(227,236,255,.12);--grid-major:rgba(227,236,255,.26);--ink:#eef3ff;--ink-2:rgba(238,243,255,.75);--chalk:#fff6c2}
+*{box-sizing:border-box}
+html{background:var(--blue)}
+body{margin:0;color:var(--ink);font:400 17px/1.55 Barlow,system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+  background:
+    linear-gradient(var(--grid-major) 1px,transparent 1px) 0 0/120px 120px,
+    linear-gradient(90deg,var(--grid-major) 1px,transparent 1px) 0 0/120px 120px,
+    linear-gradient(var(--grid) 1px,transparent 1px) 0 0/24px 24px,
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/24px 24px,
+    radial-gradient(1200px 800px at 50% 0,#22508f,var(--blue) 70%)}
+.sheet{width:min(1200px,calc(100% - 40px));margin:24px auto 40px;border:2px solid var(--line);outline:1px solid var(--line-soft);outline-offset:6px;background:rgba(21,50,99,.35);position:relative}
+.label{font-family:"Barlow Semi Condensed",sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:12px;font-weight:600;color:var(--ink-2)}
+
+/* border strip */
+.strip{display:flex;justify-content:space-between;align-items:center;padding:12px 22px;border-bottom:1px solid var(--line)}
+.strip nav a{color:var(--ink-2);text-decoration:none;font-family:"Barlow Semi Condensed",sans-serif;font-weight:500;font-size:15px;margin-left:22px}
+.strip nav a:hover{color:var(--chalk)}
+
+.hero{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:30px;padding:40px 22px 30px;border-bottom:1px solid var(--line)}
+h1{font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:clamp(40px,5.8vw,74px);line-height:.95;letter-spacing:-.01em;margin:0 0 20px;max-width:14ch}
+.hero p{margin:0 0 24px;color:var(--ink-2);max-width:46ch;font-size:18px}
+.button{display:inline-block;padding:13px 22px;border:2px solid var(--line);color:var(--ink);text-decoration:none;font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:17px;letter-spacing:.02em;background:transparent}
+.button.solid{background:var(--line);color:var(--blue-deep)}
+.button:hover{background:var(--chalk);border-color:var(--chalk);color:var(--blue-deep)}
+.button:focus-visible{outline:3px solid var(--chalk);outline-offset:3px}
+.button + .button{margin-left:8px}
+.hero small{display:block;margin-top:12px;color:var(--ink-2);font-size:14px}
+figure{margin:0}
+figure svg{width:100%;height:auto;display:block;overflow:visible}
+figcaption{margin-top:10px;font-size:14px;color:var(--ink-2)}
+figcaption b{font-family:"Barlow Semi Condensed",sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:12px;color:var(--ink);margin-right:10px}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+
+/* figures */
+.figs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}
+.figs > section{padding:30px 22px}
+.figs > section + section{border-left:1px solid var(--line)}
+.figs h2{font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:26px;margin:0 0 6px;letter-spacing:0}
+.figs p{margin:0 0 18px;color:var(--ink-2);max-width:52ch;font-size:16px}
+@media (max-width:860px){.figs{grid-template-columns:1fr}.figs > section + section{border-left:0;border-top:1px solid var(--line)}}
+
+/* notes */
+.notes{display:grid;grid-template-columns:1.1fr .9fr;border-bottom:1px solid var(--line)}
+.notes > div{padding:30px 22px}
+.notes > div + div{border-left:1px solid var(--line)}
+.notes h2{font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:26px;margin:0 0 14px}
+.notes ol{margin:0;padding:0 0 0 26px;color:var(--ink-2);font-size:16px}
+.notes li{margin:8px 0;padding-left:4px;max-width:58ch}
+.notes li b{color:var(--ink);font-weight:600}
+.spec{width:100%;border-collapse:collapse;font-size:15px}
+.spec th,.spec td{text-align:left;padding:8px 0;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.spec th{font-weight:500;color:var(--ink-2);width:44%;padding-right:12px}
+.spec td{font-weight:500;font-variant-numeric:tabular-nums}
+@media (max-width:860px){.notes{grid-template-columns:1fr}.notes > div + div{border-left:0;border-top:1px solid var(--line)}}
+
+/* title block */
+.title-block{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;border-top:2px solid var(--line)}
+.title-block > div{padding:12px 16px;border-right:1px solid var(--line);min-height:70px}
+.title-block > div:last-child{border-right:0}
+.title-block .v{display:block;font-size:17px;font-weight:500;margin-top:3px;font-family:"Barlow Semi Condensed",sans-serif}
+.title-block .big{font-size:30px;font-weight:600;letter-spacing:.02em}
+@media (max-width:700px){.title-block{grid-template-columns:1fr 1fr}.title-block > div:nth-child(2n){border-right:0}.title-block > div:nth-child(n+3){border-top:1px solid var(--line)}}
+
+.get{padding:40px 22px 60px;display:flex;justify-content:space-between;gap:30px;align-items:center;flex-wrap:wrap}
+.get h2{font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:clamp(28px,3.4vw,40px);margin:0 0 6px}
+.get p{margin:0;color:var(--ink-2);max-width:50ch}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><span class="label">Drawing no. 1, DM download manager</span><nav><a href="#figs">Figures</a><a href="#notes">Notes</a><a href="#get">Install</a></nav></div>
+
+  <section class="hero">
+    <div>
+      <h1>One file, eight connections, drawn to scale</h1>
+      <p>DM downloads a file over eight connections, splits the remaining bytes as it goes and writes every piece to its final offset. The browser extension hands over the link with your cookies. Windows, no admin rights.</p>
+      <a class="button solid" href="#get">Download DM-Setup.exe</a><a class="button" href="#figs">Read the drawing</a>
+      <small>28 MB. The same file uninstalls.</small>
+    </div>
+    <figure>
+      <svg viewBox="0 0 640 300" role="img" aria-label="Section view of a file split into ranges, with dimension lines and a detail of one range being halved">
+        <defs>
+          <marker id="tick" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7L7 1" stroke="#e3ecff" stroke-width="1.2"/></marker>
+          <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#e3ecff" stroke-width="1" opacity=".8"/></pattern>
+        </defs>
+        <g fill="none" stroke="#e3ecff" stroke-width="1.2" font-family="Barlow Semi Condensed, sans-serif" font-size="11" letter-spacing=".06em">
+          <!-- overall dimension -->
+          <line x1="20" y1="34" x2="620" y2="34" marker-start="url(#tick)" marker-end="url(#tick)"/>
+          <line x1="20" y1="28" x2="20" y2="60" stroke-dasharray="2 3"/><line x1="620" y1="28" x2="620" y2="60" stroke-dasharray="2 3"/>
+          <text x="320" y="26" fill="#e3ecff" stroke="none" text-anchor="middle">87 031 808 BYTES, PREALLOCATED</text>
+          <!-- file body -->
+          <rect x="20" y="60" width="600" height="70"/>
+          <!-- ranges: widths 300,150,75,37.5,18.75,9.4,4.7,4.7 like a real split -->
+          <g stroke-width="1.2">
+            <line x1="320" y1="60" x2="320" y2="130"/><line x1="470" y1="60" x2="470" y2="130"/><line x1="545" y1="60" x2="545" y2="130"/>
+            <line x1="582" y1="60" x2="582" y2="130"/><line x1="601" y1="60" x2="601" y2="130"/><line x1="610" y1="60" x2="610" y2="130"/><line x1="615" y1="60" x2="615" y2="130"/>
+          </g>
+          <!-- done portions, hatched -->
+          <rect x="21" y="61" width="210" height="68" fill="url(#hatch)" stroke="none"/>
+          <rect x="321" y="61" width="90" height="68" fill="url(#hatch)" stroke="none"/>
+          <rect x="471" y="61" width="60" height="68" fill="url(#hatch)" stroke="none"/>
+          <rect x="546" y="61" width="12" height="68" fill="url(#hatch)" stroke="none"/>
+          <rect x="583" y="61" width="14" height="68" fill="url(#hatch)" stroke="none"/>
+          <!-- worker leaders -->
+          <g fill="#e3ecff" stroke="none">
+            <text x="170" y="104" text-anchor="middle">W1</text><text x="395" y="104" text-anchor="middle">W2</text><text x="507" y="104" text-anchor="middle">W3</text>
+            <text x="563" y="104" text-anchor="middle" font-size="9">W4</text><text x="591" y="104" text-anchor="middle" font-size="9">W5</text>
+          </g>
+          <!-- range dimension row -->
+          <line x1="20" y1="150" x2="320" y2="150" marker-start="url(#tick)" marker-end="url(#tick)"/>
+          <text x="170" y="165" fill="#e3ecff" stroke="none" text-anchor="middle">43 515 904</text>
+          <line x1="320" y1="150" x2="470" y2="150" marker-end="url(#tick)"/>
+          <text x="395" y="165" fill="#e3ecff" stroke="none" text-anchor="middle">21 757 952</text>
+          <line x1="470" y1="150" x2="545" y2="150" marker-end="url(#tick)"/>
+          <text x="507" y="165" fill="#e3ecff" stroke="none" text-anchor="middle">10 878 976</text>
+          <line x1="545" y1="150" x2="620" y2="150" marker-end="url(#tick)"/>
+          <text x="582" y="165" fill="#e3ecff" stroke="none" text-anchor="middle" font-size="9">SEE DETAIL A</text>
+          <!-- detail A -->
+          <circle cx="600" cy="95" r="26" stroke-dasharray="3 3"/>
+          <line x1="600" y1="121" x2="470" y2="215" stroke-dasharray="3 3"/>
+          <circle cx="440" cy="245" r="48"/>
+          <text x="440" y="185" fill="#e3ecff" stroke="none" text-anchor="middle">DETAIL A, SPLIT</text>
+          <!-- inside detail: a range, half hatched, split line, tail taken -->
+          <rect x="404" y="232" width="72" height="26"/>
+          <rect x="405" y="233" width="20" height="24" fill="url(#hatch)" stroke="none"/>
+          <line x1="450" y1="226" x2="450" y2="264" stroke="#fff6c2" stroke-width="1.6"/>
+          <text x="463" y="228" fill="#fff6c2" stroke="none" font-size="9" text-anchor="middle">W6</text>
+          <text x="428" y="270" fill="#e3ecff" stroke="none" font-size="9" text-anchor="middle">W4 KEEPS</text>
+          <!-- offset labels -->
+          <text x="20" y="200" fill="#e3ecff" stroke="none">OFFSET 0</text>
+          <text x="620" y="200" fill="#e3ecff" stroke="none" text-anchor="end">OFFSET 87 031 807</text>
+          <line x1="20" y1="130" x2="20" y2="188" stroke-dasharray="2 3"/><line x1="620" y1="130" x2="620" y2="188" stroke-dasharray="2 3"/>
+          <!-- notes -->
+          <text x="20" y="240" fill="#e3ecff" stroke="none">HATCHED: WRITTEN TO DISK</text>
+          <text x="20" y="258" fill="#e3ecff" stroke="none">RANGE WIDTHS AS FOUND MID-TRANSFER, W4 IS A SLOW SOCKET</text>
+          <text x="20" y="276" fill="#e3ecff" stroke="none">ALL WRITES POSITIONED. NO PART FILES. NO MERGE.</text>
+        </g>
+      </svg>
+      <figcaption><b>Fig. 1</b>Section through a download in progress. Each idle connection halves the largest remaining range and takes the tail, so the slow socket ends up owning a sliver.</figcaption>
+    </figure>
+  </section>
+
+  <div class="figs" id="figs">
+    <section>
+      <h2>The measurement</h2>
+      <p>An 83 MiB file from dl.google.com, one connection against eight, same machine, byte-identical output.</p>
+      <figure>
+        <svg viewBox="0 0 560 130" role="img" aria-label="Two bars, 13.7 seconds and 6.5 seconds, drawn to scale">
+          <g fill="none" stroke="#e3ecff" stroke-width="1.2" font-family="Barlow Semi Condensed, sans-serif" font-size="11" letter-spacing=".06em">
+            <text x="0" y="22" fill="#e3ecff" stroke="none">1 CONNECTION</text>
+            <rect x="0" y="30" width="480" height="22"/><rect x="1" y="31" width="478" height="20" fill="url(#hatch)" stroke="none"/>
+            <text x="490" y="46" fill="#e3ecff" stroke="none" font-size="16" font-weight="600">13.7 s</text>
+            <text x="0" y="82" fill="#e3ecff" stroke="none">8 CONNECTIONS, DM</text>
+            <rect x="0" y="90" width="228" height="22"/><rect x="1" y="91" width="226" height="20" fill="#fff6c2" stroke="none"/>
+            <text x="238" y="106" fill="#fff6c2" stroke="none" font-size="16" font-weight="600">6.5 s</text>
+            <line x1="228" y1="52" x2="228" y2="128" stroke-dasharray="2 3"/>
+          </g>
+        </svg>
+        <figcaption><b>Fig. 2</b>Most hosts cap each socket rather than each person, and TCP shares a busy link per flow. Eight flows, eight shares.</figcaption>
+      </figure>
+    </section>
+    <section>
+      <h2>The hand-off</h2>
+      <p>The browser starts a download; the extension intercepts it and passes link and cookies to DM over the browser's native-messaging channel.</p>
+      <figure>
+        <svg viewBox="0 0 560 130" role="img" aria-label="Browser, extension and DM as three boxes joined by a signal path">
+          <g fill="none" stroke="#e3ecff" stroke-width="1.2" font-family="Barlow Semi Condensed, sans-serif" font-size="11" letter-spacing=".06em">
+            <rect x="0" y="30" width="150" height="60"/><text x="75" y="56" fill="#e3ecff" stroke="none" text-anchor="middle">BROWSER</text><text x="75" y="74" fill="#e3ecff" stroke="none" text-anchor="middle" opacity=".7">CHROME, EDGE, BRAVE</text>
+            <rect x="205" y="30" width="150" height="60"/><text x="280" y="56" fill="#e3ecff" stroke="none" text-anchor="middle">DM EXTENSION</text><text x="280" y="74" fill="#e3ecff" stroke="none" text-anchor="middle" opacity=".7">LINK + COOKIES</text>
+            <rect x="410" y="30" width="150" height="60" stroke="#fff6c2"/><text x="485" y="56" fill="#fff6c2" stroke="none" text-anchor="middle">DM</text><text x="485" y="74" fill="#fff6c2" stroke="none" text-anchor="middle" opacity=".8">8 CONNECTIONS</text>
+            <line x1="150" y1="60" x2="205" y2="60" marker-end="url(#tick)"/><line x1="355" y1="60" x2="410" y2="60" marker-end="url(#tick)"/>
+            <text x="280" y="118" fill="#e3ecff" stroke="none" text-anchor="middle" opacity=".7">NATIVE MESSAGING, NO NETWORK PORT OPENED</text>
+          </g>
+        </svg>
+        <figcaption><b>Fig. 3</b>Files behind a login download the way they would in the browser, only faster. Video pages get a button that sends the stream across.</figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <div class="notes" id="notes">
+    <div>
+      <h2>General notes</h2>
+      <ol>
+        <li><b>Resume is exact.</b> Finished ranges are recorded as they land. After a restart of the app, the PC or the network, transfer continues from the byte it stopped at.</li>
+        <li><b>Streaming video becomes one file.</b> HLS playlists are fetched segment by segment and, with ffmpeg present, written out as MP4.</li>
+        <li><b>The window is native.</b> Dark Windows app with a tray icon, save-as and progress dialogs, a finished dialog, and finish actions: open the file, open the folder, sleep, shut down, restart.</li>
+        <li><b>Other ways in.</b> A web page on localhost shows the same list. A command line adds, lists, pauses and resumes for scripts.</li>
+        <li><b>Nothing to clean up.</b> The installer needs no administrator prompt and the uninstaller keeps your download list unless told otherwise.</li>
+      </ol>
+    </div>
+    <div>
+      <h2>Materials</h2>
+      <table class="spec">
+        <tr><th>Language</th><td>Go, no third-party modules</td></tr>
+        <tr><th>Idle memory</th><td>about 9 MB</td></tr>
+        <tr><th>Connections per file</th><td>8, split dynamically</td></tr>
+        <tr><th>Install location</th><td>your user folder</td></tr>
+        <tr><th>Setup size</th><td>28 MB</td></tr>
+        <tr><th>Optional</th><td>ffmpeg for MP4 output</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <section class="get" id="get">
+    <div><h2>Install from one file</h2><p>DM-Setup.exe installs the app, registers the browser hook and offers the extension. Unattended: add -silent.</p></div>
+    <a class="button solid" href="#">Download DM-Setup.exe</a>
+  </section>
+
+  <div class="title-block">
+    <div><span class="label">Title</span><span class="v big">DM</span><span class="v">Download manager for Windows</span></div>
+    <div><span class="label">Drawn in</span><span class="v">Go</span></div>
+    <div><span class="label">Rev.</span><span class="v">0.1.0</span></div>
+    <div><span class="label">Sheet</span><span class="v">1 of 1</span></div>
+  </div>
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>
