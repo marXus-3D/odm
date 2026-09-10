@@ -463,10 +463,15 @@ npm run dev        # http://localhost:3000
 npm run build      # writes the site to landing/out
 ```
 
-It is draft 20: black, Geist, a lit hero with a fan of light shafts over
-the download window, then numbers, six feature cells and the browser
-hand-off as a log. Rules and backgrounds run edge to edge; text sits in a
-1320 px column. The shafts sway slowly and stay still under reduced motion.
+It is draft 20 grown up: black, Geist, a lit hero over the download
+window, then numbers, how it works (the range split as an animated bar),
+six feature cells, the measurement drawn at real relative speed, four ways
+in, the browser hand-off as a log, a FAQ, an install band and a footer.
+Rules and backgrounds run edge to edge; text sits in a 1320 px column.
+
+Motion is GSAP, all in `components/Motion.tsx`, driven by data attributes
+on server-rendered markup: every animation is a `from`, so the page with
+JavaScript off or reduced motion on is the resting state.
 
 Twenty drafts are kept in `site/pages` and served by
 `go run ./cmd/dm-site` at <http://127.0.0.1:8090/1> through `/20`.
