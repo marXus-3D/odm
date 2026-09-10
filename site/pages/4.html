@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM for Windows, downloads that finish faster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#e6ecf7;--bg2:#f2e7f1;--bg3:#e4f1ee;--ink:#1a2030;--ink-2:#5a6378;--card:rgba(255,255,255,.62);--card-line:rgba(255,255,255,.9);
+  --win:#14161b;--win-2:#1d2128;--win-3:#2c313b;--win-ink:#e6e9ef;--win-dim:#8b93a7;--blue:#4f9cf9;--green:#3ecf8e;--amber:#f5a524;
+}
+*{box-sizing:border-box}
+html{background:var(--bg1)}
+body{margin:0;color:var(--ink);font:400 17px/1.55 Outfit,system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+  background:radial-gradient(900px 600px at 15% -10%,var(--bg2),transparent 70%),radial-gradient(800px 500px at 100% 20%,var(--bg3),transparent 70%),var(--bg1);min-height:100vh}
+.wrap{width:min(1120px,calc(100% - 44px));margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:24px 0}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;text-decoration:none;color:inherit}
+.logo i{width:28px;height:28px;border-radius:8px;background:var(--win);display:grid;place-items:center}
+.logo i::before{content:"";width:9px;height:9px;border:2.5px solid var(--blue);border-top:0;border-left:0;transform:translateY(-2px) rotate(45deg)}
+nav a{color:var(--ink-2);text-decoration:none;margin-left:24px;font-weight:500;font-size:15px}
+nav a:hover{color:var(--ink)}
+
+.hero{text-align:center;padding:52px 0 30px}
+h1{font-size:clamp(38px,5.6vw,66px);font-weight:600;letter-spacing:-.03em;line-height:1.02;margin:0 auto 18px;max-width:18ch}
+.hero p{color:var(--ink-2);font-size:clamp(17px,1.5vw,20px);max-width:54ch;margin:0 auto 28px}
+.acts{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:10px;font-weight:600;text-decoration:none;font-size:16px;color:#fff;background:var(--ink);border:1px solid var(--ink)}
+.btn:hover{background:#2a3246}
+.btn.ghost{background:var(--card);color:var(--ink);border-color:var(--card-line)}
+.btn.ghost:hover{background:#fff}
+.btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.hero small{display:block;margin-top:12px;color:var(--ink-2);font-size:14px}
+
+/* the window */
+.stage{padding:32px 0 20px;perspective:1400px}
+.window{width:min(960px,100%);margin:0 auto;background:var(--win);color:var(--win-ink);border-radius:12px;box-shadow:0 40px 90px -20px rgba(26,32,48,.45),0 0 0 1px rgba(0,0,0,.35);overflow:hidden;font-size:13.5px}
+.titlebar{display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 0 0 14px;background:var(--win-2);border-bottom:1px solid #0b0d11}
+.titlebar span{font-weight:600;font-size:12.5px}
+.caption{display:flex}
+.caption i{width:46px;height:36px;display:grid;place-items:center;font-style:normal;font-size:11px;color:var(--win-dim)}
+.toolbar{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid #0b0d11;background:var(--win-2)}
+.tool{display:flex;align-items:center;gap:7px;padding:6px 11px;border-radius:7px;color:var(--win-ink);font-weight:500;font-size:12.5px;background:var(--win-3)}
+.tool.main{background:var(--blue);color:#06101f}
+.tool.dim{background:transparent;color:var(--win-dim)}
+.body{display:grid;grid-template-columns:172px 1fr}
+.side{border-right:1px solid #0b0d11;padding:12px 8px;background:var(--win-2)}
+.side div{padding:7px 10px;border-radius:7px;color:var(--win-dim);font-weight:500}
+.side div.on{background:var(--win-3);color:var(--win-ink)}
+.rows{padding:6px 0}
+.hdr,.row{display:grid;grid-template-columns:1fr 92px 200px 84px;gap:12px;align-items:center;padding:9px 16px}
+.hdr{color:var(--win-dim);font-size:12px;border-bottom:1px solid #0b0d11}
+.row{border-bottom:1px solid #191d24}
+.row .name{display:flex;align-items:center;gap:10px;min-width:0}
+.row .name b{width:26px;height:26px;border-radius:6px;background:var(--win-3);display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--win-dim);flex:none}
+.row .name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .size{color:var(--win-dim);font-variant-numeric:tabular-nums}
+.prog{height:6px;border-radius:3px;background:#0b0d11;overflow:hidden;position:relative}
+.prog i{position:absolute;left:0;top:0;bottom:0;background:var(--blue);border-radius:3px;width:var(--p)}
+.prog.done i{background:var(--green)}
+.prog.paused i{background:var(--amber)}
+.state{color:var(--win-dim);font-variant-numeric:tabular-nums;text-align:right}
+.state.ok{color:var(--green)}
+.status{display:flex;justify-content:space-between;padding:8px 16px;color:var(--win-dim);font-size:12px;border-top:1px solid #0b0d11;background:var(--win-2)}
+@media (max-width:760px){.body{grid-template-columns:1fr}.side{display:none}.hdr,.row{grid-template-columns:1fr 120px}.hdr div:nth-child(2),.hdr div:nth-child(4),.row .size,.row .state{display:none}}
+
+/* live rows */
+@keyframes grow{to{width:100%}}
+.row.live .prog i{animation:grow var(--d) linear both;animation-delay:var(--wait)}
+.row.live .state{color:var(--win-dim)}
+@media (prefers-reduced-motion:reduce){.row.live .prog i{animation:none;width:var(--p)}}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:52px 0 20px}
+.card{background:var(--card);border:1px solid var(--card-line);border-radius:14px;padding:22px 22px 24px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.card.wide{grid-column:span 2}
+.card h2{margin:0 0 8px;font-size:20px;font-weight:600;letter-spacing:-.01em}
+.card p{margin:0;color:var(--ink-2);font-size:15.5px}
+.card .num{font-size:44px;font-weight:600;letter-spacing:-.04em;line-height:1;margin:6px 0 10px}
+.card .num small{font-size:16px;letter-spacing:0;color:var(--ink-2);font-weight:500;margin-left:6px}
+@media (max-width:820px){.cards{grid-template-columns:1fr 1fr}.card.wide{grid-column:span 2}}
+@media (max-width:540px){.cards{grid-template-columns:1fr}.card.wide{grid-column:auto}}
+
+.ext{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:center;padding:32px 0 20px}
+.ext h2{font-size:clamp(28px,3.4vw,40px);font-weight:600;letter-spacing:-.03em;margin:0 0 12px;line-height:1.05}
+.ext p{color:var(--ink-2);margin:0 0 10px;max-width:46ch}
+.flow{display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap}
+.flow .node{background:var(--card);border:1px solid var(--card-line);border-radius:12px;padding:14px 18px;font-weight:600;font-size:15px;backdrop-filter:blur(12px);text-align:center}
+.flow .node small{display:block;color:var(--ink-2);font-weight:400;font-size:13px}
+.flow .link{width:34px;height:2px;background:var(--ink-2);opacity:.5;border-radius:1px}
+@media (max-width:820px){.ext{grid-template-columns:1fr}}
+
+.get{text-align:center;padding:60px 0 130px}
+.get h2{font-size:clamp(30px,4vw,48px);font-weight:600;letter-spacing:-.03em;margin:0 0 10px}
+.get p{color:var(--ink-2);margin:0 auto 24px;max-width:48ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="logo" href="/4"><i></i>DM</a>
+  <nav><a href="#app">The app</a><a href="#extension">Extension</a><a href="#get">Install</a></nav>
+</header>
+
+<section class="hero">
+  <h1>Downloads that finish while you are still watching</h1>
+  <p>DM is a download manager built for Windows. It opens eight connections to each file, resumes after anything, and turns streaming video into MP4. Your browser sends it the links.</p>
+  <div class="acts"><a class="btn" href="#get">Download DM-Setup.exe</a><a class="btn ghost" href="#app">Take a look at the app</a></div>
+  <small>28 MB, installs to your user folder, no admin rights</small>
+</section>
+
+<section class="stage" id="app" aria-label="The DM window">
+  <div class="window" role="img" aria-label="DM main window with a list of downloads in progress">
+    <div class="titlebar"><span>DM</span><div class="caption"><i>—</i><i>▢</i><i>✕</i></div></div>
+    <div class="toolbar"><div class="tool main">Add URL</div><div class="tool">Resume</div><div class="tool">Pause</div><div class="tool dim">Stop all</div><div class="tool dim">Open folder</div><div class="tool dim">Settings</div></div>
+    <div class="body">
+      <div class="side"><div class="on">All downloads</div><div>Video</div><div>Documents</div><div>Programs</div><div>Archives</div><div>Finished</div></div>
+      <div class="rows">
+        <div class="hdr"><div>Name</div><div>Size</div><div>Progress</div><div style="text-align:right">Status</div></div>
+        <div class="row live" style="--p:38%;--d:14s;--wait:.2s"><div class="name"><b>ISO</b><span>ubuntu-24.04.1-desktop-amd64.iso</span></div><div class="size">5.8 GB</div><div class="prog"><i></i></div><div class="state">8 conns</div></div>
+        <div class="row live" style="--p:71%;--d:9s;--wait:.6s"><div class="name"><b>MP4</b><span>lecture-07-distributed-systems.mp4</span></div><div class="size">1.2 GB</div><div class="prog"><i></i></div><div class="state">HLS</div></div>
+        <div class="row live" style="--p:12%;--d:22s;--wait:0s"><div class="name"><b>ZIP</b><span>blender-4.2-windows-x64.zip</span></div><div class="size">341 MB</div><div class="prog"><i></i></div><div class="state">8 conns</div></div>
+        <div class="row" style="--p:54%"><div class="name"><b>PDF</b><span>the-art-of-computer-programming-vol-4b.pdf</span></div><div class="size">48 MB</div><div class="prog paused"><i></i></div><div class="state">Paused</div></div>
+        <div class="row" style="--p:100%"><div class="name"><b>EXE</b><span>Go 1.23 installer</span></div><div class="size">72 MB</div><div class="prog done"><i></i></div><div class="state ok">Done</div></div>
+        <div class="row" style="--p:100%"><div class="name"><b>MP4</b><span>talk-keeping-connections-busy.mp4</span></div><div class="size">890 MB</div><div class="prog done"><i></i></div><div class="state ok">Done</div></div>
+      </div>
+    </div>
+    <div class="status"><span>3 active, 1 paused</span><span>41.2 MB/s</span></div>
+  </div>
+</section>
+
+<section class="cards">
+  <div class="card wide"><h2>13.7 s to 6.5 s on the same file</h2><div class="num">2.1×<small>faster, byte-identical output</small></div><p>An 83 MiB file from dl.google.com on one connection, then on eight. Most hosts cap each socket, not each person, and TCP gives every flow its own share of a busy link.</p></div>
+  <div class="card"><h2>Idle at about 9 MB</h2><p>Written in Go with no third-party modules. It sits in the tray without you noticing it is there.</p></div>
+  <div class="card"><h2>Resume after anything</h2><p>Finished ranges are recorded as they land. Restart the app, the PC or the router and it carries on from the same byte.</p></div>
+  <div class="card"><h2>Streaming video to MP4</h2><p>HLS playlists are fetched segment by segment and stitched into one MP4 when ffmpeg is installed.</p></div>
+  <div class="card"><h2>When the queue empties</h2><p>Open the file or its folder, or have the PC sleep, shut down or restart once the last download is done.</p></div>
+</section>
+
+<section class="ext" id="extension">
+  <div>
+    <h2>The browser hands downloads over, cookies included</h2>
+    <p>The extension catches a download the moment the browser would start it and passes the link to DM through the browser's own native-messaging channel, with the cookies for that site. Files behind a login download without copying anything by hand.</p>
+    <p>Video pages get a small button that sends the stream across.</p>
+  </div>
+  <div class="flow" aria-label="Browser to extension to DM">
+    <div class="node">Browser<small>starts a download</small></div><div class="link"></div>
+    <div class="node">DM extension<small>link plus cookies</small></div><div class="link"></div>
+    <div class="node">DM<small>eight connections</small></div>
+  </div>
+</section>
+
+<section class="get" id="get">
+  <h2>One setup file, and you are done</h2>
+  <p>DM-Setup.exe installs the app to your user folder, registers the browser hook and offers the extension. The same file uninstalls, keeping your download list unless you ask it not to.</p>
+  <div class="acts"><a class="btn" href="#">Download DM-Setup.exe</a></div>
+  <small style="display:block;margin-top:12px;color:var(--ink-2);font-size:14px">Chrome, Edge, Brave and Vivaldi. Optional ffmpeg for MP4.</small>
+</section>
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

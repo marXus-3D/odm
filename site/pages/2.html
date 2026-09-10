@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM download manager, technical sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,500;100,400;100,500;100,700;125,800&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#ffffff;--rule:#101418;--rule-soft:#d7dbe0;--ink:#101418;--ink-2:#565d68;--blue:#0026d9;--blue-tint:#e8ecff}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;color:var(--ink);font:400 16px/1.5 Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.sheet{width:min(1180px,calc(100% - 40px));margin:0 auto;border-left:2px solid var(--rule);border-right:2px solid var(--rule);min-height:100vh}
+.row{display:grid;grid-template-columns:1fr 1fr;border-bottom:2px solid var(--rule)}
+.row > *{padding:22px 28px}
+.row > * + *{border-left:2px solid var(--rule)}
+@media (max-width:820px){.row{grid-template-columns:1fr}.row > * + *{border-left:0;border-top:2px solid var(--rule)}}
+
+.masthead{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap}
+.masthead .name{font-size:14px;font-weight:500;font-stretch:75%;letter-spacing:.02em}
+.masthead .name b{font-weight:800;font-stretch:125%;font-size:26px;margin-right:12px;letter-spacing:-.01em;vertical-align:-2px}
+.masthead .doc{font-size:13px;color:var(--ink-2)}
+
+h1{font-size:clamp(38px,5.6vw,72px);line-height:.95;letter-spacing:-.03em;font-weight:800;font-stretch:125%;margin:8px 0 22px;text-wrap:balance}
+.hero p{font-size:18px;line-height:1.5;color:var(--ink-2);max-width:46ch;margin:0 0 26px}
+.buttons{display:flex;gap:10px;flex-wrap:wrap}
+.button{display:inline-block;padding:13px 20px;background:var(--blue);color:#fff;text-decoration:none;font-weight:700;font-size:15px;border:2px solid var(--blue)}
+.button:hover{background:#0020b3;border-color:#0020b3}
+.button.hollow{background:transparent;color:var(--ink);border-color:var(--rule)}
+.button.hollow:hover{background:var(--blue-tint)}
+.button:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+
+/* the spec table */
+table{width:100%;border-collapse:collapse;font-size:15px}
+caption{text-align:left;font-weight:700;padding:0 0 12px;font-size:15px}
+th,td{padding:9px 0;text-align:left;vertical-align:top;border-top:1px solid var(--rule-soft)}
+th{font-weight:500;color:var(--ink-2);width:46%;padding-right:12px}
+td{font-weight:500;font-variant-numeric:tabular-nums}
+tr.hi td{color:var(--blue);font-weight:700}
+
+/* offset diagram */
+.figure{background:var(--blue-tint)}
+.figure h2{margin:0 0 4px;font-size:15px;font-weight:700}
+.figure p{margin:0 0 14px;font-size:14px;color:var(--ink-2);max-width:54ch}
+.figure svg{width:100%;height:auto;display:block}
+.figure figcaption{font-size:13px;color:var(--ink-2);margin-top:12px}
+
+/* measurement */
+.measure h2,.why h2,.parts h2,.get h2{font-size:clamp(26px,3.2vw,40px);letter-spacing:-.025em;line-height:1.02;margin:0 0 14px;font-weight:800;font-stretch:125%}
+.bars{margin-top:20px}
+.bar{display:grid;grid-template-columns:120px 1fr 64px;gap:14px;align-items:center;padding:8px 0;font-size:14px}
+.bar i{display:block;height:26px;background:var(--rule-soft)}
+.bar.dm i{background:var(--blue)}
+.bar em{font-style:normal;font-weight:700;font-size:18px;text-align:right;font-variant-numeric:tabular-nums}
+.measure p,.why p{color:var(--ink-2);margin:0;max-width:52ch}
+.why ol{margin:14px 0 0;padding:0 0 0 22px}
+.why li{margin:8px 0;padding-left:4px}
+.why li b{color:var(--ink);font-weight:700}
+
+/* parts */
+.parts{grid-column:1 / -1}
+.partlist{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:20px;border-top:1px solid var(--rule-soft)}
+.part{padding:16px 16px 18px 0;border-right:1px solid var(--rule-soft);margin-right:16px}
+.part:last-child{border-right:0;margin-right:0}
+.part h3{margin:0 0 6px;font-size:16px;font-weight:700}
+.part p{margin:0;font-size:14.5px;color:var(--ink-2)}
+@media (max-width:820px){.partlist{grid-template-columns:1fr 1fr}.part:nth-child(2n){border-right:0}}
+@media (max-width:480px){.partlist{grid-template-columns:1fr}.part{border-right:0}}
+
+.get p{color:var(--ink-2);margin:0 0 18px;max-width:48ch}
+.get code{font-family:inherit;background:var(--blue-tint);padding:2px 6px;font-weight:500}
+.foot{font-size:13px;color:var(--ink-2);display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-bottom:0}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<div class="row"><div class="masthead" style="grid-column:1/-1">
+  <div class="name"><b>DM</b>Download manager for Windows</div>
+  <div class="doc">Technical sheet, version 0.1.0</div>
+</div></div>
+
+<div class="row">
+  <section class="hero">
+    <h1>Eight sockets, one file, no merge step</h1>
+    <p>DM pulls a file over several connections at once, splitting the remaining bytes as it goes, and writes each piece directly to its final offset. The browser extension hands over the link with your cookies attached.</p>
+    <div class="buttons"><a class="button" href="#get">Download DM-Setup.exe</a><a class="button hollow" href="#measure">Read the measurement</a></div>
+  </section>
+  <section>
+    <table>
+      <caption>At a glance</caption>
+      <tr><th>Connections per file</th><td>8, split dynamically</td></tr>
+      <tr class="hi"><th>83 MiB test file</th><td>13.7 s on 1 connection, 6.5 s on 8</td></tr>
+      <tr><th>Idle memory</th><td>about 9 MB</td></tr>
+      <tr><th>Resume</th><td>across app, PC and network restarts</td></tr>
+      <tr><th>Streaming video</th><td>HLS playlists, MP4 output with ffmpeg</td></tr>
+      <tr><th>Browser hook</th><td>Chrome, Edge, Brave, Vivaldi</td></tr>
+      <tr><th>Interfaces</th><td>native Windows app, web UI, command line</td></tr>
+      <tr><th>Runtime</th><td>Go, no third-party modules</td></tr>
+      <tr><th>Install</th><td>one file, per user, no admin rights</td></tr>
+    </table>
+  </section>
+</div>
+
+<div class="row">
+  <figure class="figure" style="margin:0">
+    <h2>Positioned writes into one preallocated file</h2>
+    <p>Each connection owns a byte range and writes it at that range's offset. There are no part files, so the download is complete the instant the last range lands.</p>
+    <svg viewBox="0 0 560 250" role="img" aria-label="Eight connections each writing to a different offset of the same file">
+      <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#101418"/></marker></defs>
+      <g font-family="Archivo, sans-serif" font-size="12" fill="#101418">
+        <text x="0" y="16" font-weight="700">connections</text>
+        <g id="conns">
+          <text x="0" y="46">1</text><text x="0" y="76">2</text><text x="0" y="106">3</text><text x="0" y="136">4</text>
+          <text x="0" y="166">5</text><text x="0" y="196">6</text><text x="0" y="226">7</text><text x="0" y="246" dy="-2">8</text>
+        </g>
+        <g stroke="#101418" stroke-width="1.5" fill="none" marker-end="url(#a)">
+          <path d="M18 42 C 140 42, 200 190, 280 190"/>
+          <path d="M18 72 C 140 72, 200 60,  280 60"/>
+          <path d="M18 102 C 140 102, 200 120, 280 120"/>
+          <path d="M18 132 C 140 132, 200 230, 280 230"/>
+          <path d="M18 162 C 140 162, 200 30,  280 30"/>
+          <path d="M18 192 C 140 192, 200 150, 280 150"/>
+          <path d="M18 222 C 140 222, 200 90,  280 90"/>
+          <path d="M18 242 C 140 242, 200 210, 280 210"/>
+        </g>
+        <rect x="290" y="14" width="150" height="226" fill="#fff" stroke="#101418" stroke-width="2"/>
+        <g fill="#0026d9">
+          <rect x="292" y="16" width="146" height="26"/><rect x="292" y="46" width="146" height="26" opacity=".85"/>
+          <rect x="292" y="76" width="146" height="26" opacity=".7"/><rect x="292" y="106" width="146" height="26" opacity=".55"/>
+          <rect x="292" y="136" width="146" height="26" opacity=".4"/><rect x="292" y="176" width="146" height="26" opacity=".3"/>
+          <rect x="292" y="196" width="146" height="14" opacity=".2"/><rect x="292" y="216" width="146" height="22" opacity=".15"/>
+        </g>
+        <g font-size="11" fill="#565d68" text-anchor="start">
+          <text x="452" y="26">offset 0</text><text x="452" y="126">…</text><text x="452" y="236">offset 87 031 807</text>
+        </g>
+        <text x="290" y="8" font-size="11" fill="#565d68">file.bin, preallocated to its final size</text>
+      </g>
+    </svg>
+    <figcaption>Ranges are recorded as they finish, which is what makes resume exact rather than approximate.</figcaption>
+  </figure>
+
+  <section class="measure" id="measure">
+    <h2>13.7 s to 6.5 s, same bytes</h2>
+    <p>Measured on a home connection against dl.google.com, an 83 MiB file with no server-side rate limit. The output was byte-identical in both runs.</p>
+    <div class="bars">
+      <div class="bar"><span>1 connection</span><i style="width:100%"></i><em>13.7 s</em></div>
+      <div class="bar dm"><span>8 connections</span><i style="width:47.4%"></i><em>6.5 s</em></div>
+    </div>
+    <p style="margin-top:22px;font-size:14px">Bars are to scale. Results on a host that limits per user rather than per socket will be closer together.</p>
+  </section>
+</div>
+
+<div class="row">
+  <section class="why">
+    <h2>Why more connections are faster</h2>
+    <p>Three effects, in the order they matter.</p>
+    <ol>
+      <li><b>Hosts cap each socket, not each user.</b> Eight sockets get eight times the cap.</li>
+      <li><b>TCP shares a bottleneck per flow.</b> Eight flows claim eight shares, and each ramps its window on its own, which counts most on long high-bandwidth paths.</li>
+      <li><b>Splits happen late, not up front.</b> An idle connection halves the largest remaining range and takes the tail, so a slow connection ends up owning less of the file.</li>
+    </ol>
+  </section>
+  <section class="why">
+    <h2>What the extension does</h2>
+    <p>It watches for downloads in the browser and hands each one to DM through the browser's own native-messaging channel, together with the cookies for that site. Files behind a login download without any copying of headers or tokens by hand. Streaming video pages get a small button that sends the playlist across.</p>
+  </section>
+</div>
+
+<div class="row">
+  <section class="parts">
+    <h2>What is in the box</h2>
+    <div class="partlist">
+      <div class="part"><h3>Native app</h3><p>Dark Windows window with a tray icon, save-as and progress dialogs, a finished dialog, and finish actions: open, sleep, shut down, restart.</p></div>
+      <div class="part"><h3>Background service</h3><p>Runs at sign-in if you want. Holds the download list and keeps transferring while no window is open.</p></div>
+      <div class="part"><h3>Web UI and command line</h3><p>A local page for the same list, and a small command for scripts: add a link, list, pause, resume.</p></div>
+      <div class="part"><h3>Browser extension</h3><p>Ships inside the installer, signed. The installer offers it to your browser and shows the one click left to do.</p></div>
+    </div>
+  </section>
+</div>
+
+<div class="row">
+  <section class="get" id="get">
+    <h2>Install</h2>
+    <p>Run <code>DM-Setup.exe</code>. It installs to your user folder, so there is no administrator prompt. The same file removes DM again; your download list is kept unless you choose to remove it.</p>
+    <div class="buttons"><a class="button" href="#">Download DM-Setup.exe, 28 MB</a></div>
+  </section>
+  <section class="get">
+    <h2>Unattended</h2>
+    <p>For scripts and fresh machines:</p>
+    <p><code>DM-Setup.exe -silent</code> installs with the defaults.<br>
+    <code>DM-Setup.exe -silent -no-startup</code> skips the sign-in entry.<br>
+    <code>DM-Setup.exe -uninstall -silent</code> removes it.</p>
+  </section>
+</div>
+
+<div class="row"><div class="foot" style="grid-column:1/-1"><span>DM is a personal project, written in Go for Windows.</span><span>Optional: ffmpeg on the path for MP4 output.</span></div></div>
+
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

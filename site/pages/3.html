@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM. Eight sockets. Eight shares.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--yellow:#ffd23f;--black:#000;--ink-soft:rgba(0,0,0,.66);--white:#fff}
+*{box-sizing:border-box}
+html{background:var(--yellow)}
+body{margin:0;color:var(--black);background:var(--yellow);font:400 18px/1.5 "Instrument Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.page{width:min(1240px,calc(100% - 40px));margin:0 auto}
+h1,h2,.big{font-family:Syne,sans-serif;font-weight:800;letter-spacing:-.035em;line-height:.9;margin:0}
+
+.top{display:flex;justify-content:space-between;align-items:center;padding:22px 0;border-bottom:5px solid var(--black)}
+.top .name{font-family:Syne,sans-serif;font-weight:800;font-size:28px;letter-spacing:-.03em}
+.top a{color:inherit;text-decoration:none;font-weight:600;font-size:16px;margin-left:24px}
+.top a:hover{text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:4px}
+
+.hero{padding:44px 0 36px;border-bottom:5px solid var(--black)}
+.hero h1{font-size:clamp(52px,10.5vw,176px)}
+.hero h1 span{display:block}
+.hero h1 .two{padding-left:clamp(20px,12vw,220px)}
+.hero-row{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:end;margin-top:34px}
+.hero-row p{font-size:clamp(18px,1.8vw,24px);line-height:1.35;margin:0;max-width:30ch;font-weight:500}
+.hero-row .act{justify-self:end;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.button{display:inline-block;background:var(--black);color:var(--yellow);text-decoration:none;font-weight:600;font-size:18px;padding:18px 28px;border:3px solid var(--black)}
+.button:hover{background:var(--yellow);color:var(--black)}
+.button:focus-visible{outline:4px solid var(--white);outline-offset:0}
+.hero-row small{font-size:14px;color:var(--ink-soft)}
+@media (max-width:760px){.hero-row{grid-template-columns:1fr}.hero-row .act{justify-self:start;align-items:flex-start}}
+
+/* the claim strip */
+.claim{display:grid;grid-template-columns:1fr 1fr;border-bottom:5px solid var(--black)}
+.claim > div{padding:36px 0}
+.claim > div + div{border-left:5px solid var(--black);padding-left:36px}
+.claim .big{font-size:clamp(72px,11vw,160px)}
+.claim .big sub{font-family:"Instrument Sans",sans-serif;font-weight:500;font-size:.22em;letter-spacing:0;vertical-align:baseline;margin-left:.15em}
+.claim p{margin:12px 0 0;font-size:17px;max-width:30ch}
+.claim .strike{text-decoration:line-through;text-decoration-thickness:.08em}
+@media (max-width:760px){.claim{grid-template-columns:1fr}.claim > div + div{border-left:0;border-top:5px solid var(--black);padding-left:0}}
+
+/* statements */
+.list{border-bottom:5px solid var(--black)}
+.item{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;padding:34px 0;border-top:3px solid var(--black)}
+.item:first-child{border-top:0}
+.item h2{font-size:clamp(34px,5vw,68px)}
+.item p{margin:0;font-size:18px;max-width:44ch;align-self:end}
+@media (max-width:760px){.item{grid-template-columns:1fr;gap:14px}}
+
+/* the split, drawn */
+.split{padding:44px 0;border-bottom:5px solid var(--black)}
+.split h2{font-size:clamp(34px,5vw,68px);margin-bottom:26px;max-width:16ch}
+.bars{display:grid;gap:14px}
+.bar{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;font-weight:600;font-size:16px}
+.bar .track{height:38px;display:flex;border:3px solid var(--black)}
+.bar .track i{display:block;height:100%;border-right:3px solid var(--black);background:var(--black)}
+.bar .track i:last-child{border-right:0}
+.bar .track i.empty{background:transparent}
+.bar .track i.slow{background:repeating-linear-gradient(135deg,#000 0 6px,var(--yellow) 6px 12px)}
+.split p{margin:20px 0 0;max-width:56ch;font-size:17px}
+
+.foot{display:grid;grid-template-columns:1fr 1fr;gap:40px;padding:44px 0 130px}
+.foot h2{font-size:clamp(40px,6vw,96px);margin-bottom:22px}
+.foot ul{list-style:none;margin:0;padding:0;font-size:17px;font-weight:500}
+.foot li{padding:12px 0;border-top:3px solid var(--black);display:flex;justify-content:space-between;gap:16px}
+.foot li:last-child{border-bottom:3px solid var(--black)}
+.foot li span:last-child{font-weight:600}
+@media (max-width:760px){.foot{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="top">
+  <div class="name">DM</div>
+  <nav><a href="#fast">Why fast</a><a href="#split">The split</a><a href="#get">Get it</a></nav>
+</header>
+
+<section class="hero">
+  <h1><span>Eight sockets.</span><span class="two">Eight shares.</span></h1>
+  <div class="hero-row">
+    <p>A download manager for Windows that opens eight connections to one file and never lets a slow one decide when you are done.</p>
+    <div class="act"><a class="button" href="#get">Download DM-Setup.exe</a><small>28 MB, installs without admin rights</small></div>
+  </div>
+</section>
+
+<section class="claim" id="fast">
+  <div><div class="big"><span class="strike">13.7</span><sub>s</sub></div><p>An 83 MiB file from dl.google.com on one connection. The browser's way.</p></div>
+  <div><div class="big">6.5<sub>s</sub></div><p>The same file, the same machine, eight connections. Byte for byte identical.</p></div>
+</section>
+
+<section class="list">
+  <div class="item"><h2>Hosts cap the socket, not you.</h2><p>Most servers throttle each connection. Open eight and you have eight times the ceiling. Nothing clever, just more pipes.</p></div>
+  <div class="item"><h2>The browser hands it over.</h2><p>The extension catches downloads and passes them to DM with your cookies, so files behind a login come through without copying anything by hand.</p></div>
+  <div class="item"><h2>Stop. Restart. Continue.</h2><p>Every finished range is written to disk and remembered. Reboot in the middle and the download picks up where it was.</p></div>
+  <div class="item"><h2>Streams become files.</h2><p>HLS video is fetched segment by segment and, with ffmpeg on the machine, turned into one MP4.</p></div>
+</section>
+
+<section class="split" id="split">
+  <h2>No slow connection owns the finish line.</h2>
+  <div class="bars">
+    <div class="bar"><span>Fixed chunks</span><div class="track" aria-label="Seven finished chunks and one slow chunk still going"><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i class="slow" style="flex:1"></i></div></div>
+    <div class="bar"><span>DM</span><div class="track" aria-label="Ranges of decreasing size, the slow one has been split down to a sliver"><i style="flex:8"></i><i style="flex:4"></i><i style="flex:4"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:1"></i><i style="flex:1"></i><i class="slow" style="flex:.35"></i></div></div>
+  </div>
+  <p>Chunk the file into eight equal parts up front and seven connections sit idle while the eighth crawls. DM starts with one range and lets every idle connection split the largest remaining one, taking the tail. The slow one keeps losing territory until the fast ones have finished everything.</p>
+</section>
+
+<section class="foot" id="get">
+  <div>
+    <h2>One file. No admin prompt.</h2>
+    <a class="button" href="#">Download DM-Setup.exe</a>
+  </div>
+  <ul>
+    <li><span>Installs to</span><span>your user folder</span></li>
+    <li><span>Memory when idle</span><span>about 9 MB</span></li>
+    <li><span>Written in</span><span>Go, no third-party modules</span></li>
+    <li><span>Browsers</span><span>Chrome, Edge, Brave, Vivaldi</span></li>
+    <li><span>Also included</span><span>web UI, command line, uninstaller</span></li>
+  </ul>
+</section>
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

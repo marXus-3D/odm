@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why DM downloads are fast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f2f3f5;--ink:#141a24;--ink-2:#5b6474;--rule:#cfd3da;--ox:#8a1c1c;--ox-tint:#f4e3e3}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;color:var(--ink);background:var(--paper);font:400 17px/1.6 "Public Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.col{width:min(720px,calc(100% - 44px));margin:0 auto}
+.wide{width:min(1040px,calc(100% - 44px));margin:0 auto}
+h1,h2,.serif{font-family:Fraunces,Georgia,serif;font-weight:300;letter-spacing:-.01em;margin:0}
+
+.top{display:flex;justify-content:space-between;align-items:baseline;padding:26px 0 18px;border-bottom:1px solid var(--rule)}
+.top .name{font-family:Fraunces,serif;font-weight:600;font-size:22px;text-decoration:none;color:inherit}
+.top nav a{color:var(--ink-2);text-decoration:none;font-size:15px;margin-left:22px}
+.top nav a:hover{color:var(--ox)}
+
+.title{padding:64px 0 40px;text-align:left}
+.title h1{font-size:clamp(44px,7vw,92px);line-height:1;font-variation-settings:"opsz" 144;max-width:16ch}
+.title h1 em{font-style:italic;font-weight:300}
+.title .dek{font-size:clamp(19px,2vw,23px);color:var(--ink-2);margin:26px 0 0;max-width:36ch;line-height:1.45;font-family:Fraunces,serif;font-variation-settings:"opsz" 24}
+.title .by{margin-top:30px;font-size:14px;color:var(--ink-2);display:flex;gap:22px;flex-wrap:wrap}
+.title .by a{color:var(--ox);font-weight:600;text-decoration:none;border-bottom:1.5px solid currentColor}
+
+article{padding-bottom:40px}
+article h2{font-size:clamp(28px,3.4vw,40px);line-height:1.1;margin:56px 0 18px;font-variation-settings:"opsz" 72}
+article p{margin:0 0 20px;max-width:64ch}
+article p.first::first-letter{font-family:Fraunces,serif;font-weight:600;font-size:3.6em;float:left;line-height:.82;margin:4px 8px 0 0;color:var(--ox)}
+article a{color:var(--ox)}
+.aside{border-left:3px solid var(--ox);padding:4px 0 4px 20px;margin:26px 0;color:var(--ink-2);font-size:16px}
+.aside b{color:var(--ink);font-weight:600}
+
+/* pull figure */
+figure{margin:40px 0}
+.fig-wide{width:min(1040px,calc(100% - 44px));margin-left:calc(50% - min(520px,50vw - 22px))}
+.measure{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+.measure > div{padding:26px 26px 26px 0}
+.measure > div + div{border-left:1px solid var(--rule);padding-left:26px}
+.measure .n{font-family:Fraunces,serif;font-weight:300;font-size:clamp(54px,7vw,104px);line-height:.95;letter-spacing:-.03em;font-variation-settings:"opsz" 144}
+.measure .n small{font-size:.3em;color:var(--ink-2);margin-left:.1em;letter-spacing:0}
+.measure .n.ox{color:var(--ox)}
+.measure p{margin:12px 0 0;color:var(--ink-2);font-size:15px;max-width:34ch}
+figcaption{font-size:14px;color:var(--ink-2);margin-top:12px}
+@media (max-width:640px){.measure{grid-template-columns:1fr}.measure > div + div{border-left:0;border-top:1px solid var(--rule);padding-left:0}}
+
+.split{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);padding:24px 0}
+.split .lane{display:grid;grid-template-columns:130px 1fr;gap:16px;align-items:center;margin:10px 0;font-size:15px}
+.split .lane span{color:var(--ink-2)}
+.split .track{display:flex;height:22px;gap:2px}
+.split .track i{background:var(--ink);opacity:.85}
+.split .track i.slow{background:var(--ox);opacity:1}
+
+.list{padding:0;margin:0 0 20px;list-style:none;counter-reset:n}
+.list li{counter-increment:n;display:grid;grid-template-columns:40px 1fr;gap:10px;padding:14px 0;border-top:1px solid var(--rule);max-width:64ch}
+.list li::before{content:counter(n) ".";font-family:Fraunces,serif;font-size:22px;color:var(--ox);line-height:1.1}
+.list li b{display:block;font-weight:600;margin-bottom:2px}
+
+.get{border-top:1px solid var(--ink);padding:48px 0 130px;display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.get h2{font-size:clamp(30px,3.6vw,44px);line-height:1.05;margin:0 0 14px}
+.get p{color:var(--ink-2);margin:0 0 22px;max-width:40ch}
+.button{display:inline-block;background:var(--ox);color:#fff;text-decoration:none;font-weight:600;padding:14px 22px;border-radius:4px;font-size:16px}
+.button:hover{background:#6f1414}
+.button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.get dl{margin:0;font-size:15.5px}
+.get dl div{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid var(--rule)}
+.get dt{color:var(--ink-2)}
+.get dd{margin:0;font-weight:600;text-align:right}
+@media (max-width:640px){.get{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wide">
+<header class="top"><a class="name" href="/5">DM</a><nav><a href="#fast">Why it is fast</a><a href="#extension">The extension</a><a href="#get">Install</a></nav></header>
+</div>
+
+<div class="col">
+<section class="title">
+  <h1>A download manager that <em>keeps every connection busy</em></h1>
+  <p class="dek">Notes on how DM pulls one file over eight sockets, why that is faster, and why the browser should be the one handing it the link.</p>
+  <div class="by"><span>Written in Go for Windows</span><span>Version 0.1.0</span><a href="#get">Download DM-Setup.exe</a></div>
+</section>
+
+<article>
+  <p class="first">Your browser downloads a file over one connection, and most servers cap what one connection may have. That is the whole story of why download managers exist. Open eight connections to the same file and you have eight times the ceiling, and eight shares of any busy link along the way, because TCP divides a bottleneck per flow rather than per person.</p>
+  <p>DM does this, and one more thing that turns out to matter as much: it decides how to split the file while the download is running, not before.</p>
+
+  <figure class="fig-wide">
+    <div class="measure">
+      <div><div class="n">13.7<small>s</small></div><p>An 83 MiB file from dl.google.com, one connection.</p></div>
+      <div><div class="n ox">6.5<small>s</small></div><p>The same file, the same afternoon, eight connections. The bytes came out identical.</p></div>
+    </div>
+    <figcaption>The host had no rate limit of its own. On a server that caps per user instead of per socket, the two numbers sit closer together.</figcaption>
+  </figure>
+
+  <h2 id="fast">The trouble with fixed chunks</h2>
+  <p>The obvious approach cuts the file into eight equal pieces and hands one to each connection. It works until one connection is slower than the others, which is nearly always. Seven connections finish their eighth and then sit idle while the slow one grinds through its share. The slowest socket decides when you are done.</p>
+  <p>DM begins with a single range that covers the whole file. Whenever a connection has nothing to do, it looks for the largest range still in progress, splits what is left of it in half, and takes the tail. The same small routine performs the initial fan-out in the first few milliseconds and the rebalancing near the end. A connection that is slow simply keeps having its territory split away from it, and it ends the transfer owning a sliver.</p>
+
+  <figure class="fig-wide">
+    <div class="split">
+      <div class="lane"><span>Fixed chunks</span><div class="track" aria-label="Eight equal chunks, one still slow"><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i class="slow" style="flex:1"></i></div></div>
+      <div class="lane"><span>DM</span><div class="track" aria-label="Ranges of shrinking size, the slow connection owns a sliver"><i style="flex:8"></i><i style="flex:4"></i><i style="flex:4"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:1"></i><i style="flex:1"></i><i class="slow" style="flex:.3"></i></div></div>
+    </div>
+    <figcaption>Dark red is the slow connection. With fixed chunks it owns an eighth of the file to the end. With dynamic splitting it owns whatever the fast connections have not yet taken.</figcaption>
+  </figure>
+
+  <h2>Where the bytes go</h2>
+  <p>Each range writes straight into the final file at its own offset. The file is created at its full size first, so there are no temporary part files and no merge pass when the last byte lands. The download is finished the instant the last range is.</p>
+  <p>Finished ranges are recorded as they complete. That record is what makes resume exact: close the app, restart the machine, lose the network for an hour, and the download continues from the byte it stopped at rather than from the last checkpoint it happened to reach.</p>
+  <div class="aside"><b>Streaming video</b> works the same way at a different grain. An HLS playlist is a list of short segments; DM fetches them as ranges of one logical file and, if ffmpeg is on the machine, writes a single MP4 at the end.</div>
+
+  <h2 id="extension">Why the browser should hand it over</h2>
+  <p>A download manager that has to be fed links by hand is a download manager you stop using. The DM extension watches for downloads inside Chrome, Edge, Brave or Vivaldi and passes each one to the app through the browser's own native-messaging channel, together with the cookies for that site. A file behind a login downloads the way it would have in the browser, only faster. Pages with streaming video get a small button that sends the stream across.</p>
+  <p>The app itself is a native Windows window, dark, with a tray icon, a save-as dialog when a download arrives, a progress dialog while it runs, and a dialog when it finishes. If you would rather have a browser tab, the same list is served on localhost, and there is a command line for scripts.</p>
+
+  <h2>What it costs the machine</h2>
+  <ul class="list">
+    <li><div><b>About 9 MB of memory when idle.</b> The background service is a single Go binary with no third-party modules.</div></li>
+    <li><div><b>Nothing at startup unless you ask.</b> Running at sign-in is a checkbox in the installer, and one in the app.</div></li>
+    <li><div><b>Nothing outside your user folder.</b> The installer needs no administrator prompt and the uninstaller leaves your download list in place unless you tell it otherwise.</div></li>
+  </ul>
+</article>
+
+<section class="get" id="get">
+  <div>
+    <h2>Install it</h2>
+    <p>One file. It installs the app, registers the browser hook, and offers the extension to your browser with one click left for you.</p>
+    <a class="button" href="#">Download DM-Setup.exe</a>
+  </div>
+  <dl>
+    <div><dt>Size</dt><dd>28 MB</dd></div>
+    <div><dt>Installs to</dt><dd>your user folder</dd></div>
+    <div><dt>Needs</dt><dd>Windows 10 or 11</dd></div>
+    <div><dt>Optional</dt><dd>ffmpeg for MP4</dd></div>
+    <div><dt>Unattended</dt><dd>DM-Setup.exe -silent</dd></div>
+  </dl>
+</section>
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

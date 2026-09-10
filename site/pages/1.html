@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, a download manager that keeps every connection busy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#0f1216; --panel:#151a20; --line:#242b35; --ink:#e9edf3; --ink-dim:#8b93a7;
+  --blue:#4f9cf9; --blue-deep:#2b6fd6; --green:#3ecf8e;
+  --w1:#4f9cf9; --w2:#7bb6ff; --w3:#3ecf8e; --w4:#8be0b8; --w5:#f5a524; --w6:#ffc76b; --w7:#c78bff; --w8:#e2bcff;
+}
+*{box-sizing:border-box}
+html{background:var(--ground)}
+body{margin:0;color:var(--ink);font:400 17px/1.55 Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{width:min(1120px,calc(100% - 48px));margin:0 auto}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:26px 0}
+.mark{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.01em}
+.mark i{width:26px;height:26px;border-radius:7px;background:linear-gradient(160deg,var(--blue),var(--blue-deep));display:grid;place-items:center}
+.mark i::before{content:"";width:10px;height:10px;border:2.5px solid #fff;border-top:0;border-left:0;transform:translateY(-2px) rotate(45deg)}
+nav a{color:var(--ink-dim);text-decoration:none;margin-left:26px;font-weight:500;font-size:15px}
+nav a:hover{color:var(--ink)}
+
+.hero{padding:56px 0 20px}
+h1{font-size:clamp(40px,6.4vw,78px);line-height:.98;letter-spacing:-.035em;font-weight:800;margin:0 0 22px;max-width:14ch}
+.lede{font-size:clamp(18px,1.6vw,21px);color:var(--ink-dim);max-width:52ch;margin:0 0 34px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:14px 22px;border-radius:12px;font-weight:600;text-decoration:none;font-size:16px;border:1px solid transparent}
+.btn.primary{background:var(--blue);color:#06101f}
+.btn.primary:hover{background:#6aabff}
+.btn.quiet{border-color:var(--line);color:var(--ink)}
+.btn.quiet:hover{border-color:#3a4452}
+.btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.cta small{color:var(--ink-dim);font-size:14px;margin-left:6px}
+
+/* the live demo */
+.demo{margin:56px 0 0;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px 26px 22px}
+.demo-head{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.demo-head h2{margin:0;font-size:17px;font-weight:600}
+.demo-head p{margin:0;color:var(--ink-dim);font-size:15px}
+.file{position:relative;height:64px;border-radius:10px;background:#0b0e12;border:1px solid var(--line);overflow:hidden}
+.seg{position:absolute;top:0;bottom:0;border-right:1px solid rgba(15,18,22,.9)}
+.seg .done{position:absolute;left:0;top:0;bottom:0;background:var(--c);opacity:.95}
+.seg .head{position:absolute;top:0;bottom:0;width:2px;background:#fff;opacity:.9}
+.seg.idle .head{display:none}
+.workers{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-top:14px}
+.worker{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-dim);min-width:0}
+.worker b{width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+.worker span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.demo-foot{display:flex;justify-content:space-between;margin-top:16px;font-size:14px;color:var(--ink-dim);gap:16px;flex-wrap:wrap}
+.demo-foot em{font-style:normal;color:var(--ink);font-weight:600}
+@media (max-width:760px){.workers{grid-template-columns:repeat(4,1fr)}}
+
+/* how it works: real sequence, so numbers are earned */
+.steps{padding:96px 0 40px;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:56px;align-items:start}
+.steps h2{font-size:clamp(30px,3.6vw,44px);letter-spacing:-.03em;line-height:1.05;margin:0 0 16px;font-weight:800}
+.steps > div > p{color:var(--ink-dim);max-width:44ch;margin:0}
+ol{list-style:none;margin:0;padding:0;counter-reset:s}
+ol li{counter-increment:s;display:grid;grid-template-columns:44px 1fr;gap:18px;padding:22px 0;border-top:1px solid var(--line)}
+ol li:last-child{border-bottom:1px solid var(--line)}
+ol li::before{content:counter(s);font-weight:800;font-size:26px;letter-spacing:-.04em;color:var(--blue);line-height:1}
+ol h3{margin:0 0 6px;font-size:18px;font-weight:600}
+ol p{margin:0;color:var(--ink-dim);font-size:16px}
+@media (max-width:860px){.steps{grid-template-columns:1fr;gap:28px}}
+
+/* the race */
+.race{padding:56px 0}
+.race-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:30px}
+.race-card h2{margin:0 0 6px;font-size:clamp(26px,3vw,36px);letter-spacing:-.03em;font-weight:800}
+.race-card p{margin:0 0 26px;color:var(--ink-dim);max-width:60ch}
+.lane{display:grid;grid-template-columns:150px 1fr 80px;gap:18px;align-items:center;margin:14px 0}
+.lane .name{font-weight:600;font-size:15px}
+.lane .name small{display:block;color:var(--ink-dim);font-weight:400;font-size:13px}
+.track{height:18px;border-radius:6px;background:#0b0e12;border:1px solid var(--line);overflow:hidden}
+.fill{height:100%;width:0;background:var(--ink-dim);border-radius:5px}
+.lane.fast .fill{background:var(--blue)}
+.time{font-weight:800;font-size:22px;letter-spacing:-.03em;text-align:right;font-variant-numeric:tabular-nums}
+.race-card footer{margin-top:18px;font-size:14px;color:var(--ink-dim)}
+@media (max-width:600px){.lane{grid-template-columns:1fr;gap:6px}.time{text-align:left}}
+
+/* the rest of the product */
+.grid{padding:40px 0 96px;display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.tile{border-top:2px solid var(--line);padding-top:18px}
+.tile h3{margin:0 0 8px;font-size:18px;font-weight:600}
+.tile p{margin:0;color:var(--ink-dim);font-size:15.5px}
+.tile.key{border-top-color:var(--blue)}
+@media (max-width:860px){.grid{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.grid{grid-template-columns:1fr}}
+
+.install{border-top:1px solid var(--line);padding:64px 0 120px;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.install h2{font-size:clamp(28px,3.4vw,42px);letter-spacing:-.03em;margin:0 0 12px;font-weight:800}
+.install p{color:var(--ink-dim);margin:0 0 22px;max-width:44ch}
+.facts{list-style:none;margin:0;padding:0;font-size:15.5px;color:var(--ink-dim)}
+.facts li{padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px}
+.facts li span:last-child{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+@media (max-width:760px){.install{grid-template-columns:1fr}}
+
+@media (prefers-reduced-motion:reduce){.fill{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="mark" href="/1" aria-label="DM home"><i></i>DM</a>
+  <nav><a href="#how">How it works</a><a href="#speed">Speed</a><a href="#install">Install</a></nav>
+</header>
+
+<section class="hero">
+  <h1>Every connection stays busy until the last byte.</h1>
+  <p class="lede">DM downloads one file over eight connections and keeps splitting whatever is left, so a slow socket never sets the finish time. Your browser hands it the link, cookies included.</p>
+  <div class="cta">
+    <a class="btn primary" href="#install">Download DM-Setup.exe</a>
+    <a class="btn quiet" href="#how">See how it splits a file</a>
+    <small>Windows, 28 MB, no admin rights needed</small>
+  </div>
+
+  <div class="demo" id="demo" aria-label="Animated demo of dynamic segmentation">
+    <div class="demo-head">
+      <h2>Live: eight workers sharing one 83 MiB file</h2>
+      <p>Each idle worker splits the largest remaining range in half and takes the tail.</p>
+    </div>
+    <div class="file" id="file"></div>
+    <div class="workers" id="workers"></div>
+    <div class="demo-foot"><span>Written straight into one preallocated file at each range's own offset. No part files, no merge step.</span><span id="status"></span></div>
+  </div>
+</section>
+
+<section class="steps" id="how">
+  <div>
+    <h2>Dynamic segmentation, not fixed chunks</h2>
+    <p>Splitting a file into eight equal pieces up front means seven fast connections idle while one straggler finishes. DM decides the split as it goes.</p>
+  </div>
+  <ol>
+    <li><div><h3>Start with the whole file as one range</h3><p>The first worker begins at byte zero. Nothing is planned in advance.</p></div></li>
+    <li><div><h3>Idle workers split the largest remaining range</h3><p>Each takes the tail half of whatever has the most left. The same code path handles the initial fan-out and late rebalancing.</p></div></li>
+    <li><div><h3>Slow connections end up owning less</h3><p>A throttled socket gets its range split away from it, so the transfer ends when the fast ones finish, not when the slow one does.</p></div></li>
+    <li><div><h3>Bytes land at their offset, once</h3><p>Every range writes into the same preallocated file with a positioned write. The download is complete the moment the last range is.</p></div></li>
+  </ol>
+</section>
+
+<section class="race" id="speed">
+  <div class="race-card">
+    <h2>13.7 seconds down to 6.5</h2>
+    <p>Same 83 MiB file from dl.google.com, same machine, byte-identical output. Most hosts cap each socket rather than each user, and TCP shares a bottleneck per flow, so eight connections take eight shares.</p>
+    <div class="lane"><div class="name">One connection<small>the browser's way</small></div><div class="track"><div class="fill" data-t="13.7"></div></div><div class="time" data-clock="13.7">0.0s</div></div>
+    <div class="lane fast"><div class="name">Eight connections<small>DM</small></div><div class="track"><div class="fill" data-t="6.5"></div></div><div class="time" data-clock="6.5">0.0s</div></div>
+    <footer>Replayed at four times speed. <a href="#" id="replay">Run it again</a>.</footer>
+  </div>
+</section>
+
+<section class="grid">
+  <div class="tile key"><h3>Browser hand-off</h3><p>The Chrome extension catches downloads and passes them over with the session's cookies, so logged-in files just work.</p></div>
+  <div class="tile"><h3>Resume after anything</h3><p>Ranges are recorded as they land. Restart the app, the PC, or the network and the download continues from where it stopped.</p></div>
+  <div class="tile"><h3>Streaming video to MP4</h3><p>HLS playlists are fetched segment by segment and, when ffmpeg is present, stitched into a single MP4.</p></div>
+  <div class="tile"><h3>Native Windows app</h3><p>Dark by default. Tray icon, save-as and progress dialogs, a finished dialog, and a web UI at localhost when you prefer a browser tab.</p></div>
+  <div class="tile"><h3>When it finishes</h3><p>Open the file, open the folder, or let the PC sleep, shut down or restart once the queue empties.</p></div>
+  <div class="tile"><h3>Light on the machine</h3><p>Written in Go with no third-party modules. The idle daemon sits around 9 MB of memory.</p></div>
+</section>
+
+<section class="install" id="install">
+  <div>
+    <h2>One setup file, no admin prompt</h2>
+    <p>DM-Setup.exe installs the app, registers the browser hook and offers the extension. The same file uninstalls, and leaves your download list alone unless you say otherwise.</p>
+    <a class="btn primary" href="#">Download DM-Setup.exe</a>
+  </div>
+  <ul class="facts">
+    <li><span>Installs to</span><span>your user folder</span></li>
+    <li><span>Size</span><span>28 MB</span></li>
+    <li><span>Idle memory</span><span>about 9 MB</span></li>
+    <li><span>Connections per file</span><span>8</span></li>
+    <li><span>Browsers</span><span>Chrome, Edge, Brave, Vivaldi</span></li>
+    <li><span>Optional</span><span>ffmpeg for MP4</span></li>
+  </ul>
+</section>
+</div>
+
+<script>
+(function(){
+  // Dynamic segmentation, the way internal/engine/download.go does it: one
+  // range to start, idle workers split the largest remaining range and take
+  // the tail. Speeds vary per worker so one visibly lags and loses territory.
+  var TOTAL=83*1024*1024, N=8, MIN=256*1024;
+  var colors=['--w1','--w2','--w3','--w4','--w5','--w6','--w7','--w8'];
+  var file=document.getElementById('file'), pane=document.getElementById('workers'), status=document.getElementById('status');
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var ranges, workers, done, t0, raf;
+
+  function reset(){
+    ranges=[]; done=0; t0=performance.now();
+    workers=[]; for(var i=0;i<N;i++) workers.push({i:i,range:null,startAt:i*220,speed:(i===4?0.35:0.85+Math.random()*0.5)*1.9*1024*1024/1000});
+    ranges.push({start:0,end:TOTAL,pos:0,owner:0}); workers[0].range=ranges[0];
+    pane.innerHTML=''; workers.forEach(function(w){var d=document.createElement('div');d.className='worker';d.style.setProperty('--c','var('+colors[w.i]+')');d.innerHTML='<b></b><span></span>';pane.appendChild(d);w.el=d.lastChild;});
+  }
+  function acquire(w){
+    var best=null,bestLeft=0;
+    ranges.forEach(function(r){var left=r.end-(r.start+r.pos); if(left>bestLeft){bestLeft=left;best=r;}});
+    if(!best||bestLeft<MIN*2) return false;
+    var mid=Math.floor((best.start+best.pos+best.end)/2);
+    var tail={start:mid,end:best.end,pos:0,owner:w.i}; best.end=mid;
+    ranges.push(tail); w.range=tail; return true;
+  }
+  function step(now){
+    var dt=Math.min(now-(step.last||now),50); step.last=now;
+    workers.forEach(function(w){
+      if(now-t0<w.startAt) return;
+      if(!w.range && !acquire(w)) return;
+      var r=w.range, left=r.end-r.start-r.pos, adv=Math.min(left,w.speed*dt);
+      r.pos+=adv; done+=adv; if(r.pos>=r.end-r.start){w.range=null;}
+    });
+    render();
+    if(done>=TOTAL-1){status.textContent='Finished, restarting in a moment';setTimeout(function(){reset();step.last=0;raf=requestAnimationFrame(step);},1800);return;}
+    raf=requestAnimationFrame(step);
+  }
+  function render(){
+    var html='';
+    ranges.forEach(function(r){var l=r.start/TOTAL*100,w=(r.end-r.start)/TOTAL*100,p=r.pos/(r.end-r.start)*100;
+      html+='<div class="seg'+(p>=100?' idle':'')+'" style="left:'+l+'%;width:'+w+'%;--c:var('+colors[r.owner]+')"><div class="done" style="width:'+p+'%"></div><div class="head" style="left:'+p+'%"></div></div>';});
+    file.innerHTML=html;
+    workers.forEach(function(w){var r=w.range; w.el.textContent=r?((r.end-r.start-r.pos)/1048576).toFixed(1)+' MiB left':'idle';});
+    var s=(performance.now()-t0)/1000; status.textContent=(done/1048576).toFixed(0)+' of 83 MiB, '+s.toFixed(1)+'s';
+  }
+  reset();
+  if(reduce){ // one still frame that still shows the idea
+    for(var k=0;k<60;k++){workers.forEach(function(w){if(!w.range)acquire(w);var r=w.range;if(r){var a=Math.min(r.end-r.start-r.pos,w.speed*40);r.pos+=a;done+=a;if(r.pos>=r.end-r.start)w.range=null;}});}
+    render(); status.textContent='Paused, motion reduced';
+  } else raf=requestAnimationFrame(step);
+
+  // the race, played once when scrolled into view, four times faster than life
+  var card=document.querySelector('.race-card'), played=false;
+  function race(){
+    var fills=card.querySelectorAll('.fill'), clocks=card.querySelectorAll('.time');
+    fills.forEach(function(f){f.style.transition='none';f.style.width='0';});
+    requestAnimationFrame(function(){fills.forEach(function(f){var t=+f.dataset.t/4;f.style.transition='width '+t+'s linear';f.style.width='100%';});});
+    var start=performance.now();
+    (function tick(){var el=(performance.now()-start)/1000*4,going=false;clocks.forEach(function(c){var t=+c.dataset.clock;var v=Math.min(el,t);c.textContent=v.toFixed(1)+'s';if(el<t)going=true;});if(going)requestAnimationFrame(tick);})();
+  }
+  if(reduce){card.querySelectorAll('.fill').forEach(function(f){f.style.width='100%';});card.querySelectorAll('.time').forEach(function(c){c.textContent=c.dataset.clock+'s';});}
+  else{new IntersectionObserver(function(es){if(es[0].isIntersecting&&!played){played=true;race();}},{threshold:.5}).observe(card);}
+  document.getElementById('replay').addEventListener('click',function(e){e.preventDefault();race();});
+})();
+</script>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>
