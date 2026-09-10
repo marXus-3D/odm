@@ -172,6 +172,7 @@ function render() {
 
 function renderItem(r) {
   const st = live.get(r.id);
+  const isHls = r.kind === "hls" || (st && st.kind === "hls");
   const total = r.size > 0 ? r.size : 0;
   const done = r.downloaded || 0;
   let pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
@@ -228,7 +229,6 @@ function renderItem(r) {
 
   const meta = document.createElement("div");
   meta.className = "meta";
-  const isHls = r.kind === "hls" || (st && st.kind === "hls");
   const bits = [];
   if (isHls && st && st.segmentsTotal) {
     // For a playlist the byte total is an estimate until the last segment
