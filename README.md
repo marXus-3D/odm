@@ -107,16 +107,33 @@ Or drive the daemon, which starts on demand:
 
 ### Daemon and web UI
 
+Double-click `bin\dmd.exe`, or run it:
+
 ```bash
 ./bin/dmd.exe
 ```
 
-Then open <http://127.0.0.1:9111/>. The UI shows live speed, connection count
-and a per-segment progress map, and supports pause, resume, remove, open and
-show-in-folder.
+It opens the web UI and puts an icon in the notification area. Left click
+opens the UI; right click gives Open DM, Downloads folder, Pause all and
+Quit.
+
+> On Windows 11 new tray icons start hidden. If you cannot see it, click the
+> `^` next to the clock, or turn it on under Settings → Personalisation →
+> Taskbar → Other system tray icons.
+
+The UI shows live speed, connection count and a per-segment progress map,
+and supports pause, resume, remove, open and show-in-folder.
 
 The daemon also starts on demand — the extension launches it if it is not
-already running, so you do not have to keep it running yourself.
+already running, so you do not have to keep it running yourself. Started
+that way it does not open a browser tab.
+
+`dmd` is a GUI binary, so double-clicking it does not flash a console
+window, but it still prints normally when run from a terminal. It always
+logs to `%APPDATA%\dm\dmd.log`.
+
+`dm.exe` is the command line client, not the app — double-clicking it just
+prints its usage and exits.
 
 ### Browser extension
 
@@ -133,7 +150,28 @@ Vivaldi and Opera. Then:
 3. **Load unpacked** → the `extension` folder
 4. Check the id matches the one `dm-setup` printed
 
+Reload the extension after any rebuild that changes it.
+
 Undo with `.\bin\dm-setup.exe -uninstall` plus removing the extension.
+
+**If you get "Access to the specified native messaging host is forbidden"**,
+the extension's id and the id in the host manifest have diverged. Rerun
+`dm-setup`, then press Reload on the extension card.
+
+```powershell
+.\bin\dm-setup.exe -check
+```
+
+prints the id in the extension manifest, the ids the host manifest allows,
+the id each browser actually loaded it under, and the registry entries, and
+exits non-zero naming the one that is wrong.
+
+The id comes from the `key` in the extension manifest, so it survives moving
+the folder — and `dm-setup` reads the id back out of that manifest after
+writing it, rather than deriving it from the key file, because Chrome only
+ever sees the manifest. It also allows the ids browsers report for this
+extension and the path-derived ids Chrome uses when a manifest has no key,
+so an extension loaded before the key was added keeps working.
 
 **What the extension does.** It watches `chrome.downloads.onCreated`, cancels
 anything matching your rules, and forwards the URL to the daemon along with
@@ -142,10 +180,18 @@ Without those, an outside process fetching a logged-in download just gets a
 403. There is also a "Download with DM" context-menu item for links, images,
 video and audio.
 
-It also watches for streaming playlists. A site playing video never hands
-the browser a file to intercept -- it fetches an `.m3u8`. Those requests are
-noticed per tab, counted on the toolbar badge, and listed in the popup with
-a Download button. See "Streaming video" below.
+**The video panel.** A floating "Download this video" button appears over
+videos, the way IDM does it. It has to work this way because a streaming
+page hands the browser a `blob:` URL backed by Media Source Extensions:
+there is no file to right-click and nothing for the downloads API to
+intercept. The extension watches for the `.m3u8` the player fetches, and the
+button uses that. A video that does have a real source uses its own URL
+instead. The same finds are counted on the toolbar badge and listed in the
+popup. See "Streaming video" below.
+
+The panel lives in a closed shadow root so page CSS cannot break it, is
+injected into iframes since that is where players usually live, ignores
+anything under 120px, and can be dismissed per video with the x.
 
 Settings (extension options page): on/off, minimum size, whether to grab
 unknown-size downloads, file types to ignore, notifications.
@@ -277,4 +323,5 @@ installed.
   taken; the plumbing for a picker exists but nothing calls it.
 - Separate audio renditions. Only the variant stream is fetched, so a
   playlist that keeps audio in a separate `EXT-X-MEDIA` track loses it.
-- A system tray icon.
+- Quality selection. The highest bandwidth variant is always taken, in the
+  panel and everywhere else.
