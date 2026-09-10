@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, downloads from the terminal up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f0c1d;--fg:#ecebf5;--fg-2:rgba(236,235,245,.66);--fg-3:rgba(236,235,245,.4);--edge:rgba(255,255,255,.1);--term:#15112b;--acc:#a78bfa;--acc-2:#60a5fa;--ok:#4ade80;--warn:#fbbf24}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;color:var(--fg);font:400 16px/1.6 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+  background:radial-gradient(1000px 600px at 20% -10%,rgba(167,139,250,.28),transparent 60%),radial-gradient(900px 600px at 90% 10%,rgba(96,165,250,.22),transparent 60%),var(--bg)}
+a{color:inherit}
+.page{max-width:1040px;margin:0 auto;padding:0 24px}
+.top{display:flex;justify-content:space-between;align-items:center;height:68px}
+.top .brand{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:16px}
+.top .brand::before{content:"> ";color:var(--acc)}
+.top nav a{text-decoration:none;color:var(--fg-2);font-size:14px;margin-left:24px}
+.top nav a.cta{color:#0f0c1d;background:var(--fg);padding:7px 14px;border-radius:8px;font-weight:600}
+
+.hero{text-align:center;padding:48px 0 30px}
+.hero h1{font-size:clamp(36px,5.6vw,60px);line-height:1.05;letter-spacing:-.04em;font-weight:700;margin:0 0 14px}
+.hero h1 code{font-family:"JetBrains Mono",monospace;font-weight:500;background:linear-gradient(90deg,var(--acc),var(--acc-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--fg-2);font-size:18px;max-width:54ch;margin:0 auto}
+
+.term{margin:36px auto 0;border-radius:12px;border:1px solid var(--edge);background:var(--term);box-shadow:0 50px 120px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden}
+.term .tb{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--edge);font-size:12px;color:var(--fg-3)}
+.term .tb .tabs span{display:inline-block;padding:4px 10px;border-radius:6px;margin-right:4px}
+.term .tb .tabs span.on{background:rgba(255,255,255,.08);color:var(--fg)}
+.term .tb .wc span{margin-left:14px}
+.term pre{margin:0;padding:20px 22px 24px;font:14px/1.75 "JetBrains Mono",monospace;color:var(--fg-2);min-height:330px;white-space:pre-wrap}
+.term .p{color:var(--acc)}
+.term .c{color:var(--fg)}
+.term .ok{color:var(--ok)}
+.term .w{color:var(--warn)}
+.term .d{color:var(--fg-3)}
+.term .cur{display:inline-block;width:8px;height:16px;background:var(--fg);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.term .out{display:none}
+.term.play .out{display:inline}
+.term.play #cur1{display:none}
+@media (prefers-reduced-motion:reduce){.term .cur{animation:none}}
+
+.acts{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:30px 0 0}
+.btn{text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:10px;background:var(--fg);color:#0f0c1d}
+.btn.ghost{background:rgba(255,255,255,.05);color:var(--fg);border:1px solid var(--edge)}
+.note{display:block;text-align:center;color:var(--fg-3);margin-top:12px;font-size:13px}
+
+.man{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;padding:80px 0 100px}
+.man h3{font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);margin:0 0 10px}
+.man h4{margin:0 0 6px;font-size:18px;font-weight:600;letter-spacing:-.01em}
+.man p{margin:0;color:var(--fg-2);font-size:15px}
+.man code{font-family:"JetBrains Mono",monospace;font-size:13px;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:5px}
+@media (max-width:800px){.man{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="top">
+  <div class="brand">dm</div>
+  <nav><a href="#man">Manual</a><a href="#man">Extension</a><a class="cta" href="#">Download</a></nav>
+</header>
+
+<section class="hero">
+  <h1>One command. <code>dm add</code>. Eight connections.</h1>
+  <p>A download manager for Windows with a real command line, a native window, a web page and a browser extension. All the same list underneath.</p>
+</section>
+
+<div class="term" id="term" role="img" aria-label="A terminal session adding a download with dm and watching it progress">
+  <div class="tb"><div class="tabs"><span class="on">powershell</span><span>dm</span></div><div class="wc"><span>—</span><span>▢</span><span>✕</span></div></div>
+<pre><span class="p">PS C:\Users\marcus&gt;</span> <span class="c" id="typed"></span><span class="cur" id="cur1"></span>
+<span class="out"><span class="d">a91f</span>  ubuntu-24.04.1-desktop-amd64.iso  5.8 GB  ranges: yes  connections: 8
+</span><span class="out"><span class="p">PS C:\Users\marcus&gt;</span> <span class="c">dm ls</span>
+</span><span class="out"><span class="d">id    name                               size    progress            speed      state</span>
+</span><span class="out"><span class="d">a91f</span>  ubuntu-24.04.1-desktop-amd64.iso   5.8 GB  <span class="ok" id="bar">▓▓▓▓▓▓▓▓░░░░░░░░░░░░</span>  <span id="spd">41.4 MB/s</span>  downloading
+</span><span class="out"><span class="d">b204</span>  lecture-07-distributed-systems.m3u8 1.2 GB  <span class="ok">▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░</span>  12.9 MB/s  hls 412/580 → mp4
+</span><span class="out"><span class="d">c7e0</span>  blender-4.2-windows-x64.zip        336 MB  <span class="ok">▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</span>  <span class="d">done 8.1 s</span>
+</span><span class="out">
+<span class="w">note</span>  c4 is a slow socket: c6 split its range and took the tail (dynamic split).
+</span><span class="out"><span class="p">PS C:\Users\marcus&gt;</span> <span class="cur"></span></span></pre>
+</div>
+
+<div class="acts"><a class="btn" href="#">Download DM-Setup.exe</a><a class="btn ghost" href="#man">Read the manual</a></div>
+<small class="note">28 MB · Windows 10 and 11 · installs to your user folder, no admin rights</small>
+
+<section class="man" id="man">
+  <div><h3>Speed</h3><h4>Eight connections per file</h4><p>Hosts cap each socket, and TCP shares a busy link per flow. Ranges split as the transfer runs; every byte is written at its final offset, no part files. 83 MiB: 13.7 s in the browser, 6.5 s here.</p></div>
+  <div><h3>Resume</h3><h4>Exact, to the byte</h4><p>Finished ranges are recorded as they land. Crash, reboot, Wi-Fi drop: <code>dm resume</code> picks up at the byte it stopped at. Streams (<code>.m3u8</code>) come down segment by segment and become one MP4 with ffmpeg.</p></div>
+  <div><h3>Ways in</h3><h4>CLI, window, web, browser</h4><p><code>dm add</code>, <code>dm ls</code>, <code>dm pause</code> for scripts. A dark native window with a tray icon. The same list on <code>localhost</code>. An extension for Chrome, Edge, Brave and Vivaldi that hands links over with cookies.</p></div>
+</section>
+</div>
+<script>
+(function () {
+  var cmd = "dm add https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-desktop-amd64.iso";
+  var el = document.getElementById("typed"), term = document.getElementById("term");
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { el.textContent = cmd; term.classList.add("play"); return; }
+  var i = 0;
+  (function tick() {
+    if (i <= cmd.length) { el.textContent = cmd.slice(0, i++); setTimeout(tick, 18 + Math.random() * 40); }
+    else setTimeout(function () { term.classList.add("play"); grow(); }, 350);
+  })();
+  function grow() {
+    var bar = document.getElementById("bar"), spd = document.getElementById("spd");
+    var n = 8, speeds = ["41.4", "43.0", "40.7", "44.2", "42.1"], k = 0;
+    setInterval(function () {
+      n = Math.min(20, n + (Math.random() < 0.5 ? 1 : 0));
+      bar.textContent = "▓".repeat(n) + "░".repeat(20 - n);
+      spd.textContent = speeds[k++ % speeds.length] + " MB/s";
+    }, 700);
+  }
+})();
+</script>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

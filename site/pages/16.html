@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, the fast one</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff7e6;--ink:#111;--y:#ffd60a;--pk:#ff6fb5;--cy:#5ce1e6;--lm:#b6f36b;--pu:#b287ff;--bd:3px}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;color:var(--ink);background:var(--bg);font:400 16px/1.55 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+.g{font-family:"Space Grotesk",sans-serif;font-weight:700;letter-spacing:-.02em}
+.box{border:var(--bd) solid var(--ink);box-shadow:8px 8px 0 var(--ink);background:#fff}
+.page{max-width:1120px;margin:0 auto;padding:0 24px}
+
+.top{display:flex;justify-content:space-between;align-items:center;height:76px}
+.top .brand{font-size:26px;background:var(--y);padding:2px 12px;border:var(--bd) solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.top nav a{text-decoration:none;font-weight:600;font-size:15px;margin-left:22px}
+.top nav a.cta{background:var(--ink);color:#fff;padding:9px 14px;border:var(--bd) solid var(--ink);box-shadow:4px 4px 0 var(--pk)}
+
+.marq{border-top:var(--bd) solid var(--ink);border-bottom:var(--bd) solid var(--ink);background:var(--ink);color:#fff;overflow:hidden;white-space:nowrap;font-size:14px;font-weight:600;padding:8px 0}
+.marq div{display:inline-block;animation:m 26s linear infinite}
+.marq span{margin:0 26px}.marq span::after{content:"✦";margin-left:26px;color:var(--y)}
+@keyframes m{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.marq div{animation:none}}
+
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:64px 0 60px;position:relative}
+.hero h1{font-size:clamp(46px,7vw,88px);line-height:.95;margin:0 0 20px;letter-spacing:-.04em}
+.hero h1 mark{background:var(--pk);padding:0 10px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.hero p{font-size:19px;max-width:44ch;margin:0 0 26px}
+.btn{display:inline-block;text-decoration:none;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:18px;padding:14px 22px;border:var(--bd) solid var(--ink);background:var(--y);box-shadow:6px 6px 0 var(--ink);transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(2px,2px);box-shadow:4px 4px 0 var(--ink)}
+.btn.w{background:#fff;margin-left:10px}
+.hero small{display:block;margin-top:14px;font-weight:500;color:#444}
+.stick{position:absolute;right:-6px;top:20px;transform:rotate(9deg);background:var(--lm);border:var(--bd) solid var(--ink);padding:10px 14px;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:15px;box-shadow:4px 4px 0 var(--ink)}
+
+/* card: the 8 lanes as stickers */
+.card{padding:22px;transform:rotate(-2deg)}
+.card h3{margin:0 0 14px;font-size:20px}
+.lane{display:grid;grid-template-columns:32px 1fr 64px;gap:10px;align-items:center;margin:8px 0;font-weight:600;font-size:13px}
+.lane b{font-family:"Space Grotesk",sans-serif}
+.lane i{display:block;height:18px;border:2px solid var(--ink);background:#fff;position:relative}
+.lane i::after{content:"";position:absolute;inset:0;width:var(--w);background:var(--cy)}
+.lane:nth-child(odd) i::after{background:var(--pu)}
+.lane.slow i::after{background:var(--pk)}
+.lane span{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:860px){.hero{grid-template-columns:1fr}.stick{display:none}}
+
+/* three shout blocks */
+.shout{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;padding:20px 0 90px}
+.shout .box{padding:24px;position:relative}
+.shout .box:nth-child(1){background:var(--cy)}.shout .box:nth-child(2){background:var(--pu)}.shout .box:nth-child(3){background:var(--lm)}
+.shout .n{font-size:54px;line-height:1;margin-bottom:10px}
+.shout h4{margin:0 0 6px;font-size:18px}
+.shout p{margin:0;font-size:15px}
+@media (max-width:820px){.shout{grid-template-columns:1fr}}
+
+.strip{display:flex;gap:14px;flex-wrap:wrap;padding:0 0 90px;align-items:center;font-weight:600}
+.strip .box{padding:10px 14px;box-shadow:4px 4px 0 var(--ink);font-size:14px}
+</style>
+</head>
+<body>
+<header class="top page">
+  <div class="brand g">DM</div>
+  <nav><a href="#s">Features</a><a href="#s">Extension</a><a class="cta g" href="#">Download</a></nav>
+</header>
+
+<div class="marq" aria-hidden="true"><div><span>8 connections per file</span><span>exact resume</span><span>HLS to MP4</span><span>no admin rights</span><span>28 MB, one file</span><span>Windows 10 and 11</span><span>8 connections per file</span><span>exact resume</span><span>HLS to MP4</span><span>no admin rights</span><span>28 MB, one file</span><span>Windows 10 and 11</span></div></div>
+
+<div class="page">
+<section class="hero">
+  <div>
+    <h1 class="g">The <mark>fast</mark> download manager for Windows.</h1>
+    <p>Eight connections to one file. Exact resume after anything. Streaming video saved as MP4. A browser extension that hands links over with your cookies. One 28 MB file to install.</p>
+    <a class="btn" href="#">Download it</a><a class="btn w" href="#s">How it works</a>
+    <small>Free. No admin prompt. Uninstalls with the same file.</small>
+  </div>
+  <div class="card box" role="img" aria-label="Eight connections downloading one file, one slow">
+    <h3 class="g">ubuntu-24.04.1.iso · 8 connections</h3>
+    <div class="lane"><b>c1</b><i style="--w:100%"></i><span>done</span></div>
+    <div class="lane"><b>c2</b><i style="--w:92%"></i><span>5.1 MB/s</span></div>
+    <div class="lane"><b>c3</b><i style="--w:80%"></i><span>5.3 MB/s</span></div>
+    <div class="lane slow"><b>c4</b><i style="--w:18%"></i><span>0.6 MB/s</span></div>
+    <div class="lane"><b>c5</b><i style="--w:66%"></i><span>5.0 MB/s</span></div>
+    <div class="lane"><b>c6</b><i style="--w:54%"></i><span>5.4 MB/s</span></div>
+    <div class="lane"><b>c7</b><i style="--w:42%"></i><span>5.2 MB/s</span></div>
+    <div class="lane"><b>c8</b><i style="--w:30%"></i><span>5.1 MB/s</span></div>
+  </div>
+  <div class="stick">2.1× faster on 83 MiB ★</div>
+</section>
+
+<section class="shout" id="s">
+  <div class="box"><div class="n g">8×</div><h4 class="g">Connections per file</h4><p>Hosts cap each socket, not you. Ranges split as the transfer runs. Every byte lands at its final offset: no part files, no merge.</p></div>
+  <div class="box"><div class="n g">↺</div><h4 class="g">Exact resume</h4><p>Finished ranges are recorded as they land. Crash, reboot, Wi-Fi drop: it continues from the byte it stopped at.</p></div>
+  <div class="box"><div class="n g">MP4</div><h4 class="g">From any stream</h4><p>HLS playlists come down segment by segment and become one MP4 with ffmpeg. Video pages get a button in the extension.</p></div>
+</section>
+
+<div class="strip">
+  <span>Works with</span><span class="box">Chrome</span><span class="box">Edge</span><span class="box">Brave</span><span class="box">Vivaldi</span><span>plus a native window, a web page on localhost and a command line.</span>
+</div>
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

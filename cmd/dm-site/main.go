@@ -1,5 +1,5 @@
 // Command dm-site serves the landing page drafts in ./site. Each draft is
-// reachable at /1 .. /5, and the page itself carries a switcher to jump
+// reachable at /1, /2, ... and the page itself carries a switcher to jump
 // between them. It is a development tool: nothing in the product uses it.
 package main
 
@@ -12,7 +12,7 @@ import (
 	"regexp"
 )
 
-var draft = regexp.MustCompile(`^/([1-9])/?$`)
+var draft = regexp.MustCompile(`^/([1-9][0-9]?)/?$`)
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8090", "address to listen on")

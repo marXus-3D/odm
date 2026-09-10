@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, paste a link, get the file</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0713;--fg:#f4f1ff;--fg-2:rgba(244,241,255,.68);--fg-3:rgba(244,241,255,.42);--glass:rgba(255,255,255,.05);--edge:rgba(255,255,255,.12);--v:#8b5cf6;--p:#ec4899;--c:#22d3ee}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;color:var(--fg);background:var(--bg);font:400 16px/1.6 Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+.blobs{position:fixed;inset:0;z-index:0;pointer-events:none;filter:blur(90px);opacity:.55}
+.blobs i{position:absolute;border-radius:50%}
+.blobs i:nth-child(1){width:640px;height:640px;left:-160px;top:-200px;background:var(--v);animation:drift 22s ease-in-out infinite alternate}
+.blobs i:nth-child(2){width:520px;height:520px;right:-120px;top:120px;background:var(--p);opacity:.7;animation:drift 26s ease-in-out infinite alternate-reverse}
+.blobs i:nth-child(3){width:420px;height:420px;left:40%;top:520px;background:var(--c);opacity:.45;animation:drift 30s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate(60px,40px) scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.blobs i{animation:none}}
+.page{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:0 24px}
+
+.top{display:flex;justify-content:space-between;align-items:center;height:72px}
+.top .brand{font-weight:800;letter-spacing:-.03em;font-size:20px}
+.top nav a{text-decoration:none;color:var(--fg-2);font-size:14px;font-weight:500;margin-left:24px}
+.top nav a:hover{color:var(--fg)}
+.kbd{font:600 12px/1 Manrope;color:var(--fg);border:1px solid var(--edge);background:var(--glass);border-radius:6px;padding:5px 7px;margin-left:8px;box-shadow:0 2px 0 rgba(0,0,0,.4)}
+
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;padding:60px 0 40px}
+.hero h1{font-size:clamp(40px,5.4vw,66px);line-height:1;letter-spacing:-.04em;font-weight:800;margin:0 0 18px}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,#c4b5fd,#f9a8d4 50%,#67e8f9);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--fg-2);font-size:18px;margin:0 0 28px;max-width:46ch}
+.acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{text-decoration:none;font-weight:700;font-size:15px;padding:12px 20px;border-radius:12px;color:#fff;background:linear-gradient(135deg,var(--v),var(--p));box-shadow:0 12px 40px -12px var(--v)}
+.btn.glass{background:var(--glass);border:1px solid var(--edge);box-shadow:none;color:var(--fg)}
+.btn:hover{filter:brightness(1.1)}
+.hero small{display:block;color:var(--fg-3);margin-top:12px;font-size:13px}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+
+.pal{border-radius:18px;border:1px solid var(--edge);background:rgba(20,14,40,.55);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 40px 100px -30px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.12);overflow:hidden}
+.pal .in{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--edge);font-size:15px;overflow:hidden}
+.pal .in i{flex:none;width:18px;height:18px;border:2px solid var(--fg-3);border-radius:50%;position:relative}
+.pal .in i::after{content:"";position:absolute;width:2px;height:8px;background:var(--fg-3);right:-5px;bottom:-6px;transform:rotate(-45deg)}
+.pal .in span{color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal .in .caret{flex:none;width:2px;height:20px;background:var(--fg);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.pal .in .caret{animation:none}}
+.pal .sec{padding:10px 18px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3)}
+.it{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:10px 12px;margin:0 6px;border-radius:10px;font-size:14px}
+.it.sel{background:rgba(255,255,255,.08)}
+.it .ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:12px;background:linear-gradient(135deg,rgba(139,92,246,.6),rgba(236,72,153,.6))}
+.it .ico.c{background:linear-gradient(135deg,rgba(34,211,238,.6),rgba(139,92,246,.6))}
+.it .ico.g{background:rgba(255,255,255,.1)}
+.it b{font-weight:600;display:block}
+.it small{color:var(--fg-3);font-size:12px}
+.it .k{color:var(--fg-3);font-size:12px}
+.it .k kbd{font:600 11px/1 Manrope;border:1px solid var(--edge);border-radius:5px;padding:3px 6px;margin-left:4px}
+.pal .foot{display:flex;justify-content:space-between;padding:12px 18px;border-top:1px solid var(--edge);margin-top:8px;font-size:12px;color:var(--fg-3)}
+.prog{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin:6px 0 0;overflow:hidden}
+.prog i{display:block;height:100%;width:40%;background:linear-gradient(90deg,var(--c),var(--v));border-radius:2px}
+
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:56px 0 100px}
+.tile{border-radius:18px;border:1px solid var(--edge);background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+.tile .n{font-size:34px;font-weight:800;letter-spacing:-.04em;margin-bottom:10px;background:linear-gradient(90deg,#fff,rgba(255,255,255,.6));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tile h3{margin:0 0 6px;font-size:16px;font-weight:700}
+.tile p{margin:0;color:var(--fg-2);font-size:14px}
+@media (max-width:820px){.tiles{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="page">
+<header class="top">
+  <div class="brand">DM</div>
+  <nav><a href="#tiles">Features</a><a href="#tiles">Extension</a><a href="#">Download <span class="kbd">Ctrl</span><span class="kbd">D</span></a></nav>
+</header>
+
+<section class="hero">
+  <div>
+    <h1>Paste a link.<br>Get the file <em>eight times</em> faster.</h1>
+    <p>DM is a download manager for Windows. Eight connections per file, exact resume after anything, streaming video to MP4, and a browser extension that hands links over with your cookies.</p>
+    <div class="acts"><a class="btn" href="#">Download for Windows</a><a class="btn glass" href="#tiles">Watch it work</a></div>
+    <small>28 MB. Installs to your user folder, no administrator prompt.</small>
+  </div>
+  <div class="pal" role="img" aria-label="DM add dialog with three downloads listed">
+    <div class="in"><i></i><span>https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-desktop-amd64.iso</span><span class="caret"></span></div>
+    <div class="sec">Downloading</div>
+    <div class="it sel"><div class="ico">ISO</div><div><b>ubuntu-24.04.1-desktop-amd64.iso</b><small>5.8 GB · 8 connections · 41.4 MB/s</small><div class="prog"><i></i></div></div><div class="k">pause<kbd>Space</kbd></div></div>
+    <div class="it"><div class="ico c">HLS</div><div><b>lecture-07-distributed-systems.mp4</b><small>412 of 580 segments · ffmpeg → MP4</small><div class="prog"><i style="width:71%"></i></div></div><div class="k">71%</div></div>
+    <div class="sec">Finished</div>
+    <div class="it"><div class="ico g">ZIP</div><div><b>blender-4.2-windows-x64.zip</b><small>336 MB in 8.1 s</small></div><div class="k">open<kbd>↵</kbd></div></div>
+    <div class="foot"><span>3 downloads · 54.3 MB/s</span><span>DM 0.1 · 9 MB idle</span></div>
+  </div>
+</section>
+
+<section class="tiles" id="tiles">
+  <div class="tile"><div class="n">8×</div><h3>Connections per file</h3><p>Hosts cap each socket, not each person. Eight sockets, eight shares of the link. Ranges split as the transfer runs; no part files, no merge.</p></div>
+  <div class="tile"><div class="n">Exact</div><h3>Resume after anything</h3><p>Every finished range is recorded as it lands. App crash, reboot, Wi-Fi drop: the transfer picks up at the byte it stopped at.</p></div>
+  <div class="tile"><div class="n">MP4</div><h3>From any stream</h3><p>HLS playlists come down segment by segment and are written out as one MP4 with ffmpeg. Video pages get a button in the extension.</p></div>
+</section>
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

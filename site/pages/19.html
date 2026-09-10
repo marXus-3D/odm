@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, downloads that feel light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fbfbfe;--fg:#14142b;--fg-2:#5a5b78;--fg-3:#9394ad;--mint:#a7f3d0;--sky:#bae6fd;--lav:#ddd6fe;--rose:#fecdd3}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;color:var(--fg);background:var(--bg);font:400 16px/1.6 "Plus Jakarta Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+.aurora{position:absolute;inset:0;height:900px;z-index:0;pointer-events:none;overflow:hidden;filter:blur(70px);opacity:.9}
+.aurora i{position:absolute;border-radius:50%}
+.aurora i:nth-child(1){width:700px;height:500px;left:-10%;top:-120px;background:var(--mint);animation:a 18s ease-in-out infinite alternate}
+.aurora i:nth-child(2){width:600px;height:520px;left:35%;top:-160px;background:var(--sky);animation:a 22s ease-in-out infinite alternate-reverse}
+.aurora i:nth-child(3){width:640px;height:480px;right:-12%;top:-80px;background:var(--lav);animation:a 26s ease-in-out infinite alternate}
+.aurora i:nth-child(4){width:420px;height:380px;left:55%;top:320px;background:var(--rose);opacity:.7;animation:a 20s ease-in-out infinite alternate-reverse}
+@keyframes a{to{transform:translate(70px,50px) scale(1.1)}}
+@media (prefers-reduced-motion:reduce){.aurora i{animation:none}}
+.page{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:0 24px}
+
+.top{position:sticky;top:12px;z-index:5;display:flex;justify-content:space-between;align-items:center;height:58px;margin:12px 0 0;padding:0 10px 0 20px;border-radius:999px;
+  background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.8);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 10px 30px -20px rgba(20,20,43,.3)}
+.top .brand{font-weight:800;letter-spacing:-.03em;font-size:19px}
+.top nav a{text-decoration:none;color:var(--fg-2);font-size:14px;font-weight:600;margin:0 12px}
+.top .cta{text-decoration:none;font-size:14px;font-weight:700;color:#fff;background:var(--fg);padding:10px 18px;border-radius:999px}
+
+.hero{text-align:center;padding:96px 0 40px}
+.pill{display:inline-block;font-size:13px;font-weight:600;color:var(--fg-2);background:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.9);border-radius:999px;padding:6px 14px;backdrop-filter:blur(8px)}
+.hero h1{font-size:clamp(42px,6.6vw,78px);line-height:1;letter-spacing:-.045em;font-weight:800;margin:24px auto 18px;max-width:14ch}
+.hero h1 span{background:linear-gradient(90deg,#10b981,#0ea5e9 45%,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--fg-2);font-size:19px;max-width:50ch;margin:0 auto 30px}
+.acts{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.btn{text-decoration:none;font-weight:700;font-size:15px;padding:14px 24px;border-radius:999px;background:var(--fg);color:#fff;box-shadow:0 14px 30px -14px rgba(20,20,43,.6)}
+.btn:hover{transform:translateY(-1px)}
+.btn.soft{background:rgba(255,255,255,.75);color:var(--fg);border:1px solid rgba(255,255,255,.9);box-shadow:none;backdrop-filter:blur(8px)}
+.hero small{display:block;margin-top:14px;color:var(--fg-3);font-size:13px}
+
+.float{position:relative;height:300px;margin:30px auto 0;max-width:900px}
+.fc{position:absolute;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.95);border-radius:20px;padding:16px 18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 30px 60px -30px rgba(20,20,43,.35);width:320px;animation:fl 7s ease-in-out infinite}
+.fc:nth-child(2){left:calc(50% - 160px);top:0;animation-delay:-2s;z-index:2}
+.fc:nth-child(1){left:2%;top:70px;rotate:-3deg}
+.fc:nth-child(3){right:2%;top:90px;rotate:3deg;animation-delay:-4s}
+@keyframes fl{50%{translate:0 -10px}}
+@media (prefers-reduced-motion:reduce){.fc{animation:none}}
+.fc .n{font-weight:700;font-size:14px;display:flex;justify-content:space-between;gap:10px}
+.fc .n span{color:var(--fg-3);font-weight:600;white-space:nowrap}
+.fc .m{color:var(--fg-3);font-size:12px;margin:2px 0 10px}
+.fc .pb{height:8px;border-radius:4px;background:rgba(20,20,43,.08);overflow:hidden}
+.fc .pb i{display:block;height:100%;width:var(--w);border-radius:4px;background:linear-gradient(90deg,#10b981,#0ea5e9)}
+.fc .pb.v i{background:linear-gradient(90deg,#8b5cf6,#ec4899)}
+.fc .pb.g i{background:#10b981}
+@media (max-width:820px){.float{height:auto;display:grid;gap:12px}.fc{position:static;width:auto;rotate:none}}
+
+.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:60px 0 100px}
+.f{background:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.95);border-radius:24px;padding:26px;backdrop-filter:blur(10px)}
+.f .ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:15px;margin-bottom:16px}
+.f:nth-child(1) .ic{background:var(--mint)}.f:nth-child(2) .ic{background:var(--sky)}.f:nth-child(3) .ic{background:var(--lav)}
+.f:nth-child(4) .ic{background:var(--rose)}.f:nth-child(5) .ic{background:#fde68a}.f:nth-child(6) .ic{background:#e2e8f0}
+.f h3{margin:0 0 6px;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.f p{margin:0;color:var(--fg-2);font-size:14.5px}
+@media (max-width:820px){.feat{grid-template-columns:1fr 1fr}}
+@media (max-width:540px){.feat{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="page">
+<header class="top">
+  <div class="brand">DM</div>
+  <nav><a href="#f">Features</a><a href="#f">Extension</a><a href="#f">Help</a></nav>
+  <a class="cta" href="#">Download</a>
+</header>
+
+<section class="hero">
+  <span class="pill">Free · Windows 10 and 11 · no admin rights</span>
+  <h1>Downloads that <span>feel light.</span></h1>
+  <p>DM opens eight connections to one file, resumes exactly after anything, saves streaming video as MP4, and takes links from your browser with your cookies.</p>
+  <div class="acts"><a class="btn" href="#">Download DM-Setup.exe</a><a class="btn soft" href="#f">See what it does</a></div>
+  <small>28 MB. Installs to your user folder. The same file uninstalls.</small>
+</section>
+
+<div class="float" role="img" aria-label="Three download cards floating">
+  <div class="fc"><div class="n">lecture-07.mp4<span>71%</span></div><div class="m">HLS · 412 of 580 segments · to MP4</div><div class="pb v"><i style="--w:71%"></i></div></div>
+  <div class="fc"><div class="n">ubuntu-24.04.1-desktop-amd64.iso<span>41.4 MB/s</span></div><div class="m">5.8 GB · 8 connections · 40%</div><div class="pb"><i style="--w:40%"></i></div></div>
+  <div class="fc"><div class="n">blender-4.2-windows-x64.zip<span>done</span></div><div class="m">336 MB in 8.1 s</div><div class="pb g"><i style="--w:100%"></i></div></div>
+</div>
+
+<section class="feat" id="f">
+  <div class="f"><div class="ic">×8</div><h3>Eight connections per file</h3><p>Hosts cap each socket. Eight sockets, eight shares of the line. 83 MiB in 6.5 s where the browser took 13.7 s.</p></div>
+  <div class="f"><div class="ic">↺</div><h3>Exact resume</h3><p>Finished ranges are recorded as they land. Restart the app, the PC or the network and continue from the same byte.</p></div>
+  <div class="f"><div class="ic">▶</div><h3>Streams to MP4</h3><p>HLS playlists come down segment by segment and are written out as one MP4 with ffmpeg.</p></div>
+  <div class="f"><div class="ic">⇄</div><h3>Browser hand-off</h3><p>The extension for Chrome, Edge, Brave and Vivaldi passes link and cookies to DM. Logged-in files just work.</p></div>
+  <div class="f"><div class="ic">⌂</div><h3>A real Windows app</h3><p>Dark window, tray icon, save-as and progress dialogs, finish actions like open folder or shut down.</p></div>
+  <div class="f"><div class="ic">$</div><h3>Web UI and CLI</h3><p>The same list on localhost, and a command line for scripts. Go, no dependencies, 9 MB idle.</p></div>
+</section>
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>

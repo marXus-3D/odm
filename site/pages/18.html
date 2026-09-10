@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM Setup</title>
+<style>
+:root{--desk:#008080;--face:#c0c0c0;--hi:#fff;--sh:#808080;--dk:#404040;--title:#000080;--title2:#1084d0;--ink:#000}
+*{box-sizing:border-box}
+html{background:var(--desk)}
+body{margin:0;color:var(--ink);background:var(--desk);font:400 13px/1.35 Tahoma,"MS Sans Serif",Verdana,sans-serif;min-height:100vh;padding-bottom:80px}
+a{color:inherit}
+.bevel{background:var(--face);border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);box-shadow:inset -1px -1px 0 var(--sh),inset 1px 1px 0 #dfdfdf}
+.win{position:absolute}
+.tb{display:flex;align-items:center;justify-content:space-between;height:20px;padding:0 3px 0 6px;background:linear-gradient(90deg,var(--title),var(--title2));color:#fff;font-weight:700;font-size:12px;margin:2px}
+.tb .b{display:flex;gap:2px}
+.tb .b span{width:16px;height:14px;background:var(--face);border:1px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);color:#000;font-size:10px;line-height:12px;text-align:center;font-weight:700}
+.body{padding:12px 14px}
+.btn{display:inline-block;min-width:78px;padding:4px 12px;text-align:center;text-decoration:none;font:inherit;background:var(--face);border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);box-shadow:inset -1px -1px 0 var(--sh),inset 1px 1px 0 #dfdfdf;cursor:pointer;color:#000}
+.btn.def{outline:1px solid #000;outline-offset:-4px}
+.btn:active{border-color:var(--dk) var(--hi) var(--hi) var(--dk)}
+.inset{background:#fff;border:2px solid;border-color:var(--sh) var(--hi) var(--hi) var(--sh);box-shadow:inset 1px 1px 0 var(--dk)}
+.prog{height:20px;padding:2px;display:flex;gap:2px}
+.prog i{flex:0 0 12px;background:var(--title)}
+.prog i.off{background:transparent}
+.icons{position:absolute;left:18px;top:18px;display:grid;gap:22px;color:#fff;font-size:12px;text-align:center;width:74px}
+.icons div i{display:block;width:32px;height:32px;margin:0 auto 4px;background:var(--face);border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi)}
+.icons div span{background:var(--desk);padding:0 2px}
+
+.desk{position:relative;max-width:1080px;margin:0 auto;height:820px}
+#setup{left:120px;top:56px;width:560px}
+#list{left:420px;top:330px;width:620px}
+#about{left:140px;top:560px;width:420px}
+#msg{left:700px;top:90px;width:300px}
+@media (max-width:1000px){.desk{height:auto}.win{position:static;width:auto!important;margin:16px 12px}.icons{display:none}}
+
+.hero h1{font-size:20px;margin:0 0 6px;font-weight:700}
+.hero p{margin:0 0 10px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.row .btn + .btn{margin-left:6px}
+fieldset{border:2px groove #fff;padding:8px 10px;margin:10px 0}
+legend{padding:0 4px}
+label{display:block;margin:4px 0}
+label input{vertical-align:-2px;margin-right:6px}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;background:var(--face);border:1px solid;border-color:var(--hi) var(--sh) var(--sh) var(--hi);padding:3px 6px;font-weight:400}
+td{padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+tr.sel td{background:var(--title);color:#fff}
+.menu{display:flex;gap:14px;padding:2px 6px;font-size:12px}
+.menu span:first-letter{text-decoration:underline}
+.status{display:flex;gap:4px;margin:2px}
+.status span{flex:1;border:1px solid;border-color:var(--sh) var(--hi) var(--hi) var(--sh);padding:2px 6px;font-size:11px}
+
+.taskbar{position:fixed;left:0;right:0;bottom:0;height:34px;background:var(--face);border-top:2px solid var(--hi);display:flex;align-items:center;gap:6px;padding:0 4px;z-index:5}
+.taskbar .start{font-weight:700;padding:3px 8px 3px 6px;display:flex;align-items:center;gap:6px}
+.taskbar .start i{width:14px;height:14px;background:linear-gradient(135deg,#f00 0 50%,#0a0 50% 0),linear-gradient(135deg,#00f 0 50%,#ff0 50% 0);background-size:50% 100%;background-repeat:no-repeat;background-position:0 0,100% 0}
+.taskbar .task{padding:3px 10px;font-size:12px;border-color:var(--dk) var(--hi) var(--hi) var(--dk);box-shadow:none;background:#dfdfdf}
+.taskbar .clock{margin-left:auto;padding:3px 10px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="desk">
+  <div class="icons" aria-hidden="true"><div><i></i><span>My Computer</span></div><div><i></i><span>DM-Setup.exe</span></div><div><i></i><span>Downloads</span></div></div>
+
+  <div class="win bevel" id="setup">
+    <div class="tb"><span>DM Setup</span><div class="b"><span>_</span><span>□</span><span>×</span></div></div>
+    <div class="body hero">
+      <h1>Welcome to DM, a download manager for Windows.</h1>
+      <p>DM opens eight connections to one file, resumes exactly after anything, saves streaming video as MP4, and takes links from your browser with your cookies. Setup installs to your user folder. No administrator prompt.</p>
+      <fieldset><legend>Setup will</legend>
+        <label><input type="checkbox" checked disabled> Install DM to C:\Users\you\AppData\Local\DM (28 MB)</label>
+        <label><input type="checkbox" checked disabled> Register the browser hook for Chrome, Edge, Brave and Vivaldi</label>
+        <label><input type="checkbox" checked> Offer the browser extension</label>
+        <label><input type="checkbox"> Start DM with Windows</label>
+      </fieldset>
+      <div class="inset prog" aria-label="Setup progress, 40 percent"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i></div>
+      <div class="row"><span>Copying files… 40%</span><span><a class="btn def" href="#">Download DM-Setup.exe</a><a class="btn" href="#list">Show me</a></span></div>
+    </div>
+  </div>
+
+  <div class="win bevel" id="msg">
+    <div class="tb"><span>Measured</span><div class="b"><span>×</span></div></div>
+    <div class="body"><p style="margin:0 0 8px"><b>83 MiB from dl.google.com</b></p><p style="margin:0 0 4px">One connection: 13.7 s</p><p style="margin:0 0 10px">Eight connections: <b>6.5 s</b></p><div style="text-align:center"><a class="btn def" href="#">OK</a></div></div>
+  </div>
+
+  <div class="win bevel" id="list">
+    <div class="tb"><span>DM - Downloads</span><div class="b"><span>_</span><span>□</span><span>×</span></div></div>
+    <div class="menu"><span>File</span><span>Edit</span><span>View</span><span>Help</span></div>
+    <div class="inset" style="margin:2px 4px">
+      <table>
+        <thead><tr><th>Name</th><th>Size</th><th>Progress</th><th>Speed</th><th>State</th></tr></thead>
+        <tbody>
+          <tr class="sel"><td>ubuntu-24.04.1-desktop-amd64.iso</td><td>5.8 GB</td><td>40%</td><td>41.4 MB/s</td><td>8 connections</td></tr>
+          <tr><td>lecture-07-distributed-systems.m3u8</td><td>1.2 GB</td><td>71%</td><td>12.9 MB/s</td><td>HLS 412/580 → MP4</td></tr>
+          <tr><td>blender-4.2-windows-x64.zip</td><td>336 MB</td><td>100%</td><td></td><td>done, 8.1 s</td></tr>
+          <tr><td>Fedora-Workstation-40.iso</td><td>2.3 GB</td><td>18%</td><td></td><td>paused, resumes at byte 414 187 520</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="status"><span>4 items</span><span>54.3 MB/s</span><span>9 MB idle</span></div>
+  </div>
+
+  <div class="win bevel" id="about">
+    <div class="tb"><span>About DM</span><div class="b"><span>×</span></div></div>
+    <div class="body">
+      <p style="margin:0 0 6px"><b>DM 0.1</b>, written in Go with no third-party modules.</p>
+      <p style="margin:0 0 6px">Eight connections per file, dynamic split. Exact resume. HLS to MP4 with ffmpeg. Native window, tray icon, web page on localhost, command line. Browser extension over native messaging.</p>
+      <p style="margin:0">The same setup file uninstalls and keeps your download list unless told otherwise.</p>
+    </div>
+  </div>
+</div>
+
+<div class="taskbar" aria-hidden="true"><span class="start bevel"><i></i>Start</span><span class="task bevel">DM Setup</span><span class="task bevel">DM - Downloads</span><span class="clock inset">12:04</span></div>
+<script src="/shared/switcher.js"></script>
+<script>document.querySelector(".dm-switch").style.bottom = "44px";</script>
+</body>
+</html>

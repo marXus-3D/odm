@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM, downloads done properly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--fg:#1d1d1f;--fg-2:#6e6e73;--fg-3:#a1a1a6;--line:#e8e8ed;--dark:#111114;--blue:#0071e3;--green:#34c759;--r:22px}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;color:var(--fg);background:var(--bg);font:400 16px/1.55 Inter,-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.page{max-width:1100px;margin:0 auto;padding:0 24px}
+.top{display:flex;justify-content:space-between;align-items:center;height:60px;font-size:14px}
+.top .brand{font-weight:700;letter-spacing:-.02em;font-size:18px}
+.top nav a{text-decoration:none;color:var(--fg-2);margin-left:24px}
+.top nav a.cta{color:#fff;background:var(--blue);padding:7px 14px;border-radius:999px;font-weight:500}
+
+.hero{text-align:center;padding:70px 0 44px}
+.hero h1{font-size:clamp(40px,6.4vw,72px);line-height:1;letter-spacing:-.045em;font-weight:700;margin:0 0 16px}
+.hero h1 span{color:var(--fg-3)}
+.hero p{color:var(--fg-2);font-size:20px;max-width:46ch;margin:0 auto 26px}
+.btn{display:inline-block;text-decoration:none;font-weight:500;font-size:16px;padding:12px 24px;border-radius:999px;background:var(--blue);color:#fff}
+.btn:hover{background:#0077ed}
+.hero small{display:block;margin-top:12px;color:var(--fg-3);font-size:13px}
+
+.bento{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:220px;gap:14px;padding-bottom:100px}
+.c{background:var(--card);border-radius:var(--r);padding:24px;position:relative;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,.03),0 12px 30px -20px rgba(0,0,0,.2)}
+.c h3{margin:0 0 4px;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.c p{margin:0;color:var(--fg-2);font-size:14px;max-width:42ch}
+.c .big{font-size:56px;font-weight:700;letter-spacing:-.05em;line-height:1;margin-bottom:8px}
+.c.w2{grid-column:span 2}.c.h2{grid-row:span 2}
+.c.dark{background:var(--dark);color:#fff}.c.dark p{color:rgba(255,255,255,.62)}
+@media (max-width:860px){.bento{grid-template-columns:1fr 1fr;grid-auto-rows:auto}.c{min-height:180px}}
+@media (max-width:520px){.bento{grid-template-columns:1fr}.c.w2{grid-column:span 1}.c.h2{grid-row:span 1}}
+
+.lanes{position:absolute;left:24px;right:24px;bottom:22px;display:grid;gap:5px}
+.lanes i{display:block;height:7px;border-radius:5px;background:var(--line);position:relative;overflow:hidden}
+.lanes i::after{content:"";position:absolute;inset:0;width:var(--w);background:var(--blue);border-radius:5px}
+.lanes i.slow::after{background:#ff9f0a}
+.tl{position:absolute;left:24px;right:24px;bottom:24px;top:110px}
+.tl .line{position:absolute;left:0;right:0;top:50%;height:6px;border-radius:3px;background:var(--line)}
+.tl .done{position:absolute;left:0;width:58%;top:50%;height:6px;border-radius:3px;background:var(--green)}
+.tl .mark{position:absolute;left:58%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--green)}
+.tl .ev{position:absolute;left:58%;top:calc(50% + 18px);transform:translateX(-50%);font-size:12px;color:var(--fg-2);white-space:nowrap;text-align:center}
+.tl .ev b{display:block;color:var(--fg);font-weight:600}
+.stream{position:absolute;left:24px;right:24px;bottom:22px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--fg-2)}
+.stream .segs{flex:1;display:flex;gap:2px}
+.stream .segs i{flex:1;height:18px;border-radius:3px;background:var(--line)}
+.stream .segs i.on{background:var(--fg)}
+.stream .mp4{font-weight:700;color:#fff;background:var(--fg);border-radius:6px;padding:4px 8px;font-size:12px}
+.brs{position:absolute;left:24px;bottom:22px;display:flex;gap:8px}
+.brs span{width:38px;height:38px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--fg-2)}
+.cli{position:absolute;left:24px;right:24px;bottom:22px;font:13px/1.6 ui-monospace,Consolas,monospace;color:rgba(255,255,255,.8)}
+.cli b{color:#fff;font-weight:500}.cli i{color:rgba(255,255,255,.45);font-style:normal}
+.winm{position:absolute;left:24px;right:24px;bottom:-40px;top:96px;background:var(--bg);border-radius:14px;border:1px solid var(--line);overflow:hidden}
+.winm .tb{height:30px;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;font-size:11px;color:var(--fg-3);border-bottom:1px solid var(--line);background:#fff}
+.winm .r{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);font-size:12px;background:#fff}
+.winm .r i{display:block;width:100px;height:5px;border-radius:3px;background:var(--line);position:relative}
+.winm .r i::after{content:"";position:absolute;inset:0;width:var(--w);background:var(--blue);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="top">
+  <div class="brand">DM</div>
+  <nav><a href="#b">Features</a><a href="#b">Extension</a><a href="#b">Support</a><a class="cta" href="#">Download</a></nav>
+</header>
+
+<section class="hero">
+  <h1>Downloads, done properly.<br><span>A download manager for Windows.</span></h1>
+  <p>Eight connections per file, exact resume, streaming video to MP4, and a browser extension that hands over links with your cookies.</p>
+  <a class="btn" href="#">Download DM-Setup.exe</a>
+  <small>28 MB · Windows 10 and 11 · no admin rights</small>
+</section>
+
+<section class="bento" id="b">
+  <div class="c w2"><h3>Eight connections to one file</h3><p>Hosts cap each socket, not each person. Ranges split as the transfer runs; every byte lands at its final offset.</p>
+    <div class="lanes"><i style="--w:100%"></i><i style="--w:96%"></i><i style="--w:88%"></i><i class="slow" style="--w:22%"></i><i style="--w:70%"></i><i style="--w:58%"></i><i style="--w:44%"></i><i style="--w:30%"></i></div></div>
+  <div class="c"><div class="big">2.1×</div><h3>Faster</h3><p>83 MiB from dl.google.com: 13.7 s in the browser, 6.5 s in DM.</p></div>
+  <div class="c h2 dark"><h3>The native window</h3><p>Dark, tray icon, save-as and progress dialogs, finish actions.</p>
+    <div class="winm"><div class="tb"><span>—</span><span>▢</span><span>✕</span></div>
+      <div class="r"><span>ubuntu-24.04.1.iso</span><i style="--w:40%"></i></div><div class="r"><span>lecture-07.mp4</span><i style="--w:71%"></i></div><div class="r"><span>blender-4.2.zip</span><i style="--w:100%"></i></div><div class="r"><span>Fedora-40.iso</span><i style="--w:18%"></i></div><div class="r"><span>node-v22.msi</span><i style="--w:100%"></i></div></div></div>
+  <div class="c w2"><h3>Exact resume</h3><p>Finished ranges are recorded as they land. Restart the app, the PC or the network and pick up at the same byte.</p>
+    <div class="tl"><div class="line"></div><div class="done"></div><div class="mark"></div><div class="ev"><b>reboot</b>resumed at byte 50 478 592</div></div></div>
+  <div class="c"><div class="big">9 MB</div><h3>Idle memory</h3><p>Go, no third-party modules. One 28 MB file installs and uninstalls.</p></div>
+  <div class="c w2"><h3>Streaming video becomes one file</h3><p>HLS playlists are fetched segment by segment and written out as MP4 with ffmpeg.</p>
+    <div class="stream"><span>412 / 580</span><div class="segs"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="mp4">MP4</span></div></div>
+  <div class="c"><h3>Browser hand-off</h3><p>Link and cookies over native messaging.</p><div class="brs"><span>Cr</span><span>Ed</span><span>Br</span><span>Vi</span></div></div>
+  <div class="c dark"><h3>Command line</h3><p>For scripts and servers.</p><div class="cli"><i>&gt;</i> <b>dm add</b> https://…/x.iso<br><i>&gt;</i> <b>dm ls</b><br><i>a91f  40%  41.4 MB/s</i></div></div>
+</section>
+</div>
+<script src="/shared/switcher.js"></script>
+</body>
+</html>
