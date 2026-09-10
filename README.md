@@ -1,8 +1,9 @@
 # DM
 
-An IDM-style download manager for Windows: parallel range downloads with
-dynamic segmentation, resume across restarts, a local web UI, and a Chrome
-extension that hands the browser's downloads over — cookies and all.
+An IDM-style download manager for Windows: a native desktop app with
+parallel range downloads, dynamic segmentation, resume across restarts, HLS
+video, a tray icon, a web UI, and a Chrome extension that hands the
+browser's downloads over — cookies and all.
 
 Written in Go with no third-party modules. The idle daemon sits at about
 9 MB of RSS. `ffmpeg` is used if present, to convert downloaded HLS video to
@@ -52,14 +53,16 @@ retried on a fresh socket, so a black-holed route cannot pin a worker.
 
 ```
 cmd/dm         CLI: standalone downloads, and a client for the daemon
-cmd/dmd        daemon: queue, web UI, HTTP API
+cmd/dmd        the app: desktop window, tray, queue, web UI, HTTP API
 cmd/dm-nmh     Chrome native messaging host
 cmd/dm-setup   installs the browser integration
 internal/engine   byte-range segments, dynamic splitting, resume, retry
 internal/hls      M3U8 parsing, parallel segment fetch, AES-128, remux
 internal/manager  queue, concurrency limits, engine selection
 internal/api      HTTP API + embedded web UI
-internal/client   shared daemon client (CLI and native host)
+internal/nativeui the Win32 desktop window
+internal/trayicon notification-area icon
+internal/client   shared daemon client (CLI, window and native host)
 internal/store    persisted download list and config
 extension/        MV3 Chrome extension
 ```
@@ -105,7 +108,7 @@ Or drive the daemon, which starts on demand:
 ./bin/dm.exe daemon stop      # graceful: pauses downloads, saves state
 ```
 
-### Daemon and web UI
+### The app
 
 Double-click `bin\dmd.exe`, or run it:
 
@@ -113,27 +116,49 @@ Double-click `bin\dmd.exe`, or run it:
 ./bin/dmd.exe
 ```
 
-It opens the web UI and puts an icon in the notification area. Left click
-opens the UI; right click gives Open DM, Downloads folder, Pause all and
-Quit.
+That opens the desktop window: a real Win32 application with a menu bar, a
+toolbar, and a list showing name, size, progress, speed, status and time
+left. Progress is a drawn bar coloured by state, not a number. Double click
+opens a finished download and pauses a running one, right click gives the
+same actions as the menus, and several rows can be selected at once.
+
+Closing the window leaves the daemon running and the icon in the
+notification area, the way a download manager should behave. **File → Exit**
+or the tray's **Quit DM** stops it properly. The tray's **Open DM** brings
+the window back; left-clicking the tray icon does the same.
 
 > On Windows 11 new tray icons start hidden. If you cannot see it, click the
 > `^` next to the clock, or turn it on under Settings → Personalisation →
 > Taskbar → Other system tray icons.
 
-The UI shows live speed, connection count and a per-segment progress map,
-and supports pause, resume, remove, open and show-in-folder.
+There is no separate GUI binary and no dependency behind this: the window is
+Win32 through `syscall`, for the same reason as the tray, so `dmd.exe` is
+still one self-contained executable.
+
+`-no-window` runs it headless, `-open` uses the browser UI instead.
+
+### Web UI
+
+The web UI is still there and does everything the window does, plus
+settings. **File → Open web UI**, the tray menu, or:
+
+```bash
+./bin/dm.exe ui
+```
+
+It shows live speed, connection count and a per-segment progress map, and
+supports pause, resume, remove, open and show-in-folder.
 
 The daemon also starts on demand — the extension launches it if it is not
 already running, so you do not have to keep it running yourself. Started
 that way it does not open a browser tab.
 
-`dmd` is a GUI binary, so double-clicking it does not flash a console
-window, but it still prints normally when run from a terminal. It always
-logs to `%APPDATA%\dm\dmd.log`.
-
 `dm.exe` is the command line client, not the app — double-clicking it just
 prints its usage and exits.
+
+`dmd` is a GUI binary, so it does not flash a console window, but it still
+prints normally when run from a terminal, and always logs to
+`%APPDATA%\dm\dmd.log`.
 
 ### Browser extension
 
