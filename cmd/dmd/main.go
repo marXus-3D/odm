@@ -79,6 +79,8 @@ func main() {
 	defer shutdown()
 
 	mgr := manager.New(ctx, st)
+	// The "Exit DM" completion action needs a way to stop the daemon.
+	mgr.SetExitFunc(func() { shutdown() })
 	mgr.StartFlusher(ctx, 2*time.Second)
 
 	srv := api.New(mgr, st, token, addr, shutdown)

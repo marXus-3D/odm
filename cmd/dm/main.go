@@ -110,6 +110,9 @@ func usage() {
   dm resume-all              resume everything unfinished
   dm stop-all                pause everything and clear the queue
   dm startup [on|off]        show or set whether DM runs at login
+  dm on-finish [<action>]    what to do when everything finishes:
+                             none exit sleep hibernate shutdown restart
+                             (or "cancel" to call off a pending one)
   dm limit [<KiB/s>|off]     show or set the global speed limit
   dm ui                      print the web UI url
   dm daemon [stop]           daemon status, or stop it gracefully

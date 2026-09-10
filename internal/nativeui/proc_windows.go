@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/marcus/dm/internal/client"
+	"github.com/marcus/dm/internal/power"
 	"github.com/marcus/dm/internal/store"
 )
 
@@ -364,7 +365,29 @@ func (a *App) onCommand(id uint32) {
 		a.toggleFlag(id)
 	case cmdPause, cmdResume, cmdOpen, cmdReveal, cmdRemove, cmdRemoveFile:
 		a.applyToSelection(id)
+	default:
+		acts := power.Actions()
+		if idx := int(id) - cmdOnFinishBase; idx >= 0 && idx < len(acts) {
+			a.setOnFinish(acts[idx])
+		}
 	}
+}
+
+// setOnFinish records what should happen once the queue drains.
+func (a *App) setOnFinish(act power.Action) {
+	go func() {
+		if act == power.None {
+			// Choosing "do nothing" also calls off anything already
+			// scheduled with the OS, which is what a user means by it.
+			power.CancelPending()
+		}
+		if _, err := a.client.SetConfig(store.Config{OnComplete: string(act)}); err != nil {
+			messageBox(a.hwnd, "Settings",
+				"Could not save the setting:\n\n"+err.Error(), mbOk|mbIconError)
+			return
+		}
+		a.refresh()
+	}()
 }
 
 // toggleFlag flips one of the Options switches.

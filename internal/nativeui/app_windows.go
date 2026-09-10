@@ -15,6 +15,7 @@ import (
 
 	"github.com/marcus/dm/internal/client"
 	"github.com/marcus/dm/internal/manager"
+	"github.com/marcus/dm/internal/power"
 	"github.com/marcus/dm/internal/store"
 )
 
@@ -39,6 +40,9 @@ const (
 	cmdShowCompleteDialog
 	cmdSelectAll
 )
+
+// cmdOnFinishBase is the first of a run of ids, one per completion action.
+const cmdOnFinishBase = 1200
 
 // wmAppRefresh asks the UI thread to apply rows fetched elsewhere.
 // wmAppQuit tears the window down for real, as opposed to hiding it.
@@ -79,6 +83,7 @@ type App struct {
 
 	client      *client.Client
 	optionsMenu syscall.Handle
+	finishMenu  syscall.Handle
 
 	mu      sync.Mutex
 	rows    []row
@@ -251,6 +256,18 @@ func (a *App) buildMenu() {
 		uintptr(unsafe.Pointer(utf16Ptr("Ask where to save each &download"))))
 	procAppendMenu.Call(opt, mfString, cmdShowCompleteDialog,
 		uintptr(unsafe.Pointer(utf16Ptr("Show the download &complete dialog"))))
+	procAppendMenu.Call(opt, mfSeparator, 0, 0)
+
+	// "When everything finishes" as a submenu, one entry per action.
+	fin, _, _ := procCreatePopupMenu.Call()
+	a.finishMenu = syscall.Handle(fin)
+	for i, act := range power.Actions() {
+		procAppendMenu.Call(fin, mfString, uintptr(cmdOnFinishBase+i),
+			uintptr(unsafe.Pointer(utf16Ptr(power.Label(act)))))
+	}
+	procAppendMenu.Call(opt, mfPopup, fin,
+		uintptr(unsafe.Pointer(utf16Ptr("When everything &finishes"))))
+
 	procAppendMenu.Call(opt, mfSeparator, 0, 0)
 	procAppendMenu.Call(opt, mfString, cmdWebUI,
 		uintptr(unsafe.Pointer(utf16Ptr("More settings (&web UI)..."))))
@@ -465,6 +482,20 @@ func (a *App) syncOptionsMenu(st *client.State) {
 	check(cmdStartWithWindows, st.StartWithWindows)
 	check(cmdShowStartDialog, st.Config.ShowStartDialog)
 	check(cmdShowCompleteDialog, st.Config.ShowCompleteDialog)
+	if a.finishMenu != 0 {
+		cur := st.Config.OnComplete
+		if cur == "" {
+			cur = string(power.None)
+		}
+		for i, act := range power.Actions() {
+			flag := uintptr(mfUnchecked)
+			if string(act) == cur {
+				flag = mfChecked
+			}
+			procCheckMenuItem.Call(uintptr(a.finishMenu),
+				uintptr(cmdOnFinishBase+i), mfByCommand|flag)
+		}
+	}
 	if !st.StartWithWindowsSupported {
 		procEnableMenuItem.Call(uintptr(a.optionsMenu), cmdStartWithWindows,
 			mfByCommand|mfGrayed)

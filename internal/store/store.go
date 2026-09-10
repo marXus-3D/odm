@@ -62,6 +62,12 @@ type Config struct {
 
 	// Theme is "system", "light" or "dark".
 	Theme string `json:"theme"`
+
+	// OnComplete is what to do once every download has finished: none,
+	// exit, sleep, hibernate, shutdown or restart. It is one-shot and
+	// resets itself after firing, so a machine does not shut down every
+	// time the queue happens to empty.
+	OnComplete string `json:"onComplete"`
 }
 
 // DefaultConfig is used the first time the daemon starts.
@@ -77,6 +83,7 @@ func DefaultConfig(downloadDir string) Config {
 		ShowStartDialog:    false,
 		ShowCompleteDialog: true,
 		Theme:              "system",
+		OnComplete:         "none",
 	}
 }
 
@@ -218,6 +225,9 @@ func (s *Store) SetConfig(c Config) error {
 	}
 	if c.Theme != "" {
 		s.cfg.Theme = c.Theme
+	}
+	if c.OnComplete != "" {
+		s.cfg.OnComplete = c.OnComplete
 	}
 	cfg := s.cfg
 	s.mu.Unlock()

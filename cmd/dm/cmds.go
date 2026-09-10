@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/marcus/dm/internal/client"
+	"github.com/marcus/dm/internal/power"
 	"github.com/marcus/dm/internal/store"
 )
 
@@ -19,7 +20,7 @@ func runCommand(args []string) bool {
 	switch args[0] {
 	case "add", "ls", "list", "pause", "resume", "rm", "remove",
 		"open", "show", "ui", "limit", "daemon",
-		"pause-all", "resume-all", "stop-all", "startup":
+		"pause-all", "resume-all", "stop-all", "startup", "on-finish":
 	default:
 		return false
 	}
@@ -59,6 +60,8 @@ func runCommand(args []string) bool {
 		must(c.StopAll(), "everything stopped")
 	case "startup":
 		cmdStartup(c, rest)
+	case "on-finish":
+		cmdOnFinish(c, rest)
 	}
 	return true
 }
@@ -212,6 +215,45 @@ func cmdStartup(c *client.Client, args []string) {
 	} else {
 		fmt.Println("DM will no longer run at login")
 	}
+}
+
+// cmdOnFinish shows or sets what happens once everything has downloaded.
+func cmdOnFinish(c *client.Client, args []string) {
+	if len(args) == 0 {
+		st, err := c.State()
+		if err != nil {
+			fail("%v", err)
+		}
+		cur := st.Config.OnComplete
+		if cur == "" {
+			cur = string(power.None)
+		}
+		fmt.Printf("when everything finishes: %s\n", power.Label(power.Action(cur)))
+		fmt.Print("choices:")
+		for _, a := range power.Actions() {
+			fmt.Printf(" %s", a)
+		}
+		fmt.Println()
+		return
+	}
+	if args[0] == "cancel" {
+		if err := power.CancelPending(); err != nil {
+			fail("%v", err)
+		}
+		if _, err := c.SetConfig(store.Config{OnComplete: string(power.None)}); err != nil {
+			fail("%v", err)
+		}
+		fmt.Println("cancelled; a pending shutdown was called off")
+		return
+	}
+	act := power.Action(strings.ToLower(args[0]))
+	if !power.Valid(act) {
+		fail("unknown action %q; try one of: none exit sleep hibernate shutdown restart", args[0])
+	}
+	if _, err := c.SetConfig(store.Config{OnComplete: string(act)}); err != nil {
+		fail("%v", err)
+	}
+	fmt.Printf("when everything finishes: %s\n", power.Label(act))
 }
 
 func cmdDaemon(c *client.Client, args []string) {

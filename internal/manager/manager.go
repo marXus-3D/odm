@@ -15,6 +15,7 @@ import (
 
 	"github.com/marcus/dm/internal/engine"
 	"github.com/marcus/dm/internal/hls"
+	"github.com/marcus/dm/internal/power"
 	"github.com/marcus/dm/internal/store"
 )
 
@@ -53,6 +54,8 @@ type Manager struct {
 
 	subMu sync.Mutex
 	subs  map[chan Event]struct{}
+
+	onExit func()
 }
 
 // New restores the persisted list and prepares the queue.
@@ -475,7 +478,63 @@ func (m *Manager) run(id string, j job) {
 	m.st.Put(&rec)
 	m.broadcast(Event{Type: "updated", Item: rec})
 	m.pump()
+	m.maybeFinishAction()
 }
+
+// maybeFinishAction runs the configured "when everything is done" action
+// once nothing is left running or queued.
+//
+// It is one-shot: the setting resets before the action fires, so the
+// machine does not shut itself down every time the list happens to empty.
+func (m *Manager) maybeFinishAction() {
+	cfg := m.st.Config()
+	act := power.Action(cfg.OnComplete)
+	if act == "" || act == power.None || !power.Valid(act) {
+		return
+	}
+
+	m.mu.Lock()
+	busy := m.running > 0 || len(m.queue) > 0
+	if !busy {
+		for _, e := range m.entries {
+			switch e.rec.State {
+			case string(engine.StateDownloading), string(engine.StateProbing),
+				string(engine.StateQueued), string(hls.StateRemuxing):
+				busy = true
+			}
+			if busy {
+				break
+			}
+		}
+	}
+	m.mu.Unlock()
+	if busy {
+		return
+	}
+
+	// Clear it first, so a failure to sleep does not leave the machine
+	// trying again on every subsequent completion.
+	if err := m.st.SetConfig(store.Config{OnComplete: string(power.None)}); err != nil {
+		fmt.Fprintf(os.Stderr, "dm: clear on-complete: %v\n", err)
+	}
+	m.broadcast(Event{Type: "finished-all", Item: store.Record{State: string(act)}})
+
+	if act == power.ExitDM {
+		if m.onExit != nil {
+			go m.onExit()
+		}
+		return
+	}
+	go func() {
+		if err := power.Do(act); err != nil {
+			fmt.Fprintf(os.Stderr, "dm: %s: %v\n", act, err)
+		}
+	}()
+}
+
+// SetExitFunc supplies the callback used by the "Exit DM" completion
+// action, which only the daemon knows how to perform.
+func (m *Manager) SetExitFunc(f func()) { m.onExit = f }
 
 func (m *Manager) onUpdate(id string) {
 	m.mu.Lock()
