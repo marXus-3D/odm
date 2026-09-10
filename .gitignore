@@ -18,3 +18,8 @@
 .idea/
 Thumbs.db
 desktop.ini
+
+# Agent and skill caches
+/.agents/
+/.claude/skills/
+/skills-lock.json

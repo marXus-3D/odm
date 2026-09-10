@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/marcus/dm/internal/client"
+	"github.com/marXus-3D/dm/internal/client"
 )
 
 const (

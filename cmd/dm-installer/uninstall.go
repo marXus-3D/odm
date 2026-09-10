@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/marcus/dm/internal/shortcut"
-	"github.com/marcus/dm/internal/startup"
+	"github.com/marXus-3D/dm/internal/shortcut"
+	"github.com/marXus-3D/dm/internal/startup"
 )
 
 // Uninstall removes everything the installer put in place. userData says

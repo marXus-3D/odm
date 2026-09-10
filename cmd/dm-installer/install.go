@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marcus/dm/internal/shortcut"
-	"github.com/marcus/dm/internal/startup"
+	"github.com/marXus-3D/dm/internal/shortcut"
+	"github.com/marXus-3D/dm/internal/startup"
 )
 
 // payload carries everything the installer writes to disk: the binaries,

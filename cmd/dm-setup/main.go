@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 const hostName = "com.dm.host"

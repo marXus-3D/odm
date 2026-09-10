@@ -2,8 +2,10 @@ import type { CSSProperties } from "react";
 import CopyCommand from "@/components/CopyCommand";
 import Motion from "@/components/Motion";
 
-// Where the setup program lives. Point this at a release once there is one.
-const setupUrl = "/DM-Setup.exe";
+// The repository and the newest release's setup program. GitHub redirects
+// the second URL to the asset of the latest published release.
+const repo = "https://github.com/marXus-3D/dm";
+const setupUrl = `${repo}/releases/latest/download/DM-Setup.exe`;
 
 const downloads = [
   {
@@ -103,6 +105,10 @@ const faq: [string, string][] = [
     "No. It helps most on hosts that cap each socket and on busy links, which is most of them. A host that caps per user, or a line that is already saturated, shows a smaller gap. The 83 MiB test on this page had no server-side limit.",
   ],
   [
+    "Is it open source?",
+    "Yes, under the MIT license. The engine, the window, the extension and the setup program are all in one repository on GitHub, and releases are built there by a workflow from a tagged commit, so the DM-Setup.exe you download is the one the public build produced.",
+  ],
+  [
     "How do I uninstall?",
     "Run the same DM-Setup.exe again. It removes the app and the browser hook and keeps your download list unless you tell it not to.",
   ],
@@ -132,6 +138,7 @@ export default function Page() {
               <a href="#features">Features</a>
               <a href="#extension">Extension</a>
               <a href="#faq">FAQ</a>
+              <a href={repo}>GitHub</a>
               <a className="solid" href={setupUrl}>
                 Download
               </a>
@@ -144,7 +151,7 @@ export default function Page() {
           <div className="in">
             <div data-hero>
               <span className="eyebrow">
-                <b>v0.1</b> Windows 10 and 11, no admin rights
+                <b>v0.1</b> Open source · Windows 10 and 11 · no admin rights
               </span>
               <h1>The download manager for Windows.</h1>
               <p className="lede">
@@ -504,7 +511,10 @@ export default function Page() {
                 <span className="label mono">05 · Questions</span>
                 <h2>Short answers.</h2>
               </div>
-              <p>Anything not here is in the docs, or ask on the tracker.</p>
+              <p>
+                Anything not here is in the <a href={`${repo}#readme`}>README</a>, or open
+                an <a href={`${repo}/issues`}>issue</a>.
+              </p>
             </div>
             <div className="qa" data-reveal data-stagger>
               {faq.map(([q, a]) => (
@@ -536,8 +546,8 @@ export default function Page() {
               <CopyCommand command="DM-Setup.exe -silent" />
             </div>
             <small>
-              Windows 10 and 11 · 28 MB · written in Go with no third-party
-              modules · 9 MB idle
+              Windows 10 and 11 · 28 MB · open source, MIT · written in Go with
+              no third-party modules · 9 MB idle
             </small>
           </div>
         </section>
@@ -560,19 +570,19 @@ export default function Page() {
               </div>
               <div>
                 <h4>Docs</h4>
-                <a href="#">Getting started</a>
-                <a href="#">Command line</a>
-                <a href="#">Extension</a>
+                <a href={`${repo}#readme`}>Getting started</a>
+                <a href={`${repo}#cli`}>Command line</a>
+                <a href={`${repo}#install-it`}>Extension</a>
               </div>
               <div>
                 <h4>Project</h4>
-                <a href="#">Source</a>
-                <a href="#">Changelog</a>
-                <a href="#">Issues</a>
+                <a href={repo}>Source</a>
+                <a href={`${repo}/releases`}>Releases</a>
+                <a href={`${repo}/issues`}>Issues</a>
               </div>
             </div>
             <div className="fine">
-              <span>DM 0.1</span>
+              <span>DM 0.1 · MIT</span>
               <span>Windows 10 and 11</span>
             </div>
           </div>

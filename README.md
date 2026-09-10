@@ -452,6 +452,26 @@ installed.
   is to host the existing web UI in a system webview rather than write a
   second and third native UI.
 
+## Releases
+
+Releases are built on GitHub. Tag the commit with the version, matching
+`const Version` in `cmd/dm-installer/main.go` and `version` in
+`extension/manifest.json`, and push the tag:
+
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow refuses a tag that disagrees with either version,
+runs `build.ps1`, and publishes `DM-Setup.exe`, `dm-extension-<version>.zip`,
+`dm.crx` and `SHA256SUMS.txt` on the release. Set the repository secret
+`EXTENSION_SIGNING_KEY` to the contents of `%APPDATA%\dm\extension_key.pem`
+so the extension keeps its id between releases; `build.ps1` passes the key
+to `dm-pack` through `DM_EXTENSION_KEY`. CI on every push builds and tests
+the Go code on Windows, cross-compiles for Linux and macOS, syntax-checks
+the extension and builds the landing page.
+
 ## Landing page
 
 The landing page is a Next.js site in `landing/`, exported as static files.
@@ -475,3 +495,7 @@ JavaScript off or reduced motion on is the resting state.
 
 Twenty drafts are kept in `site/pages` and served by
 `go run ./cmd/dm-site` at <http://127.0.0.1:8090/1> through `/20`.
+
+## License
+
+MIT. See `LICENSE`.

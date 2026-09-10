@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/marcus/dm/internal/engine"
-	"github.com/marcus/dm/internal/hls"
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/engine"
+	"github.com/marXus-3D/dm/internal/hls"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 // job is what the queue actually runs. Byte-range downloads and HLS playlist

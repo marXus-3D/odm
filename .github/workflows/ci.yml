@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  go:
+    name: Go
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: go vet ./...
+
+      - run: go build ./...
+
+      # The daemon, engine, CLI and web UI are meant to build everywhere;
+      # only the window and tray are Windows-only. Compiling for the other
+      # platforms catches a stub drifting out of step with the real one.
+      - name: Cross-platform builds
+        shell: pwsh
+        run: |
+          foreach ($t in @("linux/amd64", "darwin/arm64")) {
+            $p = $t.Split("/")
+            $env:GOOS = $p[0]; $env:GOARCH = $p[1]
+            go build ./...
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+            Remove-Item Env:GOOS, Env:GOARCH
+            Write-Host "$t ok"
+          }
+
+      - run: go test ./...
+
+      # A parse error in the service worker silently disables the extension.
+      - name: Extension syntax
+        shell: pwsh
+        run: |
+          Get-ChildItem extension -Filter *.js | ForEach-Object {
+            node --check $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+
+  landing:
+    name: Landing page
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: landing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: landing/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run build

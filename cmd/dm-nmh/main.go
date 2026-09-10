@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/marcus/dm/internal/client"
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/client"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 // Chrome refuses to accept more than 1 MB from a host, and will not send it

@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marcus/dm/internal/hls"
-	"github.com/marcus/dm/internal/manager"
-	"github.com/marcus/dm/internal/startup"
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/hls"
+	"github.com/marXus-3D/dm/internal/manager"
+	"github.com/marXus-3D/dm/internal/startup"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 // Server wires the manager to HTTP handlers.

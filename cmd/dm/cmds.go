@@ -8,9 +8,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/marcus/dm/internal/client"
-	"github.com/marcus/dm/internal/power"
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/client"
+	"github.com/marXus-3D/dm/internal/power"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 // runCommand handles the daemon-backed subcommands. It returns false when

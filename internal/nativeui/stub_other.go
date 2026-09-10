@@ -8,7 +8,7 @@ package nativeui
 import (
 	"errors"
 
-	"github.com/marcus/dm/internal/client"
+	"github.com/marXus-3D/dm/internal/client"
 )
 
 // ErrUnsupported means there is no native window on this platform.

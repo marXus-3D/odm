@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/marcus/dm/internal/engine"
-	"github.com/marcus/dm/internal/hls"
-	"github.com/marcus/dm/internal/power"
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/engine"
+	"github.com/marXus-3D/dm/internal/hls"
+	"github.com/marXus-3D/dm/internal/power"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 // Event is a change the UI should react to.

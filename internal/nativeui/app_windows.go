@@ -13,10 +13,10 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/marcus/dm/internal/client"
-	"github.com/marcus/dm/internal/manager"
-	"github.com/marcus/dm/internal/power"
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/client"
+	"github.com/marXus-3D/dm/internal/manager"
+	"github.com/marXus-3D/dm/internal/power"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 // Command ids for menu items and buttons.

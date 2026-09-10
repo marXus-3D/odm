@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/marcus/dm/internal/client"
-	"github.com/marcus/dm/internal/power"
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/client"
+	"github.com/marXus-3D/dm/internal/power"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {

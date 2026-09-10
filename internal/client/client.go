@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 // Client is a connection to the daemon.

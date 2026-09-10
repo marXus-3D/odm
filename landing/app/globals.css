@@ -565,6 +565,12 @@ h2 {
   max-width: 52ch;
 }
 
+.head p a,
+.install p a {
+  color: var(--fg);
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 820px) {
   .head {
     grid-template-columns: 1fr;

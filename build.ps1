@@ -123,8 +123,13 @@ if (-not $SkipExtension) {
     # Sign the extension so the installer can offer it to browsers as a
     # real .crx. This also writes the public key into manifest.json, which
     # is what fixes the extension id.
+    # On a build machine the key comes from DM_EXTENSION_KEY (a path to the
+    # PEM); the release workflow writes it there from a repository secret so
+    # the extension id stays the same across releases.
     $crx = Join-Path $root "dist/dm.crx"
-    go run ./cmd/dm-pack -extension $extDir -out $crx 2>&1 | Write-Host
+    $packArgs = @("-extension", $extDir, "-out", $crx)
+    if ($env:DM_EXTENSION_KEY) { $packArgs += @("-key", $env:DM_EXTENSION_KEY) }
+    go run ./cmd/dm-pack @packArgs 2>&1 | Write-Host
     if ($LASTEXITCODE -ne 0) { throw "packing the extension failed" }
 }
 

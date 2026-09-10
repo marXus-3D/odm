@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/marcus/dm/internal/crx"
+	"github.com/marXus-3D/dm/internal/crx"
 )
 
 func main() {

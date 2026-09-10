@@ -7,8 +7,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/marcus/dm/internal/client"
-	"github.com/marcus/dm/internal/store"
+	"github.com/marXus-3D/dm/internal/client"
+	"github.com/marXus-3D/dm/internal/store"
 )
 
 // Control ids for the Download File Info form.
