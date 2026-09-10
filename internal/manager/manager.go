@@ -61,10 +61,16 @@ func New(ctx context.Context, st *store.Store) *Manager {
 		rec := r
 		// Anything that was mid-flight when we last exited is resumable, not
 		// running: the worker goroutines died with the process.
-		if rec.State == string(engine.StateDownloading) ||
-			rec.State == string(engine.StateProbing) ||
-			rec.State == string(engine.StateQueued) {
+		switch rec.State {
+		case string(engine.StateDownloading), string(engine.StateProbing),
+			string(engine.StateQueued):
 			rec.State = string(engine.StatePaused)
+			st.Put(&rec)
+		case string(hls.StateRemuxing):
+			// The bytes were all fetched and the sidecar is gone; only the
+			// MP4 conversion was interrupted. The .ts is intact and plays,
+			// so this is done, not resumable.
+			rec.State = string(engine.StateDone)
 			st.Put(&rec)
 		}
 		m.entries[rec.ID] = &entry{rec: rec}

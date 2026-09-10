@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/marcus/dm/internal/hls"
 	"github.com/marcus/dm/internal/manager"
 	"github.com/marcus/dm/internal/store"
 )
@@ -179,6 +180,10 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"downloads": s.mgr.List(),
 		"config":    s.st.Config(),
+		// Whether video downloads end up as .mp4 or .ts depends entirely on
+		// this, so the UI should be able to say so rather than leave the
+		// user guessing.
+		"ffmpeg": hls.FFmpegPath(),
 	})
 }
 

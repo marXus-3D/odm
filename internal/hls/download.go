@@ -23,6 +23,7 @@ const (
 	StateProbing     State = "probing"
 	StateDownloading State = "downloading"
 	StatePaused      State = "paused"
+	StateRemuxing    State = "remuxing"
 	StateDone        State = "done"
 	StateError       State = "error"
 )
@@ -270,7 +271,12 @@ func (d *Download) Run(ctx context.Context) error {
 
 	os.Remove(d.Path + sidecarSuffix)
 
-	if d.Remux {
+	if d.Remux && FFmpegPath() != "" {
+		// Converting a long video takes a while and reports no byte
+		// progress, so give it a state of its own rather than letting the
+		// UI show a download stalled at 100%.
+		d.state.Store(StateRemuxing)
+		d.emit()
 		if newPath, err := remux(ctx, d.Path); err == nil && newPath != "" {
 			d.Path = newPath
 		} else if err != nil {
