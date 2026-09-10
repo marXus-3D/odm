@@ -56,6 +56,8 @@ cmd/dm         CLI: standalone downloads, and a client for the daemon
 cmd/dmd        the app: desktop window, tray, queue, web UI, HTTP API
 cmd/dm-nmh     Chrome native messaging host
 cmd/dm-setup   installs the browser integration
+cmd/dm-installer  the setup program: DM-Setup.exe, and the uninstaller
+cmd/dm-pack    build tool: signs the extension into a .crx
 internal/engine   byte-range segments, dynamic splitting, resume, retry
 internal/hls      M3U8 parsing, parallel segment fetch, AES-128, remux
 internal/manager  queue, concurrency limits, engine selection
@@ -64,6 +66,9 @@ internal/nativeui the Win32 desktop window
 internal/trayicon notification-area icon
 internal/client   shared daemon client (CLI, window and native host)
 internal/store    persisted download list and config
+internal/crx      CRX3 packer, so the installer can ship a signed extension
+internal/shortcut .lnk files through IShellLink
+internal/startup  the HKCU run key
 extension/        MV3 Chrome extension
 ```
 
@@ -79,6 +84,40 @@ extension and packages it to `.\dist\dm-extension-<version>.zip`. Use
 
 Go 1.22+ is required (the API uses method-aware `http.ServeMux` patterns).
 `ffmpeg` is optional; see "TS to MP4".
+
+## Install it
+
+```
+dist\DM-Setup.exe
+```
+
+One file. It carries the binaries, the extension and the signed `.crx`
+inside itself and installs per user, so there is no administrator prompt:
+
+- program files in `%LOCALAPPDATA%\Programs\DM`
+- a Start menu shortcut, and a desktop one if asked
+- start at sign-in, through the `HKCU` run key
+- an **Add or remove programs** entry, which runs the same exe with
+  `-uninstall`
+- the native messaging host, and the extension offered to every installed
+  Chromium browser
+
+The extension is the one part nobody can fully automate: Chrome will not
+silently enable an extension that did not come from the Web Store. The
+installer writes the external-extension registry entry, which is the
+supported way to offer one, and the finish page also has **Load the
+extension**, which opens `chrome://extensions` with the folder already on
+the clipboard for **Load unpacked**.
+
+For a scripted install:
+
+```
+dist\DM-Setup.exe -silent [-dir PATH] [-no-startup] [-no-desktop] [-no-browser]
+dist\DM-Setup.exe -uninstall -silent [-remove-data]
+```
+
+Uninstalling keeps the download list and settings in `%APPDATA%\dm` unless
+`-remove-data` says otherwise.
 
 ## Use it
 
@@ -214,8 +253,10 @@ prints normally when run from a terminal, and always logs to
 .\bin\dm-setup.exe
 ```
 
-That generates a keypair so the extension has a stable id, writes the native
-messaging host manifest, and registers it for Chrome, Edge, Brave, Chromium,
+That writes the native messaging host manifest, generating a keypair for a
+stable id if the manifest does not already carry one (a packaged manifest
+does, and its key is left alone because the shipped `.crx` is signed with
+it), and registers it for Chrome, Edge, Brave, Chromium,
 Vivaldi and Opera. Then:
 
 1. Open `chrome://extensions`
