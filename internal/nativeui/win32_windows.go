@@ -90,6 +90,7 @@ var (
 	procSetBkColor         = gdi32.NewProc("SetBkColor")
 	procSelectObject       = gdi32.NewProc("SelectObject")
 
+	procGetProcAddress  = kernel32.NewProc("GetProcAddress")
 	procGetModuleHandle = kernel32.NewProc("GetModuleHandleW")
 	procCreateActCtx    = kernel32.NewProc("CreateActCtxW")
 	procActivateActCtx  = kernel32.NewProc("ActivateActCtx")

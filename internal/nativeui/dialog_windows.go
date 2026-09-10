@@ -87,7 +87,7 @@ func (a *App) askURL() string {
 		wsChild|wsVisible|wsTabStop|esAutoHScroll,
 		14, 36, 484, 24, hwnd, idEdit, inst, 0)
 	d.edit = syscall.Handle(edit)
-	applyDarkControlTheme(d.edit)
+	darkField(d.edit)
 	procSendMessage.Call(edit, wmSetFont, uintptr(a.font), 1)
 
 	makeButton(syscall.Handle(hwnd), inst, a.font, "Download",

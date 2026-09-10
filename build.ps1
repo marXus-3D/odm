@@ -4,7 +4,8 @@
 # binary by roughly a third; there is no cgo here so nothing needs them.
 param(
     [switch]$SkipExtension,
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$SkipInstaller
 )
 
 $ErrorActionPreference = "Stop"
@@ -118,6 +119,39 @@ if (-not $SkipExtension) {
     if (Test-Path $zip) { Remove-Item $zip -Force }
     Compress-Archive -Path (Join-Path $extDir "*") -DestinationPath $zip
     Write-Host "  packaged $zip"
+
+    # Sign the extension so the installer can offer it to browsers as a
+    # real .crx. This also writes the public key into manifest.json, which
+    # is what fixes the extension id.
+    $crx = Join-Path $root "dist/dm.crx"
+    go run ./cmd/dm-pack -extension $extDir -out $crx 2>&1 | Write-Host
+    if ($LASTEXITCODE -ne 0) { throw "packing the extension failed" }
+}
+
+# --- Setup program -----------------------------------------------------------
+
+if (-not $SkipInstaller) {
+    Write-Host "`nstaging the installer payload"
+
+    $payload = Join-Path $root "cmd/dm-installer/payload"
+    # Rebuild the payload from scratch: a stale binary left behind here
+    # would be shipped silently.
+    Get-ChildItem $payload -Exclude ".gitkeep" -Force -ErrorAction SilentlyContinue |
+        Remove-Item -Recurse -Force
+    New-Item -ItemType Directory -Force -Path (Join-Path $payload "bin") | Out-Null
+
+    foreach ($t in $targets) {
+        Copy-Item "bin/$($t.name).exe" (Join-Path $payload "bin") -Force
+    }
+    Copy-Item (Join-Path $root "extension") $payload -Recurse -Force
+    Get-ChildItem (Join-Path $payload "extension") -Filter *.pem -Recurse -Force -ErrorAction SilentlyContinue |
+        Remove-Item -Force
+    $crx = Join-Path $root "dist/dm.crx"
+    if (Test-Path $crx) { Copy-Item $crx $payload -Force }
+
+    Write-Host "building dist/DM-Setup.exe"
+    go build -trimpath -ldflags "-s -w -H windowsgui" -o dist/DM-Setup.exe ./cmd/dm-installer
+    if ($LASTEXITCODE -ne 0) { throw "build failed for the installer" }
 }
 
 # --- Summary -----------------------------------------------------------------
@@ -126,6 +160,12 @@ Write-Host ""
 Get-ChildItem bin -Filter *.exe |
     Select-Object Name, @{n = "MB"; e = { [math]::Round($_.Length / 1MB, 1) } } |
     Format-Table -AutoSize
+
+if (-not $SkipInstaller) {
+    Get-ChildItem dist -Filter *.exe -ErrorAction SilentlyContinue |
+        Select-Object Name, @{n = "MB"; e = { [math]::Round($_.Length / 1MB, 1) } } |
+        Format-Table -AutoSize
+}
 
 if (-not $SkipExtension) {
     Get-ChildItem dist -Filter *.zip -ErrorAction SilentlyContinue |

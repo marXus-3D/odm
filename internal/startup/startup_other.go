@@ -18,4 +18,6 @@ func Set(on bool) error {
 	return ErrUnsupported
 }
 
+func SetPath(exe string, on bool) error { return Set(on) }
+
 func Supported() bool { return false }

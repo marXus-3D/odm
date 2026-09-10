@@ -77,6 +77,10 @@ func initBrushes() {
 // applyDarkTitleBar asks DWM for a dark caption. Without it a dark window
 // wears a white title bar, which looks broken rather than themed.
 func applyDarkTitleBar(hwnd syscall.Handle) {
+	// Every window has to opt in individually before uxtheme will hand out
+	// the dark variants to its children.
+	allowDarkModeForWindow(hwnd)
+
 	on := int32(1)
 	for _, attr := range []uintptr{dwmaUseImmersiveDarkMode, dwmaUseImmersiveDarkModeBefore} {
 		procDwmSetWindowAttribute.Call(uintptr(hwnd), attr,
@@ -99,26 +103,59 @@ func applyDarkControlTheme(hwnd syscall.Handle) {
 }
 
 // enableDarkMode flips the process into dark mode for the parts of
-// comctl32 and uxtheme that have no public API.
+// comctl32 and uxtheme that have no public API. It must run before any
+// window is created.
 //
-// SetPreferredAppMode is exported by ordinal only and has never been
-// documented, so every call is guarded and the app is perfectly usable if
-// this does nothing: the explicit colours below carry the theme, and this
-// only improves scrollbars, menus and tooltips.
+// These entry points are exported by ordinal only and have never been
+// documented, so GetProcAddress is called with the ordinal itself:
+// LazyDLL.NewProc("#135") searches for a symbol literally named "#135"
+// and never finds one, which is a silent no-op. Every call is still
+// guarded -- the explicit colours carry the theme, and this adds dark
+// edit fields, scrollbars, menus and tooltips on top.
+const (
+	ordAllowDarkModeForWindow = 133
+	ordSetPreferredAppMode    = 135
+	ordFlushMenuThemes        = 136
+
+	appModeForceDark = 2
+)
+
+// ordinalProc resolves an export by ordinal. GetProcAddress accepts one in
+// place of a name pointer as long as it is a small integer.
+func ordinalProc(dll string, ordinal uintptr) uintptr {
+	mod, err := syscall.LoadLibrary(dll)
+	if err != nil {
+		return 0
+	}
+	addr, _, _ := procGetProcAddress.Call(uintptr(mod), ordinal)
+	return addr
+}
+
 func enableDarkMode() {
-	const (
-		ordSetPreferredAppMode = 135
-		ordFlushMenuThemes     = 136
-		appModeForceDark       = 2
-	)
-	setMode := uxtheme.NewProc("#" + itoa(ordSetPreferredAppMode))
-	if err := setMode.Find(); err == nil {
-		setMode.Call(appModeForceDark)
+	if addr := ordinalProc("uxtheme.dll", ordSetPreferredAppMode); addr != 0 {
+		syscall.SyscallN(addr, appModeForceDark)
 	}
-	flush := uxtheme.NewProc("#" + itoa(ordFlushMenuThemes))
-	if err := flush.Find(); err == nil {
-		flush.Call()
+	if addr := ordinalProc("uxtheme.dll", ordFlushMenuThemes); addr != 0 {
+		syscall.SyscallN(addr)
 	}
+}
+
+// allowDarkModeForWindow marks one window as willing to use the dark
+// themes; it has to be called for each window, parents included.
+func allowDarkModeForWindow(hwnd syscall.Handle) {
+	if addr := ordinalProc("uxtheme.dll", ordAllowDarkModeForWindow); addr != 0 {
+		syscall.SyscallN(addr, uintptr(hwnd), 1)
+	}
+}
+
+// darkField gives an edit control the dark field theme. "DarkMode_CFD" is
+// what Explorer uses for its own search box: a themed edit paints its own
+// background and ignores the brush from WM_CTLCOLOREDIT, so this is what
+// actually makes it dark.
+func darkField(hwnd syscall.Handle) {
+	allowDarkModeForWindow(hwnd)
+	procSetWindowTheme.Call(uintptr(hwnd),
+		uintptr(unsafe.Pointer(utf16Ptr("DarkMode_CFD"))), 0)
 }
 
 // --- drawing helpers -------------------------------------------------------

@@ -84,12 +84,19 @@ func main() {
 	}
 	must(os.MkdirAll(*stateDir, 0o700), "create the state directory")
 
-	pub, err := loadOrCreateKey(filepath.Join(*stateDir, "extension_key.pem"))
-	must(err, "prepare the extension signing key")
-	der, err := x509.MarshalPKIXPublicKey(pub)
-	must(err, "encode the public key")
-	must(writeManifestKey(manifestPath, base64.StdEncoding.EncodeToString(der)),
-		"write the extension key")
+	// A manifest that already carries a key was packaged that way by the
+	// build, and the shipped .crx is signed with the matching private key.
+	// Replacing it here would change the extension id out from under both
+	// the signature and anything the user has already installed, so an
+	// existing key is left alone.
+	if _, err := idFromManifest(manifestPath); err != nil {
+		pub, err := loadOrCreateKey(filepath.Join(*stateDir, "extension_key.pem"))
+		must(err, "prepare the extension signing key")
+		der, err := x509.MarshalPKIXPublicKey(pub)
+		must(err, "encode the public key")
+		must(writeManifestKey(manifestPath, base64.StdEncoding.EncodeToString(der)),
+			"write the extension key")
+	}
 
 	// Derive the id from the key that is actually in manifest.json now, not
 	// from the key we meant to write. Chrome reads the manifest, so if the
