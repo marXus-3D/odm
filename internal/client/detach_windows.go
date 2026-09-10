@@ -1,13 +1,14 @@
 //go:build windows
 
-package main
+package client
 
 import (
 	"os/exec"
 	"syscall"
 )
 
-const daemonName = "dmd.exe"
+// DaemonName is the daemon binary this package looks for.
+const DaemonName = "dmd.exe"
 
 // detach starts the daemon in its own process group with no console window,
 // so closing the browser does not take the daemon down with it.

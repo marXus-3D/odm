@@ -1,13 +1,14 @@
 //go:build !windows
 
-package main
+package client
 
 import (
 	"os/exec"
 	"syscall"
 )
 
-const daemonName = "dmd"
+// DaemonName is the daemon binary this package looks for.
+const DaemonName = "dmd"
 
 func detach(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}

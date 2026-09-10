@@ -26,9 +26,11 @@ func main() {
 		cook  = flag.String("cookie", "", "Cookie header")
 		limit = flag.Int("limit", 0, "speed limit in KiB/s (0 = unlimited)")
 	)
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: dm [flags] <url>\n\n")
-		flag.PrintDefaults()
+	flag.Usage = usage
+	// Subcommands are dispatched before flag parsing so that "dm add -n 4 url"
+	// hands its flags to the subcommand rather than to the top-level set.
+	if len(os.Args) > 1 && runCommand(os.Args[1:]) {
+		return
 	}
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -94,6 +96,22 @@ func main() {
 	fmt.Printf("%s  %s in %s (%s/s)\n", d.Path, humanBytes(d.Downloaded()),
 		el.Round(time.Millisecond),
 		humanBytes(int64(float64(d.Downloaded())/el.Seconds())))
+}
+
+func usage() {
+	fmt.Fprint(os.Stderr, `usage:
+  dm [flags] <url>           download now, in this process
+  dm add [flags] <url>...    queue in the daemon (starts it if needed)
+  dm ls                      list what the daemon knows about
+  dm pause|resume <id>...    control a queued download
+  dm rm [-f] <id>...         forget one; -f also deletes the file
+  dm open|show <id>          open the file, or reveal it in Explorer
+  dm limit [<KiB/s>|off]     show or set the global speed limit
+  dm ui                      print the web UI url
+
+flags for the direct form:
+`)
+	flag.PrintDefaults()
 }
 
 var lastLen int
