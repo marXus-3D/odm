@@ -102,6 +102,11 @@ Or drive the daemon, which starts on demand:
 ./bin/dm.exe pause <id>
 ./bin/dm.exe resume <id>
 ./bin/dm.exe rm -f <id>
+./bin/dm.exe pause-all
+./bin/dm.exe resume-all
+./bin/dm.exe stop-all         # pause everything and clear the queue
+./bin/dm.exe startup on       # run DM at login
+./bin/dm.exe on-finish sleep  # what to do once everything is done
 ./bin/dm.exe limit 500        # KiB/s across everything; "off" to remove
 ./bin/dm.exe open <id>        # or "show" to reveal in Explorer
 ./bin/dm.exe ui               # print the web UI url
@@ -136,6 +141,49 @@ Win32 through `syscall`, for the same reason as the tray, so `dmd.exe` is
 still one self-contained executable.
 
 `-no-window` runs it headless, `-open` uses the browser UI instead.
+
+**Run at login.** Options -> Start DM with Windows, or `dm startup on`. The
+setting reports the real registry state, so an entry removed behind DM's
+back is shown accurately rather than assumed.
+
+**Categories.** Finished downloads are filed by type into General,
+Compressed, Documents, Music, Programs and Video folders under the download
+directory. The category is guessed from the file type and can be changed per
+download.
+
+### Dialogs
+
+Two dialogs from IDM, both switchable from the Options menu:
+
+- **Download File Info**, before a download starts: the URL, its category, a
+  Save As path with the standard Windows browser, and a description, with
+  Start Download / Download Later / Cancel. Changing the category repoints
+  Save As at that category's folder, and "remember this path" makes it the
+  category default. Off by default; turn it on with Options -> Ask where to
+  save each download.
+- **Download complete**, when one finishes: how much came down, the address,
+  where it went, and Open / Open with... / Open folder / Close, plus "don't
+  show this dialog again". On by default.
+
+Downloads added by the browser extension go through the first dialog too.
+
+If no browser has ever connected, the app says so once and offers to open
+`chrome://extensions` and the folder to load.
+
+### When everything finishes
+
+Options -> When everything finishes, or:
+
+```bash
+./bin/dm.exe on-finish sleep      # none exit sleep hibernate shutdown restart
+./bin/dm.exe on-finish cancel     # call off a pending one
+```
+
+It fires once nothing is left running, queued or remuxing, and is one-shot:
+the setting clears before the action runs, so the machine does not shut down
+every time the list happens to empty. Shutdown and restart use the OS timer
+with a 60 second grace, so Windows shows its own countdown and `shutdown /a`
+calls it off even if DM has exited.
 
 ### Web UI
 
@@ -350,3 +398,15 @@ installed.
   playlist that keeps audio in a separate `EXT-X-MEDIA` track loses it.
 - Quality selection. The highest bandwidth variant is always taken, in the
   panel and everywhere else.
+- **Multiple queues.** Everything shares one queue with one concurrency
+  limit today.
+- **A scheduler.** No "start at 2am" or per-queue timetable yet.
+- **A per-download progress window.** Progress is in the list and the web
+  UI, but there is no separate window per download.
+- **Dark mode for the desktop window.** The web UI follows the system
+  theme; the Win32 window does not yet.
+- **A native window on macOS and Linux.** Everything except the window and
+  the tray builds and runs there already, and `build.ps1` compiles for
+  linux/amd64 and darwin/arm64 on every build to keep it that way. The plan
+  is to host the existing web UI in a system webview rather than write a
+  second and third native UI.
