@@ -198,6 +198,14 @@ async function recordMedia(tabId, url, kind) {
   all[String(tabId)] = list.slice(0, MEDIA_PER_TAB);
   await chrome.storage.session.set({ [MEDIA_KEY]: all });
   updateBadge(tabId, all[String(tabId)].length);
+  pushToTab(tabId, all[String(tabId)]);
+}
+
+// pushToTab tells the in-page panel what we found, so the button can appear
+// the moment the player asks for its playlist rather than on the next scroll.
+function pushToTab(tabId, media) {
+  chrome.tabs.sendMessage(tabId, { scope: "dm-media-update", media },
+    () => void chrome.runtime.lastError); // no content script here is fine
 }
 
 function updateBadge(tabId, count) {
@@ -243,6 +251,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
     await chrome.storage.session.set({ [MEDIA_KEY]: all });
   }
   updateBadge(tabId, 0);
+  pushToTab(tabId, []);
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
@@ -253,12 +262,27 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
 });
 
-// The popup asks for the current tab's finds.
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (!msg || msg.scope !== "dm-media") return false;
-  (async () => {
-    const all = await readMedia();
-    sendResponse({ ok: true, media: all[String(msg.tabId)] || [] });
-  })();
-  return true;
+// The popup asks for a named tab's finds; a content script asks for its own.
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg) return false;
+  if (msg.scope === "dm-media") {
+    (async () => {
+      const all = await readMedia();
+      sendResponse({ ok: true, media: all[String(msg.tabId)] || [] });
+    })();
+    return true;
+  }
+  if (msg.scope === "dm-media-self") {
+    (async () => {
+      const tabId = sender.tab && sender.tab.id;
+      if (tabId === undefined || tabId < 0) {
+        sendResponse({ ok: true, media: [] });
+        return;
+      }
+      const all = await readMedia();
+      sendResponse({ ok: true, media: all[String(tabId)] || [] });
+    })();
+    return true;
+  }
+  return false;
 });
