@@ -4,8 +4,9 @@ An IDM-style download manager for Windows: parallel range downloads with
 dynamic segmentation, resume across restarts, a local web UI, and a Chrome
 extension that hands the browser's downloads over — cookies and all.
 
-Written in Go, no external dependencies. The idle daemon sits at about 9 MB
-of RSS.
+Written in Go with no third-party modules. The idle daemon sits at about
+9 MB of RSS. `ffmpeg` is used if present, to convert downloaded HLS video to
+MP4, and nothing breaks without it.
 
 ## Why it is fast
 
@@ -69,8 +70,12 @@ extension/        MV3 Chrome extension
 .\build.ps1
 ```
 
-Binaries land in `.\bin`. Go 1.22+ is required (the API uses method-aware
-`http.ServeMux` patterns).
+That builds the four binaries into `.\bin`, runs the tests, validates the
+extension and packages it to `.\dist\dm-extension-<version>.zip`. Use
+`-SkipTests` or `-SkipExtension` to do less.
+
+Go 1.22+ is required (the API uses method-aware `http.ServeMux` patterns).
+`ffmpeg` is optional; see "TS to MP4".
 
 ## Use it
 
@@ -166,8 +171,9 @@ rather than saved as a text manifest.
   the join.
 - Live streams (no `EXT-X-ENDLIST`) are refused up front -- there is no
   "whole file" to download.
-- If `ffmpeg` is on `PATH`, a finished `.ts` is remuxed to `.mp4` with a
-  stream copy. Without ffmpeg you keep the `.ts`, which plays fine.
+- A finished `.ts` is remuxed to `.mp4` when `ffmpeg` is on `PATH`. It is a
+  stream copy, not a transcode, with `+faststart` so the file streams. See
+  below.
 
 Verified against two real streams: a 64-segment MPEG-TS (119245 packets,
 zero bad sync bytes) and Apple's 100-segment byte-range fMP4 example (602
@@ -175,6 +181,39 @@ ISO-BMFF boxes ending exactly at EOF).
 
 DASH (`.mpd`) is detected and refused rather than silently saving the
 manifest.
+
+### TS to MP4
+
+HLS segments concatenate into a valid `.ts`, but plenty of players and
+editors will not open one, so DM converts it.
+
+```powershell
+winget install --id Gyan.FFmpeg -e
+```
+
+Restart the daemon afterwards so it inherits the new `PATH`, or point
+`DM_FFMPEG` at the binary. Settings in the web UI tells you which state you
+are in. **Without ffmpeg nothing breaks** — you keep the `.ts`, which plays
+fine, and a failed conversion never deletes it.
+
+Details that matter in practice:
+
+- Output is written to `<name>.mp4.part` and renamed on success, so a crash
+  or a killed ffmpeg never leaves a truncated file looking finished. The
+  `.ts` is deleted only once the `.mp4` is in place under its real name.
+- `aac_adtstoasc` is required to put ADTS AAC from a transport stream into
+  MP4, but ffmpeg rejects the filter outright for any other audio codec. DM
+  tries with it and falls back without, so an MP2 or AC-3 stream still
+  converts.
+- `-fflags +genpts`, because TS assembled from HLS segments often has gaps
+  in its timestamps.
+- A conversion reports no byte progress, so it gets its own `remuxing`
+  state rather than showing as a download stalled at 100%. A daemon killed
+  mid-conversion marks the record done — the bytes are all fetched and the
+  `.ts` plays.
+
+Verified on a real stream: 10:34 output, h264 and aac both preserved, a full
+ffmpeg decode pass with zero errors, and `moov` before `mdat`.
 
 ## Security
 
@@ -219,6 +258,11 @@ HLS: attribute lists with quoted commas, key inheritance and `METHOD=NONE`,
 byte-range segments, `EXT-X-MAP` byte ranges, sequence-derived IVs, ordering
 under deliberately staggered responses, measured concurrency, resume
 including a torn trailing segment, and live-stream refusal.
+
+Remux: real transport streams built with ffmpeg and converted back, checking
+both streams survive, `+faststart` applies, the non-AAC fallback works, a
+failed conversion keeps the source, and cancellation is honoured. These skip
+when ffmpeg is absent.
 
 The race detector needs cgo, which is unavailable on this machine, so the
 suite has not been run under `-race`. Worth doing if you get a C toolchain
