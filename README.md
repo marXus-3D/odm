@@ -475,7 +475,7 @@ the extension and builds the landing page.
 ## Landing page
 
 The landing page is a Next.js site in `landing/`, exported as static files
-and served by Vercel at <https://odm-landing-mu.vercel.app>. Deploy from
+and served by Vercel at <https://odm-landing.vercel.app>. Deploy from
 `landing/` with `vercel deploy --prod`; the project is linked as
 `odm-landing` and `.vercel/` is ignored.
 
