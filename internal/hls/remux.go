@@ -36,12 +36,18 @@ func FFmpegPath() string {
 	}
 	if p, err := exec.LookPath("ffmpeg"); err == nil {
 		ffmpegPath = p
+		return ffmpegPath
+	}
+	// Not on PATH. That often just means this process was started before
+	// ffmpeg was installed, so check where installers actually put it.
+	for _, cand := range wellKnownFFmpeg() {
+		if st, err := os.Stat(cand); err == nil && !st.IsDir() {
+			ffmpegPath = cand
+			return ffmpegPath
+		}
 	}
 	return ffmpegPath
 }
-
-// ErrNoFFmpeg means remuxing was asked for but ffmpeg is not installed.
-var ErrNoFFmpeg = errors.New("ffmpeg is not installed")
 
 // remuxTimeout bounds the conversion. It is a stream copy, so even a long
 // film is minutes, but a wedged ffmpeg must not pin the download queue.
