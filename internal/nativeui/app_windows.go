@@ -4,6 +4,8 @@ package nativeui
 
 import (
 	"fmt"
+	"net/url"
+	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -12,6 +14,7 @@ import (
 	"unsafe"
 
 	"github.com/marcus/dm/internal/client"
+	"github.com/marcus/dm/internal/manager"
 	"github.com/marcus/dm/internal/store"
 )
 
@@ -29,6 +32,11 @@ const (
 	cmdExit
 	cmdAbout
 	cmdPauseAll
+	cmdResumeAll
+	cmdStopAll
+	cmdStartWithWindows
+	cmdShowStartDialog
+	cmdShowCompleteDialog
 	cmdSelectAll
 )
 
@@ -37,6 +45,7 @@ const (
 const (
 	wmAppRefresh = wmApp + 1
 	wmAppQuit    = wmApp + 2
+	wmAppDialog  = wmApp + 3
 )
 
 const (
@@ -68,12 +77,29 @@ type App struct {
 	font    syscall.Handle
 	buttons []syscall.Handle
 
-	client *client.Client
+	client      *client.Client
+	optionsMenu syscall.Handle
 
 	mu      sync.Mutex
 	rows    []row
 	pending []row
 	dirty   bool
+	cfg     store.Config
+
+	// seenDone remembers which downloads have already had their completion
+	// dialog, so a finished row does not reopen it on every refresh.
+	seenDone map[string]bool
+	// dialogOpen serialises the modal dialogs; without it a burst of
+	// finishes would try to stack several at once.
+	dialogOpen bool
+	// pendingConfirm are downloads waiting on the Download File Info form,
+	// pendingComplete those whose completion has not been announced.
+	pendingConfirm  []store.Record
+	pendingComplete []store.Record
+
+	// started guards the first refresh, so opening the app does not replay
+	// a completion dialog for everything already in the list.
+	started bool
 
 	// progress is what the custom-draw handler paints, kept separate so the
 	// draw path never blocks on a network call.
@@ -104,7 +130,7 @@ func Run(c *client.Client, onQuit func()) error {
 	enableVisualStyles()
 	initCommonControls()
 
-	a := &App{client: c, onQuit: onQuit}
+	a := &App{client: c, onQuit: onQuit, seenDone: map[string]bool{}}
 	app = a
 
 	inst, _, _ := procGetModuleHandle.Call(0)
@@ -144,6 +170,9 @@ func Run(c *client.Client, onQuit func()) error {
 	a.buildMenu()
 	a.buildChildren(inst)
 	a.refresh()
+	a.mu.Lock()
+	a.started = true
+	a.mu.Unlock()
 
 	procSetTimer.Call(uintptr(a.hwnd), idTimer, refreshMs, 0)
 	procShowWindow.Call(uintptr(a.hwnd), swShowNormal)
@@ -206,8 +235,26 @@ func (a *App) buildMenu() {
 	procAppendMenu.Call(dl, mfString, cmdRemove, uintptr(unsafe.Pointer(utf16Ptr("Remove from &list\tDel"))))
 	procAppendMenu.Call(dl, mfString, cmdRemoveFile, uintptr(unsafe.Pointer(utf16Ptr("Remove and &delete file"))))
 	procAppendMenu.Call(dl, mfSeparator, 0, 0)
+	procAppendMenu.Call(dl, mfString, cmdResumeAll, uintptr(unsafe.Pointer(utf16Ptr("Resume a&ll"))))
 	procAppendMenu.Call(dl, mfString, cmdPauseAll, uintptr(unsafe.Pointer(utf16Ptr("Pause &all"))))
+	procAppendMenu.Call(dl, mfString, cmdStopAll, uintptr(unsafe.Pointer(utf16Ptr("&Stop all"))))
 	procAppendMenu.Call(menuBar, mfPopup, dl, uintptr(unsafe.Pointer(utf16Ptr("&Downloads"))))
+
+	// Options carries the switches that change how DM behaves, checked to
+	// reflect the current setting.
+	opt, _, _ := procCreatePopupMenu.Call()
+	a.optionsMenu = syscall.Handle(opt)
+	procAppendMenu.Call(opt, mfString, cmdStartWithWindows,
+		uintptr(unsafe.Pointer(utf16Ptr("Start DM with &Windows"))))
+	procAppendMenu.Call(opt, mfSeparator, 0, 0)
+	procAppendMenu.Call(opt, mfString, cmdShowStartDialog,
+		uintptr(unsafe.Pointer(utf16Ptr("Ask where to save each &download"))))
+	procAppendMenu.Call(opt, mfString, cmdShowCompleteDialog,
+		uintptr(unsafe.Pointer(utf16Ptr("Show the download &complete dialog"))))
+	procAppendMenu.Call(opt, mfSeparator, 0, 0)
+	procAppendMenu.Call(opt, mfString, cmdWebUI,
+		uintptr(unsafe.Pointer(utf16Ptr("More settings (&web UI)..."))))
+	procAppendMenu.Call(menuBar, mfPopup, opt, uintptr(unsafe.Pointer(utf16Ptr("&Options"))))
 
 	help, _, _ := procCreatePopupMenu.Call()
 	procAppendMenu.Call(help, mfString, cmdAbout, uintptr(unsafe.Pointer(utf16Ptr("&About DM"))))
@@ -224,12 +271,15 @@ type toolbarButton struct {
 }
 
 var toolbarButtons = []toolbarButton{
-	{"Add URL", cmdAdd, 90},
-	{"Resume", cmdResume, 80},
-	{"Pause", cmdPause, 80},
-	{"Remove", cmdRemove, 80},
-	{"Open", cmdOpen, 70},
-	{"Folder", cmdReveal, 70},
+	{"Add URL", cmdAdd, 84},
+	{"Resume", cmdResume, 74},
+	{"Pause", cmdPause, 66},
+	{"Remove", cmdRemove, 74},
+	{"Open", cmdOpen, 62},
+	{"Folder", cmdReveal, 66},
+	{"Resume All", cmdResumeAll, 86},
+	{"Pause All", cmdPauseAll, 78},
+	{"Stop All", cmdStopAll, 74},
 }
 
 const toolbarHeight = 38
@@ -303,9 +353,31 @@ func (a *App) refresh() {
 		return
 	}
 
+	a.mu.Lock()
+	a.cfg = st.Config
+	a.mu.Unlock()
+
+	var confirms []store.Record
+	var finished []store.Record
+
 	rows := make([]row, 0, len(st.Downloads))
 	var active int
 	for _, r := range st.Downloads {
+		if r.State == manager.StateConfirm {
+			confirms = append(confirms, r)
+		}
+		// A completion is announced once. Records already finished when the
+		// window opened are marked seen without a dialog, so starting the
+		// app does not replay every past download.
+		if r.State == "done" {
+			a.mu.Lock()
+			seen := a.seenDone[r.ID]
+			a.seenDone[r.ID] = true
+			a.mu.Unlock()
+			if !seen && a.started && st.Config.ShowCompleteDialog {
+				finished = append(finished, r)
+			}
+		}
 		rw := row{
 			ID: r.ID, Name: r.Filename, Size: r.Size, Done: r.Downloaded,
 			State: r.State, Path: r.Path, Created: r.Created,
@@ -356,6 +428,18 @@ func (a *App) refresh() {
 	a.mu.Unlock()
 	procPostMessage.Call(uintptr(a.hwnd), wmAppRefresh, 0, 0)
 
+	// Dialogs are modal and belong to the UI thread, so they are queued
+	// here and raised from the window procedure.
+	if len(confirms) > 0 || len(finished) > 0 {
+		a.mu.Lock()
+		a.pendingConfirm = append(a.pendingConfirm, confirms...)
+		a.pendingComplete = append(a.pendingComplete, finished...)
+		a.mu.Unlock()
+		procPostMessage.Call(uintptr(a.hwnd), wmAppDialog, 0, 0)
+	}
+
+	a.syncOptionsMenu(st)
+
 	title := "DM Download Manager"
 	if active > 0 {
 		title = fmt.Sprintf("DM Download Manager - %d active", active)
@@ -364,6 +448,27 @@ func (a *App) refresh() {
 		title += fmt.Sprintf(" - limit %d KiB/s", st.Config.LimitKBps)
 	}
 	procSetWindowText.Call(uintptr(a.hwnd), uintptr(unsafe.Pointer(utf16Ptr(title))))
+}
+
+// syncOptionsMenu ticks the Options entries to match the live settings.
+func (a *App) syncOptionsMenu(st *client.State) {
+	if a.optionsMenu == 0 {
+		return
+	}
+	check := func(id uintptr, on bool) {
+		flag := uintptr(mfUnchecked)
+		if on {
+			flag = mfChecked
+		}
+		procCheckMenuItem.Call(uintptr(a.optionsMenu), id, mfByCommand|flag)
+	}
+	check(cmdStartWithWindows, st.StartWithWindows)
+	check(cmdShowStartDialog, st.Config.ShowStartDialog)
+	check(cmdShowCompleteDialog, st.Config.ShowCompleteDialog)
+	if !st.StartWithWindowsSupported {
+		procEnableMenuItem.Call(uintptr(a.optionsMenu), cmdStartWithWindows,
+			mfByCommand|mfGrayed)
+	}
 }
 
 // applyPending redraws the list from whatever the last refresh fetched. It
@@ -483,6 +588,22 @@ func humanDuration(seconds float64) string {
 	return fmt.Sprintf("%dh %02dm", s/3600, (s%3600)/60)
 }
 
+// filenameFromURL guesses a filename from a URL path.
+func filenameFromURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	base := path.Base(u.Path)
+	if base == "/" || base == "." {
+		return ""
+	}
+	if unesc, err := url.PathUnescape(base); err == nil {
+		base = unesc
+	}
+	return base
+}
+
 func shortURL(u string) string {
 	if i := strings.LastIndex(u, "/"); i >= 0 && i < len(u)-1 {
 		return u[i+1:]
@@ -507,5 +628,3 @@ func loadAppIcon() syscall.Handle {
 		1 /*IMAGE_ICON*/, 0, 0, 0x0010|0x0040 /*LR_LOADFROMFILE|LR_DEFAULTSIZE*/)
 	return syscall.Handle(h)
 }
-
-var _ = store.Record{}

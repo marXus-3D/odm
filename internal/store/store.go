@@ -106,6 +106,16 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 
 	s.cfg = DefaultConfig(defaultDownloadDir)
 	if b, err := os.ReadFile(s.configPath()); err == nil {
+		// Booleans are decoded separately as pointers. Decoding them into a
+		// plain Config cannot tell "absent" from "false", so a config file
+		// written before a flag existed would silently turn it off.
+		var flags struct {
+			StartWithWindows   *bool `json:"startWithWindows"`
+			ShowStartDialog    *bool `json:"showStartDialog"`
+			ShowCompleteDialog *bool `json:"showCompleteDialog"`
+		}
+		json.Unmarshal(b, &flags)
+
 		var c Config
 		if json.Unmarshal(b, &c) == nil {
 			if c.Dir != "" {
@@ -130,11 +140,15 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 			if c.Theme != "" {
 				s.cfg.Theme = c.Theme
 			}
-			// Booleans are read straight through: false is a real choice,
-			// so the "only take non-zero values" rule cannot apply.
-			s.cfg.StartWithWindows = c.StartWithWindows
-			s.cfg.ShowStartDialog = c.ShowStartDialog
-			s.cfg.ShowCompleteDialog = c.ShowCompleteDialog
+			if flags.StartWithWindows != nil {
+				s.cfg.StartWithWindows = *flags.StartWithWindows
+			}
+			if flags.ShowStartDialog != nil {
+				s.cfg.ShowStartDialog = *flags.ShowStartDialog
+			}
+			if flags.ShowCompleteDialog != nil {
+				s.cfg.ShowCompleteDialog = *flags.ShowCompleteDialog
+			}
 		}
 	}
 

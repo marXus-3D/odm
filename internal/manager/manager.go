@@ -27,6 +27,11 @@ type Event struct {
 // ErrNotFound is returned for an unknown download id.
 var ErrNotFound = errors.New("download not found")
 
+// StateConfirm means the download is waiting for the user to say where it
+// should go. It is a manager-level state: the engine never sees these,
+// because nothing has started.
+const StateConfirm = "confirm"
+
 type entry struct {
 	rec store.Record
 	job job
@@ -68,6 +73,8 @@ func New(ctx context.Context, st *store.Store) *Manager {
 			string(engine.StateQueued):
 			rec.State = string(engine.StatePaused)
 			st.Put(&rec)
+		case StateConfirm:
+			// Still waiting on the user; leave it alone.
 		case string(hls.StateRemuxing):
 			// The bytes were all fetched and the sidecar is gone; only the
 			// MP4 conversion was interrupted. The .ts is intact and plays,
@@ -94,6 +101,10 @@ type AddRequest struct {
 	// the user's note. Both come from the Download File Info dialog.
 	Category    string
 	Description string
+
+	// NoPrompt skips the Download File Info dialog for this one download,
+	// however the setting is configured.
+	NoPrompt bool
 }
 
 // filenameFromURL guesses a name from a URL path, for choosing a category
@@ -159,16 +170,77 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 		State:       string(engine.StateQueued),
 		Created:     time.Now(),
 	}
+	// With the Download File Info dialog switched on, a new download waits
+	// for the user instead of starting. The extension goes through this
+	// same path, so a browser download gets the dialog too.
+	confirm := cfg.ShowStartDialog && !req.NoPrompt
+	if confirm {
+		rec.State = StateConfirm
+	}
 	m.st.Put(&rec)
 
 	m.mu.Lock()
 	m.entries[rec.ID] = &entry{rec: rec}
-	m.queue = append(m.queue, rec.ID)
+	if !confirm {
+		m.queue = append(m.queue, rec.ID)
+	}
 	m.mu.Unlock()
 
 	m.broadcast(Event{Type: "added", Item: rec})
-	m.pump()
+	if !confirm {
+		m.pump()
+	}
 	return rec, nil
+}
+
+// Confirmation is the answer to the Download File Info dialog.
+type Confirmation struct {
+	Dir         string
+	Filename    string
+	Category    string
+	Description string
+	// Start now, or leave it paused for later.
+	Start bool
+}
+
+// Confirm applies the dialog's answer and either starts the download or
+// parks it.
+func (m *Manager) Confirm(id string, c Confirmation) error {
+	m.mu.Lock()
+	e, ok := m.entries[id]
+	if !ok {
+		m.mu.Unlock()
+		return ErrNotFound
+	}
+	if e.rec.State != StateConfirm {
+		m.mu.Unlock()
+		return nil // already answered
+	}
+	if c.Dir != "" {
+		e.rec.Dir = c.Dir
+	}
+	if c.Filename != "" {
+		e.rec.Filename = c.Filename
+	}
+	if c.Category != "" {
+		e.rec.Category = c.Category
+	}
+	e.rec.Description = c.Description
+	if c.Start {
+		e.rec.State = string(engine.StateQueued)
+		m.queue = append(m.queue, id)
+	} else {
+		e.rec.State = string(engine.StatePaused)
+	}
+	rec := e.rec
+	m.mu.Unlock()
+
+	m.st.Put(&rec)
+	m.broadcast(Event{Type: "updated", Item: rec})
+	if c.Start {
+		m.pump()
+	}
+	return nil
 }
 
 // Pause stops a running download; its bytes and sidecar stay on disk.
@@ -273,9 +345,9 @@ func (m *Manager) ResumeAll() int {
 	m.mu.Lock()
 	var ids []string
 	for id, e := range m.entries {
-		switch engine.State(e.rec.State) {
-		case engine.StateDownloading, engine.StateProbing,
-			engine.StateQueued, engine.StateDone:
+		switch e.rec.State {
+		case string(engine.StateDownloading), string(engine.StateProbing),
+			string(engine.StateQueued), string(engine.StateDone), StateConfirm:
 			continue
 		}
 		ids = append(ids, id)

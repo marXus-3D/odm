@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/marcus/dm/internal/client"
+	"github.com/marcus/dm/internal/store"
 )
 
 func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {
@@ -32,6 +33,12 @@ func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) ui
 	case wmAppRefresh:
 		if a != nil {
 			a.applyPending()
+		}
+		return 0
+
+	case wmAppDialog:
+		if a != nil {
+			a.drainDialogs()
 		}
 		return 0
 
@@ -69,6 +76,108 @@ func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) ui
 	}
 	ret, _, _ := procDefWindowProc.Call(uintptr(hwnd), uintptr(message), wparam, lparam)
 	return ret
+}
+
+// drainDialogs shows the queued modal dialogs one at a time.
+//
+// Each one runs its own nested message loop, so this must never be
+// re-entered: a second finish arriving while a dialog is up would otherwise
+// stack another on top of it.
+func (a *App) drainDialogs() {
+	a.mu.Lock()
+	if a.dialogOpen {
+		a.mu.Unlock()
+		return
+	}
+	a.dialogOpen = true
+	a.mu.Unlock()
+	defer func() {
+		a.mu.Lock()
+		a.dialogOpen = false
+		more := len(a.pendingConfirm) > 0 || len(a.pendingComplete) > 0
+		a.mu.Unlock()
+		if more {
+			procPostMessage.Call(uintptr(a.hwnd), wmAppDialog, 0, 0)
+		}
+	}()
+
+	for {
+		a.mu.Lock()
+		var rec store.Record
+		var kind string
+		switch {
+		case len(a.pendingConfirm) > 0:
+			rec, a.pendingConfirm = a.pendingConfirm[0], a.pendingConfirm[1:]
+			kind = "confirm"
+		case len(a.pendingComplete) > 0:
+			rec, a.pendingComplete = a.pendingComplete[0], a.pendingComplete[1:]
+			kind = "complete"
+		}
+		cfg := a.cfg
+		a.mu.Unlock()
+
+		switch kind {
+		case "confirm":
+			a.runFileInfo(rec, cfg)
+		case "complete":
+			a.runComplete(rec)
+		default:
+			return
+		}
+	}
+}
+
+// runFileInfo shows the Download File Info form and applies the answer.
+func (a *App) runFileInfo(rec store.Record, cfg store.Config) {
+	Show() // the dialog is useless behind a hidden window
+	answer, ok, remember := a.showFileInfo(rec, cfg)
+	if !ok {
+		// Cancelled: the download was never started, so drop it entirely.
+		go func() {
+			a.client.Remove(rec.ID, false)
+			a.refresh()
+		}()
+		return
+	}
+	go func() {
+		if remember && answer.Dir != "" && answer.Category != "" {
+			a.rememberCategoryDir(answer.Category, answer.Dir)
+		}
+		if err := a.client.Confirm(rec.ID, answer); err != nil {
+			messageBox(a.hwnd, "Download",
+				"Could not start the download:\n\n"+err.Error(), mbOk|mbIconError)
+		}
+		a.refresh()
+	}()
+}
+
+// rememberCategoryDir makes the chosen folder the default for a category.
+func (a *App) rememberCategoryDir(category, dir string) {
+	st, err := a.client.State()
+	if err != nil {
+		return
+	}
+	cats := append([]store.Category(nil), st.Config.Categories...)
+	for i := range cats {
+		if cats[i].Name == category {
+			cats[i].Dir = dir
+			if _, err := a.client.SetConfig(store.Config{Categories: cats}); err != nil {
+				return
+			}
+			return
+		}
+	}
+}
+
+// runComplete announces a finished download.
+func (a *App) runComplete(rec store.Record) {
+	if a.showComplete(rec) {
+		off := false
+		go func() {
+			a.client.SetFlags(client.Flags{ShowCompleteDialog: &off})
+			a.refresh()
+		}()
+	}
 }
 
 // onNotify handles list view notifications. The second result says whether
@@ -246,17 +355,44 @@ func (a *App) onCommand(id uint32) {
 			openPath(st.Config.Dir)
 		}
 	case cmdPauseAll:
-		go func() {
-			for _, r := range a.allRows() {
-				if r.State == "downloading" || r.State == "probing" || r.State == "queued" {
-					a.client.Pause(r.ID)
-				}
-			}
-			a.refresh()
-		}()
+		go func() { a.client.PauseAll(); a.refresh() }()
+	case cmdResumeAll:
+		go func() { a.client.ResumeAll(); a.refresh() }()
+	case cmdStopAll:
+		go func() { a.client.StopAll(); a.refresh() }()
+	case cmdStartWithWindows, cmdShowStartDialog, cmdShowCompleteDialog:
+		a.toggleFlag(id)
 	case cmdPause, cmdResume, cmdOpen, cmdReveal, cmdRemove, cmdRemoveFile:
 		a.applyToSelection(id)
 	}
+}
+
+// toggleFlag flips one of the Options switches.
+func (a *App) toggleFlag(id uint32) {
+	go func() {
+		st, err := a.client.State()
+		if err != nil {
+			return
+		}
+		var f client.Flags
+		switch id {
+		case cmdStartWithWindows:
+			v := !st.StartWithWindows
+			f.StartWithWindows = &v
+		case cmdShowStartDialog:
+			v := !st.Config.ShowStartDialog
+			f.ShowStartDialog = &v
+		case cmdShowCompleteDialog:
+			v := !st.Config.ShowCompleteDialog
+			f.ShowCompleteDialog = &v
+		}
+		if _, err := a.client.SetFlags(f); err != nil {
+			messageBox(a.hwnd, "Settings",
+				"Could not save the setting:\n\n"+err.Error(), mbOk|mbIconError)
+			return
+		}
+		a.refresh()
+	}()
 }
 
 func (a *App) allRows() []row {
@@ -362,5 +498,3 @@ func iconPath() (string, error) {
 	}
 	return p, nil
 }
-
-var _ = client.AddRequest{}

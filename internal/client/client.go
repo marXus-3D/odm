@@ -39,6 +39,16 @@ type AddRequest struct {
 	Kind        string            `json:"kind,omitempty"`
 	Category    string            `json:"category,omitempty"`
 	Description string            `json:"description,omitempty"`
+	NoPrompt    bool              `json:"noPrompt,omitempty"`
+}
+
+// Confirmation answers the Download File Info dialog.
+type Confirmation struct {
+	Dir         string `json:"dir,omitempty"`
+	Filename    string `json:"filename,omitempty"`
+	Category    string `json:"category,omitempty"`
+	Description string `json:"description,omitempty"`
+	Start       bool   `json:"start"`
 }
 
 // State is the daemon's view of the world.
@@ -207,6 +217,11 @@ func (c *Client) Progress(id string) (map[string]any, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// Confirm answers the Download File Info dialog for one download.
+func (c *Client) Confirm(id string, conf Confirmation) error {
+	return c.do(http.MethodPost, "/api/downloads/"+id+"/confirm", conf, nil)
 }
 
 // PauseAll stops everything that is running.

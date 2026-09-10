@@ -20,6 +20,8 @@ var (
 	gdi32    = syscall.NewLazyDLL("gdi32.dll")
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
 	comctl32 = syscall.NewLazyDLL("comctl32.dll")
+	comdlg32 = syscall.NewLazyDLL("comdlg32.dll")
+	shell32  = syscall.NewLazyDLL("shell32.dll")
 
 	procRegisterClassEx     = user32.NewProc("RegisterClassExW")
 	procCreateWindowEx      = user32.NewProc("CreateWindowExW")
@@ -48,6 +50,8 @@ var (
 	procDestroyMenu         = user32.NewProc("DestroyMenu")
 	procTrackPopupMenu      = user32.NewProc("TrackPopupMenu")
 	procSetMenu             = user32.NewProc("SetMenu")
+	procCheckMenuItem       = user32.NewProc("CheckMenuItem")
+	procEnableMenuItem      = user32.NewProc("EnableMenuItem")
 	procGetCursorPos        = user32.NewProc("GetCursorPos")
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
 	procEnableWindow        = user32.NewProc("EnableWindow")
@@ -78,6 +82,8 @@ var (
 	procActivateActCtx  = kernel32.NewProc("ActivateActCtx")
 
 	procInitCommonControlsEx = comctl32.NewProc("InitCommonControlsEx")
+	procGetSaveFileName      = comdlg32.NewProc("GetSaveFileNameW")
+	procShellExecute         = shell32.NewProc("ShellExecuteW")
 )
 
 // Window messages.
@@ -125,8 +131,32 @@ const (
 
 	bsPushButton    = 0x00000000
 	bsDefPushButton = 0x00000001
+	bsAutoCheckBox  = 0x00000003
+	bsGroupBox      = 0x00000007
 
 	esAutoHScroll = 0x0080
+	esReadOnly    = 0x0800
+
+	// Combo box: a drop-down list the user cannot type into.
+	cbsDropDownList = 0x0003
+	cbAddString     = 0x0143
+	cbSetCurSel     = 0x014E
+	cbGetCurSel     = 0x0147
+	cbResetContent  = 0x014B
+
+	bmGetCheck   = 0x00F0
+	bmSetCheck   = 0x00F1
+	bstChecked   = 1
+	bstUnchecked = 0
+
+	ssLeft = 0x0000
+
+	// GetSaveFileName flags.
+	ofnOverwritePrompt = 0x00000002
+	ofnPathMustExist   = 0x00000800
+	ofnHideReadOnly    = 0x00000004
+	ofnExplorer        = 0x00080000
+	ofnNoChangeDir     = 0x00000008
 
 	cwUseDefault = ^uintptr(0x7FFFFFFF) // 0x80000000 as a signed default
 )
@@ -217,6 +247,9 @@ const (
 	mfSeparator = 0x0800
 	mfPopup     = 0x0010
 	mfGrayed    = 0x0001
+	mfChecked   = 0x0008
+	mfUnchecked = 0x0000
+	mfByCommand = 0x0000
 
 	tpmLeftAlign   = 0x0000
 	tpmRightButton = 0x0002
@@ -382,6 +415,33 @@ type nonClientMetrics struct {
 	StatusFont        logFont
 	MessageFont       logFont
 	PaddedBorderWidth int32
+}
+
+// openFileName is OPENFILENAMEW, for the save-as browser.
+type openFileName struct {
+	StructSize    uint32
+	Owner         syscall.Handle
+	Instance      syscall.Handle
+	Filter        *uint16
+	CustomFilter  *uint16
+	MaxCustFilter uint32
+	FilterIndex   uint32
+	File          *uint16
+	MaxFile       uint32
+	FileTitle     *uint16
+	MaxFileTitle  uint32
+	InitialDir    *uint16
+	Title         *uint16
+	Flags         uint32
+	FileOffset    uint16
+	FileExtension uint16
+	DefExt        *uint16
+	CustData      uintptr
+	FnHook        uintptr
+	TemplateName  *uint16
+	PvReserved    uintptr
+	DwReserved    uint32
+	FlagsEx       uint32
 }
 
 type actCtx struct {

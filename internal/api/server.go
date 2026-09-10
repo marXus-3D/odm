@@ -44,6 +44,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/downloads", s.guard(s.handleAdd))
 	mux.HandleFunc("POST /api/downloads/{id}/pause", s.guard(s.handlePause))
 	mux.HandleFunc("POST /api/downloads/{id}/resume", s.guard(s.handleResume))
+	mux.HandleFunc("POST /api/downloads/{id}/confirm", s.guard(s.handleConfirm))
 	mux.HandleFunc("DELETE /api/downloads/{id}", s.guard(s.handleRemove))
 	mux.HandleFunc("GET /api/downloads/{id}/progress", s.guard(s.handleProgress))
 	mux.HandleFunc("POST /api/downloads/{id}/reveal", s.guard(s.handleReveal))
@@ -136,6 +137,7 @@ type addRequest struct {
 
 	Category    string `json:"category,omitempty"`
 	Description string `json:"description,omitempty"`
+	NoPrompt    bool   `json:"noPrompt,omitempty"`
 }
 
 func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
@@ -178,6 +180,7 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 		Kind:        req.Kind,
 		Category:    req.Category,
 		Description: req.Description,
+		NoPrompt:    req.NoPrompt,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -224,6 +227,34 @@ func (s *Server) act(w http.ResponseWriter, r *http.Request, fn func(string) err
 func (s *Server) handleRemove(w http.ResponseWriter, r *http.Request) {
 	del := r.URL.Query().Get("deleteFile") == "true"
 	if err := s.mgr.Remove(r.PathValue("id"), del); err != nil {
+		status := http.StatusInternalServerError
+		if err == manager.ErrNotFound {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// handleConfirm answers the Download File Info dialog.
+func (s *Server) handleConfirm(w http.ResponseWriter, r *http.Request) {
+	var c struct {
+		Dir         string `json:"dir,omitempty"`
+		Filename    string `json:"filename,omitempty"`
+		Category    string `json:"category,omitempty"`
+		Description string `json:"description,omitempty"`
+		Start       bool   `json:"start"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&c); err != nil {
+		http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	err := s.mgr.Confirm(r.PathValue("id"), manager.Confirmation{
+		Dir: c.Dir, Filename: c.Filename, Category: c.Category,
+		Description: c.Description, Start: c.Start,
+	})
+	if err != nil {
 		status := http.StatusInternalServerError
 		if err == manager.ErrNotFound {
 			status = http.StatusNotFound
