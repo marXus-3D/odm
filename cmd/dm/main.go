@@ -24,6 +24,7 @@ func main() {
 		ref   = flag.String("referer", "", "Referer header")
 		ua    = flag.String("ua", "", "User-Agent header")
 		cook  = flag.String("cookie", "", "Cookie header")
+		limit = flag.Int("limit", 0, "speed limit in KiB/s (0 = unlimited)")
 	)
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: dm [flags] <url>\n\n")
@@ -54,7 +55,11 @@ func main() {
 		MaxConns: *conns,
 	}
 
-	d := engine.New("cli", req, engine.Options{})
+	opts := engine.Options{}
+	if *limit > 0 {
+		opts.Limiter = engine.NewLimiter(float64(*limit) * 1024)
+	}
+	d := engine.New("cli", req, opts)
 	if !*quiet {
 		d.OnUpdate = func(s engine.Stats) { renderProgress(d, s) }
 	}

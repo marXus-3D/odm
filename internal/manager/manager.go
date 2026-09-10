@@ -34,6 +34,9 @@ type Manager struct {
 	st  *store.Store
 	ctx context.Context
 
+	// limiter is shared by every download so the ceiling is a global one.
+	limiter *engine.Limiter
+
 	mu      sync.Mutex
 	entries map[string]*entry
 	queue   []string
@@ -50,6 +53,7 @@ func New(ctx context.Context, st *store.Store) *Manager {
 		ctx:     ctx,
 		entries: map[string]*entry{},
 		subs:    map[chan Event]struct{}{},
+		limiter: engine.NewLimiter(float64(st.Config().LimitKBps) * 1024),
 	}
 	for _, r := range st.List() {
 		rec := r
@@ -197,6 +201,15 @@ func (m *Manager) Remove(id string, deleteFile bool) error {
 	return nil
 }
 
+// SetLimit changes the global throughput ceiling, in KiB/s. Zero is
+// unlimited. Running downloads pick the new rate up immediately.
+func (m *Manager) SetLimit(kbps int) {
+	if kbps < 0 {
+		kbps = 0
+	}
+	m.limiter.SetRate(float64(kbps) * 1024)
+}
+
 // List returns every known download, newest first.
 func (m *Manager) List() []store.Record { return m.st.List() }
 
@@ -235,7 +248,10 @@ func (m *Manager) pump() {
 			Dir:      e.rec.Dir,
 			MaxConns: e.rec.MaxConns,
 		}
-		dl := engine.New(id, req, engine.Options{MaxConns: e.rec.MaxConns})
+		dl := engine.New(id, req, engine.Options{
+			MaxConns: e.rec.MaxConns,
+			Limiter:  m.limiter,
+		})
 		dl.Path = e.rec.Path // non-empty means resume in place
 		dl.OnUpdate = func(s engine.Stats) { m.onUpdate(id, s) }
 		e.dl = dl

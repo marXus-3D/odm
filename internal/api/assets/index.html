@@ -93,6 +93,7 @@
     <button class="primary" type="submit">Download</button>
   </form>
   <span class="status" id="status">connecting</span>
+  <span class="status" id="limit"></span>
   <button class="ghost" id="settingsBtn">Settings</button>
 </header>
 
@@ -110,6 +111,8 @@
     <input type="number" id="cfgConns" min="1" max="32">
     <label for="cfgConcurrent">Downloads at once</label>
     <input type="number" id="cfgConcurrent" min="1" max="10">
+    <label for="cfgLimit">Speed limit, KiB/s <span style="opacity:.7">(0 = unlimited)</span></label>
+    <input type="number" id="cfgLimit" min="0" step="64">
     <div class="dlg-actions">
       <button value="cancel" class="ghost">Cancel</button>
       <button value="save" class="primary" id="saveCfg">Save</button>
@@ -286,6 +289,7 @@ $("settingsBtn").onclick = () => {
   $("cfgDir").value = config.dir || "";
   $("cfgConns").value = config.maxConns || 8;
   $("cfgConcurrent").value = config.maxConcurrent || 3;
+  $("cfgLimit").value = config.limitKBps || 0;
   $("settings").showModal();
 };
 
@@ -298,16 +302,24 @@ $("settingsForm").onsubmit = async (e) => {
         dir: $("cfgDir").value,
         maxConns: Number($("cfgConns").value),
         maxConcurrent: Number($("cfgConcurrent").value),
+        limitKBps: Math.max(0, Number($("cfgLimit").value) || 0),
       }),
     });
+    showLimit();
   } catch (err) {
     alert(err.message);
   }
 };
 
+function showLimit() {
+  const kb = config.limitKBps || 0;
+  $("limit").textContent = kb > 0 ? `limit ${kb} KiB/s` : "";
+}
+
 async function loadState() {
   const s = await api("/api/state");
   config = s.config;
+  showLimit();
   state.clear();
   for (const r of s.downloads || []) state.set(r.id, r);
   render();

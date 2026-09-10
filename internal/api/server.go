@@ -227,6 +227,9 @@ func (s *Server) handleSetConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// Apply the throughput ceiling to downloads already in flight rather than
+	// waiting for the next one to start.
+	s.mgr.SetLimit(s.st.Config().LimitKBps)
 	writeJSON(w, http.StatusOK, s.st.Config())
 }
 

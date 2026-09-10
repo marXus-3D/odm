@@ -513,8 +513,9 @@ func (d *Download) fetchRange(ctx context.Context, seg *Segment) error {
 	defer cancelStall()
 	var lastByte atomic.Int64
 	var stalled atomic.Bool
+	var pacing atomic.Bool
 	lastByte.Store(time.Now().UnixNano())
-	go d.watchStall(ctx, &lastByte, &stalled, cancelStall)
+	go d.watchStall(ctx, &lastByte, &stalled, &pacing, cancelStall)
 
 	method := d.Req.Method
 	if method == "" {
@@ -578,6 +579,18 @@ func (d *Download) fetchRange(ctx context.Context, seg *Segment) error {
 		n, rerr := resp.Body.Read(buf)
 		if n > 0 {
 			lastByte.Store(time.Now().UnixNano())
+			// Throttle after the read, not before: the bytes are already off
+			// the wire, and pacing here is what slows the sender down via TCP
+			// backpressure.
+			// Deliberate waiting is not stalling: at a low ceiling a single
+			// chunk can take longer than the idle timeout.
+			pacing.Store(true)
+			err := d.Opts.Limiter.Wait(ctx, n)
+			pacing.Store(false)
+			lastByte.Store(time.Now().UnixNano())
+			if err != nil {
+				return err
+			}
 			// End may have shrunk while we were reading: a splitter handed our
 			// tail to another worker. Write only what is still ours.
 			room := seg.End() - seg.Cur()
@@ -622,7 +635,7 @@ func (d *Download) fetchRange(ctx context.Context, seg *Segment) error {
 // Opts.Timeout, flagging the cause so the caller can report it as retryable
 // rather than as a user cancellation.
 func (d *Download) watchStall(ctx context.Context, lastByte *atomic.Int64,
-	stalled *atomic.Bool, cancel context.CancelFunc) {
+	stalled, pacing *atomic.Bool, cancel context.CancelFunc) {
 
 	tick := d.Opts.Timeout / 4
 	if tick < 250*time.Millisecond {
@@ -635,6 +648,9 @@ func (d *Download) watchStall(ctx context.Context, lastByte *atomic.Int64,
 		case <-ctx.Done():
 			return
 		case now := <-t.C:
+			if pacing.Load() {
+				continue // throttled on purpose, not wedged
+			}
 			idle := now.Sub(time.Unix(0, lastByte.Load()))
 			if idle >= d.Opts.Timeout {
 				stalled.Store(true)

@@ -37,6 +37,10 @@ type Config struct {
 	MaxConns      int    `json:"maxConns"`
 	MaxConcurrent int    `json:"maxConcurrent"`
 	Port          int    `json:"port"`
+
+	// LimitKBps caps total throughput across all downloads, in KiB/s.
+	// Zero means unlimited.
+	LimitKBps int `json:"limitKBps"`
 }
 
 // DefaultConfig is used the first time the daemon starts.
@@ -46,6 +50,7 @@ func DefaultConfig(downloadDir string) Config {
 		MaxConns:      8,
 		MaxConcurrent: 3,
 		Port:          9111,
+		LimitKBps:     0,
 	}
 }
 
@@ -88,6 +93,10 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 			}
 			if c.Port > 0 {
 				s.cfg.Port = c.Port
+			}
+			// Zero is meaningful here (unlimited), so it is always taken.
+			if c.LimitKBps >= 0 {
+				s.cfg.LimitKBps = c.LimitKBps
 			}
 		}
 	}
@@ -146,6 +155,9 @@ func (s *Store) SetConfig(c Config) error {
 	}
 	if c.Port > 0 {
 		s.cfg.Port = c.Port
+	}
+	if c.LimitKBps >= 0 {
+		s.cfg.LimitKBps = c.LimitKBps
 	}
 	cfg := s.cfg
 	s.mu.Unlock()

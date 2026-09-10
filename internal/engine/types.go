@@ -90,6 +90,10 @@ type Options struct {
 	Timeout      time.Duration // per-connection idle timeout
 	Client       *http.Client
 	UserAgent    string
+
+	// Limiter caps aggregate throughput. Share one across every download so
+	// the ceiling is global rather than per connection. Nil means unlimited.
+	Limiter *Limiter
 }
 
 const (
