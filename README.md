@@ -474,7 +474,10 @@ the extension and builds the landing page.
 
 ## Landing page
 
-The landing page is a Next.js site in `landing/`, exported as static files.
+The landing page is a Next.js site in `landing/`, exported as static files
+and served by Vercel at <https://dm-landing-mu.vercel.app>. Deploy from
+`landing/` with `vercel deploy --prod`; the project is linked as
+`dm-landing` and `.vercel/` is ignored.
 
 ```
 cd landing
