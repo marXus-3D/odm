@@ -50,13 +50,15 @@ retried on a fresh socket, so a black-holed route cannot pin a worker.
 ## Layout
 
 ```
-cmd/dm         standalone CLI downloader
+cmd/dm         CLI: standalone downloads, and a client for the daemon
 cmd/dmd        daemon: queue, web UI, HTTP API
 cmd/dm-nmh     Chrome native messaging host
 cmd/dm-setup   installs the browser integration
-internal/engine   segments, dynamic splitting, resume, retry
-internal/manager  queue and concurrency limits
+internal/engine   byte-range segments, dynamic splitting, resume, retry
+internal/hls      M3U8 parsing, parallel segment fetch, AES-128, remux
+internal/manager  queue, concurrency limits, engine selection
 internal/api      HTTP API + embedded web UI
+internal/client   shared daemon client (CLI and native host)
 internal/store    persisted download list and config
 extension/        MV3 Chrome extension
 ```
@@ -74,13 +76,29 @@ Binaries land in `.\bin`. Go 1.22+ is required (the API uses method-aware
 
 ### CLI
 
+Download right now, in this process:
+
 ```bash
 ./bin/dm.exe -n 8 https://example.com/big.iso
 ```
 
 Ctrl-C pauses and writes resume state; rerun the same command to continue.
-Flags: `-n` connections, `-d` directory, `-o` filename, `-referer`, `-cookie`,
-`-ua`, `-q`.
+Flags: `-n` connections, `-d` directory, `-o` filename, `-limit` KiB/s,
+`-referer`, `-cookie`, `-ua`, `-q`.
+
+Or drive the daemon, which starts on demand:
+
+```bash
+./bin/dm.exe add https://example.com/big.iso
+./bin/dm.exe ls
+./bin/dm.exe pause <id>
+./bin/dm.exe resume <id>
+./bin/dm.exe rm -f <id>
+./bin/dm.exe limit 500        # KiB/s across everything; "off" to remove
+./bin/dm.exe open <id>        # or "show" to reveal in Explorer
+./bin/dm.exe ui               # print the web UI url
+./bin/dm.exe daemon stop      # graceful: pauses downloads, saves state
+```
 
 ### Daemon and web UI
 
@@ -119,11 +137,44 @@ Without those, an outside process fetching a logged-in download just gets a
 403. There is also a "Download with DM" context-menu item for links, images,
 video and audio.
 
+It also watches for streaming playlists. A site playing video never hands
+the browser a file to intercept -- it fetches an `.m3u8`. Those requests are
+noticed per tab, counted on the toolbar badge, and listed in the popup with
+a Download button. See "Streaming video" below.
+
 Settings (extension options page): on/off, minimum size, whether to grab
 unknown-size downloads, file types to ignore, notifications.
 
 If the daemon cannot be reached the extension says so and lets Chrome do the
 download normally, rather than losing it.
+
+## Streaming video
+
+Give DM an `.m3u8` URL -- from the extension popup, the web UI or
+`dm add` -- and it is recognised automatically and fetched as a playlist
+rather than saved as a text manifest.
+
+- Segments are downloaded many at a time and written strictly in playlist
+  order, with a bounded lookahead so memory stays flat on a long video.
+- AES-128 encrypted playlists are decrypted, including the case where
+  EXT-X-KEY carries no IV and the spec derives one from the segment's media
+  sequence number.
+- fMP4 playlists work, including the layout where every segment, the
+  initialization segment included, is a byte range of a single container.
+- Resume works at segment granularity; the file is truncated back to the
+  last complete segment first, since a half-written segment would corrupt
+  the join.
+- Live streams (no `EXT-X-ENDLIST`) are refused up front -- there is no
+  "whole file" to download.
+- If `ffmpeg` is on `PATH`, a finished `.ts` is remuxed to `.mp4` with a
+  stream copy. Without ffmpeg you keep the `.ts`, which plays fine.
+
+Verified against two real streams: a 64-segment MPEG-TS (119245 packets,
+zero bad sync bytes) and Apple's 100-segment byte-range fMP4 example (602
+ISO-BMFF boxes ending exactly at EOF).
+
+DASH (`.mpd`) is detected and refused rather than silently saving the
+manifest.
 
 ## Security
 
@@ -159,10 +210,15 @@ versions of a file together.
 go test ./...
 ```
 
-Covers exact segment tiling (no gaps, no overlaps over an 8 MiB file),
-resume after interruption, servers that refuse ranges, unknown-length streams,
-fast-fail on 403, pause, stall detection, and completing against a
-concurrency-limited server.
+Byte-range engine: exact segment tiling (no gaps, no overlaps over an 8 MiB
+file), resume after interruption, servers that refuse ranges, unknown-length
+streams, fast-fail on 403, pause, stall detection, throughput limiting, and
+completing against a concurrency-limited server.
+
+HLS: attribute lists with quoted commas, key inheritance and `METHOD=NONE`,
+byte-range segments, `EXT-X-MAP` byte ranges, sequence-derived IVs, ordering
+under deliberately staggered responses, measured concurrency, resume
+including a torn trailing segment, and live-stream refusal.
 
 The race detector needs cgo, which is unavailable on this machine, so the
 suite has not been run under `-race`. Worth doing if you get a C toolchain
@@ -170,7 +226,11 @@ installed.
 
 ## Not built yet
 
-- HLS/DASH video grabbing (the `.m3u8` / `.mpd` "download this video" panel)
-- Speed limiting
-- `dm` CLI subcommands that talk to the running daemon (it is standalone today)
-- A system tray icon
+- DASH (`.mpd`). Detected and refused, not downloaded. It needs MPD parsing
+  plus muxing separate audio and video streams, which in practice means a
+  hard ffmpeg dependency.
+- Choosing an HLS quality level. The highest bandwidth variant is always
+  taken; the plumbing for a picker exists but nothing calls it.
+- Separate audio renditions. Only the variant stream is fetched, so a
+  playlist that keeps audio in a separate `EXT-X-MEDIA` track loses it.
+- A system tray icon.
