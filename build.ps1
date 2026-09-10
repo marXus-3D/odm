@@ -15,17 +15,23 @@ Set-Location $root
 
 New-Item -ItemType Directory -Force -Path bin | Out-Null
 
+# dmd and dm-nmh are linked as GUI binaries (-H windowsgui) so that
+# double-clicking dmd, and Chrome spawning dm-nmh, do not flash a console
+# window. dmd reattaches to the parent console when it is run from a terminal,
+# so command line use still prints normally.
 $targets = @(
-    @{ name = "dm";       pkg = "./cmd/dm" },
-    @{ name = "dmd";      pkg = "./cmd/dmd" },
-    @{ name = "dm-nmh";   pkg = "./cmd/dm-nmh" },
-    @{ name = "dm-setup"; pkg = "./cmd/dm-setup" }
+    @{ name = "dm";       pkg = "./cmd/dm";       gui = $false },
+    @{ name = "dmd";      pkg = "./cmd/dmd";      gui = $true  },
+    @{ name = "dm-nmh";   pkg = "./cmd/dm-nmh";   gui = $true  },
+    @{ name = "dm-setup"; pkg = "./cmd/dm-setup"; gui = $false }
 )
 
 foreach ($t in $targets) {
     $out = "bin/$($t.name).exe"
+    $ldflags = "-s -w"
+    if ($t.gui) { $ldflags = "$ldflags -H windowsgui" }
     Write-Host "building $out"
-    go build -trimpath -ldflags "-s -w" -o $out $t.pkg
+    go build -trimpath -ldflags $ldflags -o $out $t.pkg
     if ($LASTEXITCODE -ne 0) { throw "build failed for $($t.pkg)" }
 }
 

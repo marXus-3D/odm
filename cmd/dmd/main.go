@@ -18,18 +18,34 @@ import (
 	"github.com/marcus/dm/internal/engine"
 	"github.com/marcus/dm/internal/manager"
 	"github.com/marcus/dm/internal/store"
+	"github.com/marcus/dm/internal/trayicon"
 )
 
 func main() {
 	var (
-		port     = flag.Int("port", 0, "listen port (default: from config, else 9111)")
-		stateDir = flag.String("state", store.StateDir(), "state directory")
-		printURL = flag.Bool("print-url", false, "print the UI url and token, then exit")
+		port       = flag.Int("port", 0, "listen port (default: from config, else 9111)")
+		stateDir   = flag.String("state", store.StateDir(), "state directory")
+		printURL   = flag.Bool("print-url", false, "print the UI url and token, then exit")
+		background = flag.Bool("background", false,
+			"started automatically; do not open the web UI")
+		noTray = flag.Bool("no-tray", false, "do not show a notification-area icon")
+		openUI = flag.Bool("open", false, "open the web UI even when running in the background")
 	)
 	flag.Parse()
 
+	// Linked as a GUI binary so double-clicking does not flash a console.
+	// When it was in fact run from a terminal, reattach so output still
+	// appears; otherwise send the log to a file.
+	hasConsole := attachConsole()
+
 	log.SetFlags(log.Ltime)
 	log.SetPrefix("dmd: ")
+
+	// Always keep a log on disk unless the user is watching a real console;
+	// a daemon launched from Explorer or by the browser otherwise leaves no
+	// trace of why it failed.
+	_ = hasConsole
+	logToFile(*stateDir)
 
 	st, err := store.Open(*stateDir, engine.DefaultDownloadDir())
 	if err != nil {
@@ -75,7 +91,8 @@ func main() {
 	}
 	defer os.Remove(portFile)
 
-	log.Printf("listening on http://%s/", addr)
+	uiURL := fmt.Sprintf("http://%s/", addr)
+	log.Printf("listening on %s", uiURL)
 	log.Printf("downloads go to %s", cfg.Dir)
 
 	go func() {
@@ -84,7 +101,27 @@ func main() {
 		}
 	}()
 
-	<-ctx.Done()
+	// Launched by hand rather than by the browser: show the user something,
+	// otherwise double-clicking the binary looks like nothing happened.
+	if *openUI || !*background {
+		openURL(uiURL)
+	}
+
+	if !*noTray {
+		// The tray owns the main goroutine because Windows requires the
+		// thread that created the window to pump its messages. Shutdown
+		// arrives either from the tray menu or from a signal.
+		go func() {
+			<-ctx.Done()
+			trayicon.StopActive()
+		}()
+		if !runTray(uiURL, mgr, st, shutdown) {
+			<-ctx.Done()
+		}
+	} else {
+		<-ctx.Done()
+	}
+	shutdown()
 	log.Printf("shutting down, saving resume state...")
 
 	// Pause first so every worker writes its resume sidecar.

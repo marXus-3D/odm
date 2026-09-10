@@ -99,7 +99,9 @@ func StartDaemon(exeDir string) error {
 	if _, err := os.Stat(dmd); err != nil {
 		return fmt.Errorf("cannot find %s in %s: %w", DaemonName, exeDir, err)
 	}
-	cmd := exec.Command(dmd)
+	// -background: this is an automatic start on behalf of the browser, so
+	// the daemon should not pop open the web UI.
+	cmd := exec.Command(dmd, "-background")
 	detach(cmd)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start daemon: %w", err)
