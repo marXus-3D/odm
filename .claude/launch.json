@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "landing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "landing"],
+      "port": 3000
+    },
+    {
       "name": "landing-drafts",
       "runtimeExecutable": "go",
       "runtimeArgs": ["run", "./cmd/dm-site"],

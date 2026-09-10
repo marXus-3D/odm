@@ -452,15 +452,21 @@ installed.
   is to host the existing web UI in a system webview rather than write a
   second and third native UI.
 
-## Landing page drafts
+## Landing page
 
-Nine landing page directions live in `site/pages`, one file each. Serve them
-with
+The landing page is a Next.js site in `landing/`, exported as static files.
 
 ```
-go run ./cmd/dm-site
+cd landing
+npm install
+npm run dev        # http://localhost:3000
+npm run build      # writes the site to landing/out
 ```
 
-and open <http://127.0.0.1:8090/1>. Every draft carries a switcher at the
-bottom of the page (or use the left and right arrow keys) to jump between
-`/1` and `/9`. Nothing in the product depends on this folder.
+It is the blueprint direction: a drawing sheet with the download as a
+dimensioned section, three figures, notes and a title block. GSAP traces the
+drawing in once on load and extends the measurement bars when they scroll
+into view; both stay still when the system asks for reduced motion.
+
+The nine earlier drafts are kept in `site/pages` and served by
+`go run ./cmd/dm-site` at <http://127.0.0.1:8090/1> through `/9`.

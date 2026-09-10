@@ -1,0 +1,377 @@
+:root {
+  --page: #1f3149;
+  --sheet: #24395a;
+  --line: #d8e1f0;
+  --line-soft: rgba(216, 225, 240, 0.4);
+  --line-faint: rgba(216, 225, 240, 0.12);
+  --grid: rgba(216, 225, 240, 0.07);
+  --ink: #eef2f8;
+  --ink-2: rgba(238, 242, 248, 0.72);
+  --chalk: #f0e4b4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--page);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 400 17px/1.55 var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 96px 96px,
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 96px 96px,
+    var(--page);
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* sheet */
+
+.sheet {
+  width: min(1160px, calc(100% - 40px));
+  margin: 28px auto 48px;
+  border: 1px solid var(--line-soft);
+  background: var(--sheet);
+}
+
+.display {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.label {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+/* header */
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.top nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  margin-left: 22px;
+}
+
+.top nav a:hover {
+  color: var(--ink);
+}
+
+/* hero */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 36px;
+  padding: 44px 24px 36px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.hero h1 {
+  font-size: clamp(38px, 5.4vw, 66px);
+  line-height: 0.98;
+  margin: 0 0 20px;
+  max-width: 15ch;
+}
+
+.hero p {
+  margin: 0 0 24px;
+  color: var(--ink-2);
+  max-width: 46ch;
+  font-size: 18px;
+}
+
+.hero small {
+  display: block;
+  margin-top: 12px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.button {
+  display: inline-block;
+  padding: 12px 20px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  background: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.button.solid {
+  background: var(--line);
+  color: var(--sheet);
+}
+
+.button:hover {
+  background: var(--chalk);
+  border-color: var(--chalk);
+  color: var(--sheet);
+}
+
+.button + .button {
+  margin-left: 8px;
+}
+
+figure {
+  margin: 0;
+}
+
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+figcaption {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--ink-2);
+  max-width: 62ch;
+}
+
+figcaption b {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  color: var(--ink);
+  margin-right: 8px;
+}
+
+.drawing text {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 11px;
+  fill: var(--ink-2);
+}
+
+.drawing text.strong {
+  fill: var(--ink);
+  font-weight: 600;
+}
+
+.drawing text.chalk {
+  fill: var(--chalk);
+}
+
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* figures */
+
+.figs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.figs > section {
+  padding: 30px 24px 32px;
+}
+
+.figs > section + section {
+  border-left: 1px solid var(--line-soft);
+}
+
+.figs h2,
+.notes h2,
+.get h2 {
+  font-size: 25px;
+  margin: 0 0 6px;
+}
+
+.figs p {
+  margin: 0 0 18px;
+  color: var(--ink-2);
+  max-width: 52ch;
+  font-size: 16px;
+}
+
+@media (max-width: 860px) {
+  .figs {
+    grid-template-columns: 1fr;
+  }
+  .figs > section + section {
+    border-left: 0;
+    border-top: 1px solid var(--line-soft);
+  }
+}
+
+/* notes */
+
+.notes {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.notes > div {
+  padding: 30px 24px 32px;
+}
+
+.notes > div + div {
+  border-left: 1px solid var(--line-soft);
+}
+
+.notes h2 {
+  margin-bottom: 14px;
+}
+
+.notes ol {
+  margin: 0;
+  padding: 0 0 0 24px;
+  color: var(--ink-2);
+  font-size: 16px;
+}
+
+.notes li {
+  margin: 8px 0;
+  padding-left: 4px;
+  max-width: 58ch;
+}
+
+.notes li b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.spec {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.spec th,
+.spec td {
+  text-align: left;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-faint);
+  vertical-align: top;
+}
+
+.spec th {
+  font-weight: 500;
+  color: var(--ink-2);
+  width: 44%;
+  padding-right: 12px;
+}
+
+.spec td {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 860px) {
+  .notes {
+    grid-template-columns: 1fr;
+  }
+  .notes > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line-soft);
+  }
+}
+
+/* install */
+
+.get {
+  padding: 36px 24px 44px;
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.get p {
+  margin: 0;
+  color: var(--ink-2);
+  max-width: 52ch;
+}
+
+.get code {
+  font-family: Consolas, ui-monospace, monospace;
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 2px 6px;
+}
+
+/* title block */
+
+.title-block {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  border-top: 1px solid var(--line);
+}
+
+.title-block > div {
+  padding: 12px 16px 14px;
+  border-right: 1px solid var(--line-faint);
+  min-height: 70px;
+}
+
+.title-block > div:last-child {
+  border-right: 0;
+}
+
+.title-block .v {
+  display: block;
+  font-size: 17px;
+  font-weight: 500;
+  margin-top: 3px;
+  font-family: var(--font-display), system-ui, sans-serif;
+}
+
+.title-block .big {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .title-block {
+    grid-template-columns: 1fr 1fr;
+  }
+  .title-block > div:nth-child(2n) {
+    border-right: 0;
+  }
+  .title-block > div:nth-child(n + 3) {
+    border-top: 1px solid var(--line-faint);
+  }
+}
