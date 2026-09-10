@@ -1,4 +1,4 @@
-# Builds the DM binaries into .\bin and packages the extension into .\dist.
+# Builds the ODM binaries into .\bin and packages the extension into .\dist.
 #
 # -ldflags "-s -w" strips the symbol table and DWARF data, which cuts each
 # binary by roughly a third; there is no cgo here so nothing needs them.
@@ -16,15 +16,15 @@ Set-Location $root
 
 New-Item -ItemType Directory -Force -Path bin | Out-Null
 
-# dmd and dm-nmh are linked as GUI binaries (-H windowsgui) so that
-# double-clicking dmd, and Chrome spawning dm-nmh, do not flash a console
-# window. dmd reattaches to the parent console when it is run from a terminal,
+# odmd and odm-nmh are linked as GUI binaries (-H windowsgui) so that
+# double-clicking odmd, and Chrome spawning odm-nmh, do not flash a console
+# window. odmd reattaches to the parent console when it is run from a terminal,
 # so command line use still prints normally.
 $targets = @(
-    @{ name = "dm";       pkg = "./cmd/dm";       gui = $false },
-    @{ name = "dmd";      pkg = "./cmd/dmd";      gui = $true  },
-    @{ name = "dm-nmh";   pkg = "./cmd/dm-nmh";   gui = $true  },
-    @{ name = "dm-setup"; pkg = "./cmd/dm-setup"; gui = $false }
+    @{ name = "odm";       pkg = "./cmd/odm";       gui = $false },
+    @{ name = "odmd";      pkg = "./cmd/odmd";      gui = $true  },
+    @{ name = "odm-nmh";   pkg = "./cmd/odm-nmh";   gui = $true  },
+    @{ name = "odm-setup"; pkg = "./cmd/odm-setup"; gui = $false }
 )
 
 foreach ($t in $targets) {
@@ -36,7 +36,7 @@ foreach ($t in $targets) {
     if ($LASTEXITCODE -ne 0) { throw "build failed for $($t.pkg)" }
 }
 
-# A running daemon holds bin\dmd.exe open, so Go renames the old one aside
+# A running daemon holds bin\odmd.exe open, so Go renames the old one aside
 # rather than failing. Clean up whatever is no longer locked.
 Get-ChildItem bin -Filter "*.exe~" -ErrorAction SilentlyContinue | ForEach-Object {
     try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { }
@@ -98,7 +98,7 @@ if (-not $SkipExtension) {
     }
 
     if (-not $manifest.key) {
-        Write-Host "  warning: manifest has no 'key'; run bin\dm-setup.exe so the extension id is stable"
+        Write-Host "  warning: manifest has no 'key'; run bin\odm-setup.exe so the extension id is stable"
     }
 
     # Syntax-check the scripts when node is around. A parse error in the
@@ -115,7 +115,7 @@ if (-not $SkipExtension) {
     }
 
     New-Item -ItemType Directory -Force -Path dist | Out-Null
-    $zip = Join-Path $root "dist/dm-extension-$($manifest.version).zip"
+    $zip = Join-Path $root "dist/odm-extension-$($manifest.version).zip"
     if (Test-Path $zip) { Remove-Item $zip -Force }
     Compress-Archive -Path (Join-Path $extDir "*") -DestinationPath $zip
     Write-Host "  packaged $zip"
@@ -126,10 +126,10 @@ if (-not $SkipExtension) {
     # On a build machine the key comes from DM_EXTENSION_KEY (a path to the
     # PEM); the release workflow writes it there from a repository secret so
     # the extension id stays the same across releases.
-    $crx = Join-Path $root "dist/dm.crx"
+    $crx = Join-Path $root "dist/odm.crx"
     $packArgs = @("-extension", $extDir, "-out", $crx)
     if ($env:DM_EXTENSION_KEY) { $packArgs += @("-key", $env:DM_EXTENSION_KEY) }
-    go run ./cmd/dm-pack @packArgs 2>&1 | Write-Host
+    go run ./cmd/odm-pack @packArgs 2>&1 | Write-Host
     if ($LASTEXITCODE -ne 0) { throw "packing the extension failed" }
 }
 
@@ -138,7 +138,7 @@ if (-not $SkipExtension) {
 if (-not $SkipInstaller) {
     Write-Host "`nstaging the installer payload"
 
-    $payload = Join-Path $root "cmd/dm-installer/payload"
+    $payload = Join-Path $root "cmd/odm-installer/payload"
     # Rebuild the payload from scratch: a stale binary left behind here
     # would be shipped silently.
     Get-ChildItem $payload -Exclude ".gitkeep" -Force -ErrorAction SilentlyContinue |
@@ -151,11 +151,11 @@ if (-not $SkipInstaller) {
     Copy-Item (Join-Path $root "extension") $payload -Recurse -Force
     Get-ChildItem (Join-Path $payload "extension") -Filter *.pem -Recurse -Force -ErrorAction SilentlyContinue |
         Remove-Item -Force
-    $crx = Join-Path $root "dist/dm.crx"
+    $crx = Join-Path $root "dist/odm.crx"
     if (Test-Path $crx) { Copy-Item $crx $payload -Force }
 
-    Write-Host "building dist/DM-Setup.exe"
-    go build -trimpath -ldflags "-s -w -H windowsgui" -o dist/DM-Setup.exe ./cmd/dm-installer
+    Write-Host "building dist/ODM-Setup.exe"
+    go build -trimpath -ldflags "-s -w -H windowsgui" -o dist/ODM-Setup.exe ./cmd/odm-installer
     if ($LASTEXITCODE -ne 0) { throw "build failed for the installer" }
 }
 

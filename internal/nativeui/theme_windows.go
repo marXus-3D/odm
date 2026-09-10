@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// The palette. DM is dark only: a theme switch is one more thing to get
+// The palette. ODM is dark only: a theme switch is one more thing to get
 // wrong in every dialog, and the colours below are tuned as a set.
 var (
 	colBackground = rgb(0x16, 0x18, 0x1D) // window behind everything

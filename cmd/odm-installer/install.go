@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marXus-3D/dm/internal/shortcut"
-	"github.com/marXus-3D/dm/internal/startup"
+	"github.com/marXus-3D/odm/internal/shortcut"
+	"github.com/marXus-3D/odm/internal/startup"
 )
 
 // payload carries everything the installer writes to disk: the binaries,
@@ -26,8 +26,8 @@ import (
 var payload embed.FS
 
 const (
-	appName      = "DM Download Manager"
-	uninstallID  = "DMDownloadManager"
+	appName      = "Open Download Manager"
+	uninstallID  = "OpenDownloadManager"
 	uninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\` + uninstallID
 )
 
@@ -41,18 +41,18 @@ type Options struct {
 }
 
 // DefaultDir is the per-user install location. It needs no administrator
-// rights, and DM already keeps its registration in HKCU, so a machine-wide
+// rights, and ODM already keeps its registration in HKCU, so a machine-wide
 // install would buy nothing.
 func DefaultDir() string {
 	base := os.Getenv("LOCALAPPDATA")
 	if base == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return filepath.Join(".", "DM")
+			return filepath.Join(".", "ODM")
 		}
 		base = filepath.Join(home, "AppData", "Local")
 	}
-	return filepath.Join(base, "Programs", "DM")
+	return filepath.Join(base, "Programs", "ODM")
 }
 
 // Reporter receives progress lines for the wizard to display.
@@ -64,7 +64,7 @@ func Install(o Options, say Reporter) error {
 		return fmt.Errorf("the installer only supports Windows")
 	}
 
-	say("Stopping any running copy of DM...")
+	say("Stopping any running copy of ODM...")
 	stopRunning()
 
 	say("Copying files to %s", o.Dir)
@@ -75,12 +75,12 @@ func Install(o Options, say Reporter) error {
 	// The installer doubles as the uninstaller, so it lives alongside.
 	self, err := os.Executable()
 	if err == nil {
-		if err := copyFile(self, filepath.Join(o.Dir, "DM-Setup.exe")); err != nil {
+		if err := copyFile(self, filepath.Join(o.Dir, "ODM-Setup.exe")); err != nil {
 			say("  could not save the uninstaller: %v", err)
 		}
 	}
 
-	daemon := filepath.Join(o.Dir, "bin", "dmd.exe")
+	daemon := filepath.Join(o.Dir, "bin", "odmd.exe")
 
 	say("Creating shortcuts...")
 	if err := makeShortcuts(o, daemon); err != nil {
@@ -88,7 +88,7 @@ func Install(o Options, say Reporter) error {
 	}
 
 	if o.RunAtLogin {
-		say("Setting DM to start when you sign in...")
+		say("Setting ODM to start when you sign in...")
 		if err := startup.SetPath(daemon, true); err != nil {
 			say("  %v", err)
 		}
@@ -107,7 +107,7 @@ func Install(o Options, say Reporter) error {
 	}
 
 	say("")
-	say("Done. DM is installed in %s", o.Dir)
+	say("Done. ODM is installed in %s", o.Dir)
 	return nil
 }
 
@@ -164,8 +164,8 @@ func writeFileReplacing(path string, data []byte) error {
 
 // stopRunning asks a running daemon to exit, then makes sure.
 func stopRunning() {
-	exec.Command("taskkill", "/F", "/IM", "dmd.exe").Run()
-	exec.Command("taskkill", "/F", "/IM", "dm-nmh.exe").Run()
+	exec.Command("taskkill", "/F", "/IM", "odmd.exe").Run()
+	exec.Command("taskkill", "/F", "/IM", "odm-nmh.exe").Run()
 	time.Sleep(700 * time.Millisecond)
 }
 
@@ -201,14 +201,14 @@ func makeShortcuts(o Options, daemon string) error {
 
 // registerUninstall adds the Add or remove programs entry.
 func registerUninstall(dir string) error {
-	self := filepath.Join(dir, "DM-Setup.exe")
+	self := filepath.Join(dir, "ODM-Setup.exe")
 	size := dirSizeKB(dir)
 	vals := [][3]string{
 		{"DisplayName", "REG_SZ", appName},
 		{"DisplayVersion", "REG_SZ", Version},
-		{"Publisher", "REG_SZ", "DM"},
+		{"Publisher", "REG_SZ", "ODM"},
 		{"InstallLocation", "REG_SZ", dir},
-		{"DisplayIcon", "REG_SZ", filepath.Join(dir, "bin", "dmd.exe")},
+		{"DisplayIcon", "REG_SZ", filepath.Join(dir, "bin", "odmd.exe")},
 		{"UninstallString", "REG_SZ", `"` + self + `" -uninstall`},
 		{"QuietUninstallString", "REG_SZ", `"` + self + `" -uninstall -silent`},
 		{"NoModify", "REG_DWORD", "1"},

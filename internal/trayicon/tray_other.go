@@ -1,6 +1,6 @@
 //go:build !windows
 
-// Package trayicon puts DM in the notification area. Only Windows is
+// Package trayicon puts ODM in the notification area. Only Windows is
 // implemented; elsewhere the daemon simply runs without a tray icon.
 package trayicon
 

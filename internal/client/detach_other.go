@@ -8,7 +8,7 @@ import (
 )
 
 // DaemonName is the daemon binary this package looks for.
-const DaemonName = "dmd"
+const DaemonName = "odmd"
 
 func detach(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}

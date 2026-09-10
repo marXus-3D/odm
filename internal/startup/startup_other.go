@@ -1,6 +1,6 @@
 //go:build !windows
 
-// Package startup registers DM to run when the user logs in. Only Windows
+// Package startup registers ODM to run when the user logs in. Only Windows
 // is implemented so far.
 package startup
 

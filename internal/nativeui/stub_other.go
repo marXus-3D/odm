@@ -1,6 +1,6 @@
 //go:build !windows
 
-// Package nativeui is DM's desktop window. Only Windows has a native
+// Package nativeui is ODM's desktop window. Only Windows has a native
 // implementation; elsewhere the daemon falls back to the web UI, which is
 // what the caller does when Run returns an error.
 package nativeui
@@ -8,7 +8,7 @@ package nativeui
 import (
 	"errors"
 
-	"github.com/marXus-3D/dm/internal/client"
+	"github.com/marXus-3D/odm/internal/client"
 )
 
 // ErrUnsupported means there is no native window on this platform.

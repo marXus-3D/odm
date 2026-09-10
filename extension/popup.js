@@ -62,7 +62,7 @@ function render(downloads) {
 async function loadMedia() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab) return;
-  const reply = await chrome.runtime.sendMessage({ scope: "dm-media", tabId: tab.id });
+  const reply = await chrome.runtime.sendMessage({ scope: "odm-media", tabId: tab.id });
   const box = document.getElementById("media");
   box.textContent = "";
   if (!reply || !reply.ok || !reply.media.length) return;
@@ -98,7 +98,7 @@ async function loadMedia() {
       btn.disabled = true;
       btn.textContent = "Sending...";
       const res = await chrome.runtime.sendMessage({
-        scope: "dm",
+        scope: "odm",
         payload: { type: "add", url: m.url, kind: m.kind, referer: tab.url || "" },
       });
       btn.textContent = res && res.ok ? "Queued" : "Failed";
@@ -114,14 +114,14 @@ async function loadMedia() {
 
 function connect() {
   try {
-    port = chrome.runtime.connectNative("com.dm.host");
+    port = chrome.runtime.connectNative("com.odm.host");
   } catch (e) {
-    message("Native host not installed. Run dm-setup.");
+    message("Native host not installed. Run odm-setup.");
     return;
   }
   port.onMessage.addListener((reply) => {
     if (!reply || !reply.ok) {
-      message((reply && reply.error) || "DM is not responding.");
+      message((reply && reply.error) || "ODM is not responding.");
       return;
     }
     if (reply.data && reply.data.url) { uiBase = reply.data.url; return; }
@@ -129,7 +129,7 @@ function connect() {
   });
   port.onDisconnect.addListener(() => {
     const e = chrome.runtime.lastError;
-    message(e ? e.message : "Disconnected from DM.");
+    message(e ? e.message : "Disconnected from ODM.");
     clearInterval(timer);
     port = null;
   });

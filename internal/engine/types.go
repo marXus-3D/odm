@@ -103,7 +103,7 @@ const (
 	DefaultMaxRetries   = 5
 	DefaultRetryBackoff = 500 * time.Millisecond
 	DefaultTimeout      = 30 * time.Second
-	DefaultUserAgent    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DM/0.1"
+	DefaultUserAgent    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ODM/0.1"
 )
 
 func (o *Options) applyDefaults() {

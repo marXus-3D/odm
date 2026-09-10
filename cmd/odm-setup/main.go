@@ -1,7 +1,7 @@
-// Command dm-setup installs the browser integration.
+// Command odm-setup installs the browser integration.
 //
 // It pins the extension to a stable id by giving it an RSA public key, writes
-// the native messaging host manifest that points Chrome at dm-nmh, and
+// the native messaging host manifest that points Chrome at odm-nmh, and
 // registers that manifest with every Chromium-family browser it finds.
 package main
 
@@ -22,10 +22,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
-const hostName = "com.dm.host"
+const hostName = "com.odm.host"
 
 // browsers maps a display name to the registry key where a Chromium-family
 // browser looks for native messaging host manifests.
@@ -41,7 +41,7 @@ var browsers = map[string]string{
 func main() {
 	var (
 		extDir    = flag.String("extension", "", "path to the extension directory (default: ../extension next to this binary)")
-		stateDir  = flag.String("state", store.StateDir(), "DM state directory")
+		stateDir  = flag.String("state", store.StateDir(), "ODM state directory")
 		uninstall = flag.Bool("uninstall", false, "remove the native host registration")
 		check     = flag.Bool("check", false, "report on the current installation without changing it")
 		extraIDs  = flag.String("extension-id", "", "comma separated extension ids to allow in addition to the ones detected")
@@ -49,7 +49,7 @@ func main() {
 	flag.Parse()
 
 	if runtime.GOOS != "windows" {
-		fmt.Fprintln(os.Stderr, "dm-setup currently registers native hosts on Windows only.")
+		fmt.Fprintln(os.Stderr, "odm-setup currently registers native hosts on Windows only.")
 		os.Exit(1)
 	}
 	if *uninstall {
@@ -71,7 +71,7 @@ func main() {
 		fatal("no manifest.json in %s -- pass -extension with the right path", ext)
 	}
 
-	nmh := filepath.Join(binDir, "dm-nmh.exe")
+	nmh := filepath.Join(binDir, "odm-nmh.exe")
 	hostManifest := filepath.Join(*stateDir, hostName+".json")
 
 	if *check {
@@ -80,7 +80,7 @@ func main() {
 	}
 
 	if _, err := os.Stat(nmh); err != nil {
-		fatal("dm-nmh.exe is not next to dm-setup (looked in %s)", binDir)
+		fatal("odm-nmh.exe is not next to odm-setup (looked in %s)", binDir)
 	}
 	must(os.MkdirAll(*stateDir, 0o700), "create the state directory")
 
@@ -121,7 +121,7 @@ func main() {
 	must(writeHostManifest(hostManifest, nmh, ids), "write the native host manifest")
 	registered := registerAll(hostManifest)
 
-	fmt.Println("DM browser integration installed.")
+	fmt.Println("ODM browser integration installed.")
 	fmt.Println()
 	fmt.Printf("  extension id     %s\n", primary)
 	fmt.Printf("  extension folder %s\n", ext)
@@ -152,16 +152,16 @@ func main() {
 	fmt.Println("  1. Open chrome://extensions (or edge://extensions)")
 	fmt.Println("  2. Turn on Developer mode")
 	fmt.Printf("  3. Load unpacked -> %s\n", ext)
-	fmt.Println("  4. Press Reload on the DM card if it was already loaded")
+	fmt.Println("  4. Press Reload on the ODM card if it was already loaded")
 	fmt.Println()
 	fmt.Println("If you get \"Access to the specified native messaging host is")
-	fmt.Println("forbidden\", the id changed: rerun dm-setup, then reload the")
-	fmt.Println("extension. Run 'dm-setup -check' to see what is registered.")
+	fmt.Println("forbidden\", the id changed: rerun odm-setup, then reload the")
+	fmt.Println("extension. Run 'odm-setup -check' to see what is registered.")
 }
 
 // runCheck reports the state of an existing installation.
 func runCheck(extDir, manifestPath, nmh, hostManifest string) {
-	fmt.Println("DM browser integration check")
+	fmt.Println("ODM browser integration check")
 	fmt.Println()
 
 	primary, err := idFromManifest(manifestPath)
@@ -172,9 +172,9 @@ func runCheck(extDir, manifestPath, nmh, hostManifest string) {
 	}
 
 	if _, err := os.Stat(nmh); err != nil {
-		fmt.Printf("  dm-nmh.exe         MISSING at %s\n", nmh)
+		fmt.Printf("  odm-nmh.exe         MISSING at %s\n", nmh)
 	} else {
-		fmt.Printf("  dm-nmh.exe         %s\n", nmh)
+		fmt.Printf("  odm-nmh.exe         %s\n", nmh)
 	}
 
 	allowed := map[string]bool{}
@@ -208,7 +208,7 @@ func runCheck(extDir, manifestPath, nmh, hostManifest string) {
 	for _, l := range loaded {
 		status := "ok"
 		if !allowed[l.ID] {
-			status = "NOT ALLOWED -- rerun dm-setup"
+			status = "NOT ALLOWED -- rerun odm-setup"
 			problems++
 		}
 		fmt.Printf("  %-8s %-10s %s  %s\n", l.Browser, l.Profile, l.ID, status)
@@ -232,7 +232,7 @@ func runCheck(extDir, manifestPath, nmh, hostManifest string) {
 	}
 
 	if problems > 0 {
-		fmt.Printf("\n%d loaded extension(s) are not in allowed_origins. Run dm-setup again.\n", problems)
+		fmt.Printf("\n%d loaded extension(s) are not in allowed_origins. Run odm-setup again.\n", problems)
 		os.Exit(1)
 	}
 }
@@ -346,7 +346,7 @@ func writeHostManifest(path, exe string, ids []string) error {
 	}
 	m := hostManifestFile{
 		Name:        hostName,
-		Description: "DM download manager native host",
+		Description: "Open Download Manager native host",
 		Path:        exe,
 		Type:        "stdio",
 		// Only these extensions may launch the host; Chrome refuses anything
@@ -410,6 +410,6 @@ func must(err error, what string) {
 }
 
 func fatal(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "dm-setup: "+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, "odm-setup: "+format+"\n", args...)
 	os.Exit(1)
 }

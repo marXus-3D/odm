@@ -1,6 +1,6 @@
 //go:build windows
 
-// Package nativeui is DM's desktop window: a real Win32 application with a
+// Package nativeui is ODM's desktop window: a real Win32 application with a
 // list view, toolbar and menus, rather than a browser tab.
 //
 // It is written directly against the Win32 API through syscall because there
@@ -610,11 +610,11 @@ func enableVisualStyles() {
 	if err != nil || dir == "" {
 		dir = os.TempDir()
 	}
-	dir = filepath.Join(dir, "dm")
+	dir = filepath.Join(dir, "odm")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		dir = os.TempDir()
 	}
-	path := filepath.Join(dir, "dm-visualstyles.manifest")
+	path := filepath.Join(dir, "odm-visualstyles.manifest")
 	if b, err := os.ReadFile(path); err != nil || string(b) != manifest {
 		if err := os.WriteFile(path, []byte(manifest), 0o644); err != nil {
 			return

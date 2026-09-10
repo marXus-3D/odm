@@ -40,7 +40,7 @@ func Actions() []Action {
 func Label(a Action) string {
 	switch a {
 	case ExitDM:
-		return "Exit DM"
+		return "Exit ODM"
 	case Sleep:
 		return "Sleep"
 	case Hibernate:
@@ -66,13 +66,13 @@ func Do(a Action) error {
 
 	case Shutdown:
 		// The OS timer is used rather than one of ours: Windows shows its
-		// own countdown, and "shutdown /a" cancels it even if DM is gone.
+		// own countdown, and "shutdown /a" cancels it even if ODM is gone.
 		return run("shutdown", "/s", "/t", fmt.Sprint(GraceSeconds),
-			"/c", "DM has finished downloading.")
+			"/c", "ODM has finished downloading.")
 
 	case Restart:
 		return run("shutdown", "/r", "/t", fmt.Sprint(GraceSeconds),
-			"/c", "DM has finished downloading.")
+			"/c", "ODM has finished downloading.")
 
 	case Sleep:
 		return suspend(false)

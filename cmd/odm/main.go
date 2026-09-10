@@ -1,4 +1,4 @@
-// Command dm downloads a URL with parallel range requests.
+// Command odm downloads a URL with parallel range requests.
 package main
 
 import (
@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/marXus-3D/dm/internal/engine"
+	"github.com/marXus-3D/odm/internal/engine"
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 		limit = flag.Int("limit", 0, "speed limit in KiB/s (0 = unlimited)")
 	)
 	flag.Usage = usage
-	// Subcommands are dispatched before flag parsing so that "dm add -n 4 url"
+	// Subcommands are dispatched before flag parsing so that "odm add -n 4 url"
 	// hands its flags to the subcommand rather than to the top-level set.
 	if len(os.Args) > 1 && runCommand(os.Args[1:]) {
 		return
@@ -100,22 +100,22 @@ func main() {
 
 func usage() {
 	fmt.Fprint(os.Stderr, `usage:
-  dm [flags] <url>           download now, in this process
-  dm add [flags] <url>...    queue in the daemon (starts it if needed)
-  dm ls                      list what the daemon knows about
-  dm pause|resume <id>...    control a queued download
-  dm rm [-f] <id>...         forget one; -f also deletes the file
-  dm open|show <id>          open the file, or reveal it in Explorer
-  dm pause-all               pause everything that is running
-  dm resume-all              resume everything unfinished
-  dm stop-all                pause everything and clear the queue
-  dm startup [on|off]        show or set whether DM runs at login
-  dm on-finish [<action>]    what to do when everything finishes:
+  odm [flags] <url>           download now, in this process
+  odm add [flags] <url>...    queue in the daemon (starts it if needed)
+  odm ls                      list what the daemon knows about
+  odm pause|resume <id>...    control a queued download
+  odm rm [-f] <id>...         forget one; -f also deletes the file
+  odm open|show <id>          open the file, or reveal it in Explorer
+  odm pause-all               pause everything that is running
+  odm resume-all              resume everything unfinished
+  odm stop-all                pause everything and clear the queue
+  odm startup [on|off]        show or set whether ODM runs at login
+  odm on-finish [<action>]    what to do when everything finishes:
                              none exit sleep hibernate shutdown restart
                              (or "cancel" to call off a pending one)
-  dm limit [<KiB/s>|off]     show or set the global speed limit
-  dm ui                      print the web UI url
-  dm daemon [stop]           daemon status, or stop it gracefully
+  odm limit [<KiB/s>|off]     show or set the global speed limit
+  odm ui                      print the web UI url
+  odm daemon [stop]           daemon status, or stop it gracefully
 
 flags for the direct form:
 `)

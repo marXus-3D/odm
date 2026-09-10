@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marXus-3D/dm/internal/hls"
-	"github.com/marXus-3D/dm/internal/manager"
-	"github.com/marXus-3D/dm/internal/startup"
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/hls"
+	"github.com/marXus-3D/odm/internal/manager"
+	"github.com/marXus-3D/odm/internal/startup"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 // Server wires the manager to HTTP handlers.
@@ -26,7 +26,7 @@ type Server struct {
 	token string
 	addr  string
 
-	// shutdown asks the daemon to stop. It is how "dm daemon stop" reaches
+	// shutdown asks the daemon to stop. It is how "odm daemon stop" reaches
 	// the same graceful path as Ctrl-C, which matters on Windows where a
 	// console process with no window cannot be signalled from outside.
 	shutdown func()
@@ -97,7 +97,7 @@ func (s *Server) guard(next http.HandlerFunc) http.HandlerFunc {
 		}
 		// EventSource cannot set headers, so SSE may pass the token as a query
 		// parameter instead. Everything else uses the header.
-		tok := r.Header.Get("X-DM-Token")
+		tok := r.Header.Get("X-ODM-Token")
 		if tok == "" {
 			tok = r.URL.Query().Get("token")
 		}
@@ -403,7 +403,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		log.Printf("dm: write response: %v", err)
+		log.Printf("odm: write response: %v", err)
 	}
 }
 

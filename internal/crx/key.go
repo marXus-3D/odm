@@ -8,7 +8,7 @@ import (
 )
 
 // ParseKey reads a PEM-encoded RSA private key in either PKCS#1 or PKCS#8
-// form, since dm-setup writes PKCS#1 but other tools produce PKCS#8.
+// form, since odm-setup writes PKCS#1 but other tools produce PKCS#8.
 func ParseKey(data []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {

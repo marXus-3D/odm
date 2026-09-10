@@ -13,10 +13,10 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/marXus-3D/dm/internal/client"
-	"github.com/marXus-3D/dm/internal/manager"
-	"github.com/marXus-3D/dm/internal/power"
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/client"
+	"github.com/marXus-3D/odm/internal/manager"
+	"github.com/marXus-3D/odm/internal/power"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 // Command ids for menu items and buttons.
@@ -173,7 +173,7 @@ func Run(c *client.Client, onQuit func()) error {
 	hwnd, _, err := procCreateWindowEx.Call(
 		wsExControlParent,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(utf16Ptr("DM Download Manager"))),
+		uintptr(unsafe.Pointer(utf16Ptr("Open Download Manager"))),
 		wsOverlappedWin|wsClipChildren,
 		cwUseDefault, cwUseDefault, 900, 460,
 		0, 0, inst, 0,
@@ -209,7 +209,7 @@ func Run(c *client.Client, onQuit func()) error {
 	return nil
 }
 
-// Show brings the window back up, for the tray's "Open DM". It is safe to
+// Show brings the window back up, for the tray's "Open ODM". It is safe to
 // call from another thread.
 func Show() bool {
 	if app == nil || app.hwnd == 0 {
@@ -268,7 +268,7 @@ func (a *App) showMainMenu() {
 	add(cmdOpenFolder, "Open downloads folder")
 	add(cmdWebUI, "Settings and more (web UI)...")
 	sep()
-	check(cmdStartWithWindows, "Start DM with Windows", st.StartWithWindows)
+	check(cmdStartWithWindows, "Start ODM with Windows", st.StartWithWindows)
 	check(cmdShowStartDialog, "Ask where to save each download", st.Config.ShowStartDialog)
 	check(cmdShowCompleteDialog, "Show the download complete dialog", st.Config.ShowCompleteDialog)
 
@@ -289,7 +289,7 @@ func (a *App) showMainMenu() {
 		uintptr(unsafe.Pointer(utf16Ptr("When everything finishes"))))
 
 	sep()
-	add(cmdAbout, "About DM")
+	add(cmdAbout, "About ODM")
 	add(cmdExit, "Exit")
 
 	// Dropped under the button rather than at the pointer, the way an
@@ -403,7 +403,7 @@ func (a *App) refresh() {
 		a.mu.Unlock()
 		procPostMessage.Call(uintptr(a.hwnd), wmAppRefresh, 0, 0)
 		procSetWindowText.Call(uintptr(a.hwnd),
-			uintptr(unsafe.Pointer(utf16Ptr("DM Download Manager - daemon not reachable"))))
+			uintptr(unsafe.Pointer(utf16Ptr("Open Download Manager - daemon not reachable"))))
 		return
 	}
 
@@ -498,9 +498,9 @@ func (a *App) refresh() {
 	a.maybePromptExtension(st)
 	a.setStatus(rows, st)
 
-	title := "DM Download Manager"
+	title := "Open Download Manager"
 	if active > 0 {
-		title = fmt.Sprintf("DM Download Manager - %d active", active)
+		title = fmt.Sprintf("Open Download Manager - %d active", active)
 	}
 	if st.Config.LimitKBps > 0 {
 		title += fmt.Sprintf(" - limit %d KiB/s", st.Config.LimitKBps)

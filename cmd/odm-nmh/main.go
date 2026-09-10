@@ -1,4 +1,4 @@
-// Command dm-nmh is the Chrome native messaging host.
+// Command odm-nmh is the Chrome native messaging host.
 //
 // Chrome launches this process and speaks the native messaging protocol over
 // stdin/stdout: a 4-byte native-endian length prefix followed by a JSON
@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/marXus-3D/dm/internal/client"
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/client"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 // Chrome refuses to accept more than 1 MB from a host, and will not send it
@@ -57,7 +57,7 @@ func main() {
 	} else {
 		log.SetOutput(io.Discard)
 	}
-	log.SetPrefix("dm-nmh: ")
+	log.SetPrefix("odm-nmh: ")
 
 	h := &handler{}
 	for {

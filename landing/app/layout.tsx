@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DM, the download manager for Windows",
+  title: "ODM, the open download manager for Windows",
   description:
     "Eight connections per file, exact resume, streaming video to MP4, and a browser extension that hands links over with your cookies.",
 };

@@ -840,7 +840,7 @@ h2 {
   background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0 2px, transparent 2px 7px);
 }
 
-.lane.dm .fill {
+.lane.odm .fill {
   background: linear-gradient(90deg, #fff, #bdbdbd);
 }
 
@@ -852,11 +852,11 @@ h2 {
   letter-spacing: -0.03em;
 }
 
-.lane.dm .time {
+.lane.odm .time {
   color: var(--fg);
 }
 
-.lane:not(.dm) .time {
+.lane:not(.odm) .time {
   color: var(--fg-2);
 }
 

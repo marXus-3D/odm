@@ -51,7 +51,7 @@ type Config struct {
 	// Categories file finished downloads by type.
 	Categories []Category `json:"categories"`
 
-	// StartWithWindows registers DM to run at login.
+	// StartWithWindows registers ODM to run at login.
 	StartWithWindows bool `json:"startWithWindows"`
 
 	// ShowStartDialog asks where to save before a download begins;
@@ -376,11 +376,11 @@ func StateDir() string {
 		return v
 	}
 	if appdata := os.Getenv("APPDATA"); appdata != "" {
-		return filepath.Join(appdata, "dm")
+		return filepath.Join(appdata, "odm")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".dm"
+		return ".odm"
 	}
-	return filepath.Join(home, ".dm")
+	return filepath.Join(home, ".odm")
 }

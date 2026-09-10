@@ -15,7 +15,7 @@ import (
 
 // The wizard is a single window with two faces: options before the
 // install, and a log afterwards. It is drawn in the same dark palette as
-// DM itself, so the installer does not look like a different product.
+// ODM itself, so the installer does not look like a different product.
 
 const (
 	idInstall = 100 + iota
@@ -154,7 +154,7 @@ func (w *wizard) build() {
 	darkField(w.pathEdit)
 	makeButton(w.hwnd, w.inst, w.font, "...", 506, 139, 40, 28, idBrowse, false)
 
-	w.checkLogin = mk("BUTTON", "Start DM when I sign in",
+	w.checkLogin = mk("BUTTON", "Start ODM when I sign in",
 		bsAutoCheckBox|wsTabStop, 28, 184, 400, 22, idRunAtLogin, 0)
 	w.checkIcon = mk("BUTTON", "Create a desktop shortcut",
 		bsAutoCheckBox|wsTabStop, 28, 210, 400, 22, idDesktopIcon, 0)
@@ -257,7 +257,7 @@ func (w *wizard) start() {
 // finishAction is what the primary button does once the work is over.
 func (w *wizard) finishAction() {
 	if !w.failed && !w.uninstall {
-		exe := filepath.Join(w.installedDir, "bin", "dmd.exe")
+		exe := filepath.Join(w.installedDir, "bin", "odmd.exe")
 		cmd := exec.Command(exe)
 		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		cmd.Start()
@@ -305,7 +305,7 @@ func (w *wizard) paint() {
 	title := appName
 	sub := "Parallel downloads, resume, HLS video and browser integration."
 	if w.uninstall {
-		sub = "This will remove DM from your computer."
+		sub = "This will remove ODM from your computer."
 	}
 	drawText(dc, title, rect{28, 24, cr.Right - 28, 52}, colText, w.bold,
 		dtLeft|dtVCenter|dtSingleLine)
@@ -391,7 +391,7 @@ func wizardProc(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) uintptr
 func pickFolder(owner syscall.Handle, current string) string {
 	var bi browseInfo
 	bi.Owner = owner
-	bi.Title = utf16Ptr("Choose where to install DM")
+	bi.Title = utf16Ptr("Choose where to install ODM")
 	bi.Flags = bifReturnOnlyFsDirs | bifNewDialogStyle
 
 	pidl, _, _ := procSHBrowseForFolder.Call(uintptr(unsafe.Pointer(&bi)))
@@ -404,9 +404,9 @@ func pickFolder(owner syscall.Handle, current string) string {
 	if picked == "" {
 		return ""
 	}
-	// The browser returns a parent folder; keep DM as the leaf.
-	if filepath.Base(picked) != "DM" {
-		picked = filepath.Join(picked, "DM")
+	// The browser returns a parent folder; keep ODM as the leaf.
+	if filepath.Base(picked) != "ODM" {
+		picked = filepath.Join(picked, "ODM")
 	}
 	return picked
 }

@@ -1,6 +1,6 @@
 //go:build !windows
 
-// Command dm-installer only makes sense on Windows; this stub keeps the
+// Command odm-installer only makes sense on Windows; this stub keeps the
 // package building on other platforms so cross-compilation stays honest.
 package main
 
@@ -10,6 +10,6 @@ import (
 )
 
 func main() {
-	fmt.Fprintln(os.Stderr, "dm-installer: the setup program only runs on Windows")
+	fmt.Fprintln(os.Stderr, "odm-installer: the setup program only runs on Windows")
 	os.Exit(1)
 }

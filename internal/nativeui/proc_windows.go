@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/marXus-3D/dm/internal/client"
-	"github.com/marXus-3D/dm/internal/power"
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/client"
+	"github.com/marXus-3D/odm/internal/power"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {
@@ -424,15 +424,15 @@ func (a *App) onCommand(id uint32) {
 	case cmdMenu:
 		a.showMainMenu()
 	case cmdExit:
-		// Exit means stop DM entirely, not just close the window.
+		// Exit means stop ODM entirely, not just close the window.
 		if a.onQuit != nil {
 			go a.onQuit()
 		} else {
 			Quit()
 		}
 	case cmdAbout:
-		messageBox(a.hwnd, "About DM",
-			"DM Download Manager\n\n"+
+		messageBox(a.hwnd, "About ODM",
+			"Open Download Manager\n\n"+
 				"Parallel downloads with dynamic segmentation, resume,\n"+
 				"HLS video, and browser integration.\n\n"+
 				"Web UI: "+a.client.Base+"/", mbOk|mbIconInfo)
@@ -602,7 +602,7 @@ func iconPath() (string, error) {
 	if err != nil || dir == "" {
 		dir = os.TempDir()
 	}
-	p := filepath.Join(dir, "dm", "dm-tray.ico")
+	p := filepath.Join(dir, "odm", "odm-tray.ico")
 	if _, err := os.Stat(p); err != nil {
 		return "", err
 	}

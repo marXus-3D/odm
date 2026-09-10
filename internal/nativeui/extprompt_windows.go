@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/marXus-3D/dm/internal/client"
+	"github.com/marXus-3D/odm/internal/client"
 )
 
 // Control ids for the extension prompt.
@@ -22,8 +22,8 @@ const (
 
 // extPrompt tells the user the browser extension is not set up.
 //
-// Without it, downloads started in the browser never reach DM at all, which
-// looks like DM being broken rather than a missing piece.
+// Without it, downloads started in the browser never reach ODM at all, which
+// looks like ODM being broken rather than a missing piece.
 type extPrompt struct {
 	hwnd    syscall.Handle
 	extDir  string
@@ -89,9 +89,9 @@ func (a *App) showExtPrompt() bool {
 		return syscall.Handle(h)
 	}
 
-	mk("STATIC", "No browser has connected to DM yet.", ssLeft, 16, 14, 500, 20, 0, 0)
+	mk("STATIC", "No browser has connected to ODM yet.", ssLeft, 16, 14, 500, 20, 0, 0)
 	mk("STATIC", "Until the extension is loaded, downloads you start in your browser "+
-		"will not come to DM.", ssLeft, 16, 36, 510, 36, 0, 0)
+		"will not come to ODM.", ssLeft, 16, 36, 510, 36, 0, 0)
 
 	mk("STATIC", "To set it up:", ssLeft, 16, 78, 200, 18, 0, 0)
 	mk("STATIC", "1.  Open chrome://extensions and turn on Developer mode\r\n"+
@@ -110,7 +110,7 @@ func (a *App) showExtPrompt() bool {
 	makeButton(syscall.Handle(hwnd), inst, a.font, "Don't ask again",
 		436, 180, 94, 28, idEPNever, false)
 
-	mk("STATIC", "DM keeps working without it -- you can still add URLs by hand.",
+	mk("STATIC", "ODM keeps working without it -- you can still add URLs by hand.",
 		ssLeft, 16, 220, 510, 20, 0, 0)
 
 	procEnableWindow.Call(uintptr(a.hwnd), 0)

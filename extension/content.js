@@ -1,4 +1,4 @@
-// DM Integration -- in-page video panel.
+// ODM Integration -- in-page video panel.
 //
 // The IDM-style floating button that appears over a video. It exists because
 // a streaming site hands the browser a blob: URL backed by Media Source
@@ -58,7 +58,7 @@
     // A shadow root keeps the page's CSS from reaching in and wrecking this,
     // which on a media-heavy site it otherwise reliably does.
     const host = document.createElement("div");
-    host.setAttribute("data-dm-panel", "");
+    host.setAttribute("data-odm-panel", "");
     Object.assign(host.style, {
       position: "absolute",
       zIndex: "2147483647",
@@ -129,10 +129,10 @@
         return;
       }
       bar.classList.add("busy");
-      label.textContent = "Sending to DM...";
+      label.textContent = "Sending to ODM...";
       try {
         const res = await chrome.runtime.sendMessage({
-          scope: "dm",
+          scope: "odm",
           payload: {
             type: "add",
             url: target.url,
@@ -143,20 +143,20 @@
         bar.classList.remove("busy");
         if (res && res.ok) {
           bar.classList.add("ok");
-          label.textContent = "Queued in DM";
+          label.textContent = "Queued in ODM";
           setTimeout(() => {
             bar.classList.remove("ok");
             label.textContent = "Download this video";
           }, 2500);
         } else {
           bar.classList.add("err");
-          label.textContent = (res && res.error) || "DM is not running";
+          label.textContent = (res && res.error) || "ODM is not running";
           go.title = (res && res.error) || "";
         }
       } catch (err) {
         bar.classList.remove("busy");
         bar.classList.add("err");
-        label.textContent = "DM is not running";
+        label.textContent = "ODM is not running";
         go.title = String(err && err.message ? err.message : err);
       }
     });
@@ -238,7 +238,7 @@
   // --- wiring --------------------------------------------------------------
 
   chrome.runtime.onMessage.addListener((msg) => {
-    if (msg && msg.scope === "dm-media-update") {
+    if (msg && msg.scope === "odm-media-update") {
       detected = msg.media || [];
       scheduleRefresh();
     }
@@ -246,7 +246,7 @@
 
   async function loadDetected() {
     try {
-      const r = await chrome.runtime.sendMessage({ scope: "dm-media-self" });
+      const r = await chrome.runtime.sendMessage({ scope: "odm-media-self" });
       if (r && r.ok) detected = r.media || [];
     } catch {
       /* service worker asleep; the push message will arrive instead */

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/marXus-3D/dm/internal/client"
-	"github.com/marXus-3D/dm/internal/power"
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/client"
+	"github.com/marXus-3D/odm/internal/power"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 // runCommand handles the daemon-backed subcommands. It returns false when
@@ -77,7 +77,7 @@ func cmdAdd(c *client.Client, args []string) {
 	fs.Parse(args)
 
 	if fs.NArg() == 0 {
-		fail("usage: dm add [flags] <url>...")
+		fail("usage: odm add [flags] <url>...")
 	}
 	for _, u := range fs.Args() {
 		rec, err := c.Add(client.AddRequest{
@@ -85,7 +85,7 @@ func cmdAdd(c *client.Client, args []string) {
 			Referer: *ref, Cookie: *cook, UA: *ua,
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "dm: add %s: %v\n", u, err)
+			fmt.Fprintf(os.Stderr, "odm: add %s: %v\n", u, err)
 			continue
 		}
 		fmt.Printf("%s  queued  %s\n", rec.ID, rec.URL)
@@ -134,11 +134,11 @@ func cmdRemove(c *client.Client, args []string) {
 	del := fs.Bool("f", false, "also delete the file from disk")
 	fs.Parse(args)
 	if fs.NArg() == 0 {
-		fail("usage: dm rm [-f] <id>...")
+		fail("usage: odm rm [-f] <id>...")
 	}
 	for _, id := range fs.Args() {
 		if err := c.Remove(id, *del); err != nil {
-			fmt.Fprintf(os.Stderr, "dm: rm %s: %v\n", id, err)
+			fmt.Fprintf(os.Stderr, "odm: rm %s: %v\n", id, err)
 			continue
 		}
 		fmt.Printf("%s removed\n", id)
@@ -164,7 +164,7 @@ func cmdLimit(c *client.Client, args []string) {
 	if arg == "off" || arg == "none" {
 		kbps = 0
 	} else if _, err := fmt.Sscanf(arg, "%d", &kbps); err != nil || kbps < 0 {
-		fail("usage: dm limit [<KiB/s>|off]")
+		fail("usage: odm limit [<KiB/s>|off]")
 	}
 	cfg, err := c.SetConfig(store.Config{LimitKBps: kbps})
 	if err != nil {
@@ -185,7 +185,7 @@ func must(err error, done string) {
 	fmt.Println(done)
 }
 
-// cmdStartup shows or changes whether DM runs at login.
+// cmdStartup shows or changes whether ODM runs at login.
 func cmdStartup(c *client.Client, args []string) {
 	if len(args) == 0 {
 		st, err := c.State()
@@ -197,23 +197,23 @@ func cmdStartup(c *client.Client, args []string) {
 			return
 		}
 		if st.StartWithWindows {
-			fmt.Println("DM runs at login")
+			fmt.Println("ODM runs at login")
 		} else {
-			fmt.Println("DM does not run at login")
+			fmt.Println("ODM does not run at login")
 		}
 		return
 	}
 	on := args[0] == "on" || args[0] == "enable" || args[0] == "true"
 	if !on && args[0] != "off" && args[0] != "disable" && args[0] != "false" {
-		fail("usage: dm startup [on|off]")
+		fail("usage: odm startup [on|off]")
 	}
 	if _, err := c.SetFlags(client.Flags{StartWithWindows: &on}); err != nil {
 		fail("%v", err)
 	}
 	if on {
-		fmt.Println("DM will run at login")
+		fmt.Println("ODM will run at login")
 	} else {
-		fmt.Println("DM will no longer run at login")
+		fmt.Println("ODM will no longer run at login")
 	}
 }
 
@@ -271,11 +271,11 @@ func cmdDaemon(c *client.Client, args []string) {
 // aborting the batch. done is the past tense used in the success line.
 func forEachID(ids []string, verb, done string, fn func(string) error) {
 	if len(ids) == 0 {
-		fail("usage: dm %s <id>...", verb)
+		fail("usage: odm %s <id>...", verb)
 	}
 	for _, id := range ids {
 		if err := fn(id); err != nil {
-			fmt.Fprintf(os.Stderr, "dm: %s %s: %v\n", verb, id, err)
+			fmt.Fprintf(os.Stderr, "odm: %s %s: %v\n", verb, id, err)
 			continue
 		}
 		fmt.Printf("%s %s\n", id, done)
@@ -283,6 +283,6 @@ func forEachID(ids []string, verb, done string, fn func(string) error) {
 }
 
 func fail(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "dm: "+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, "odm: "+format+"\n", args...)
 	os.Exit(1)
 }

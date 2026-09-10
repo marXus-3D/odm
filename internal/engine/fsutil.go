@@ -64,7 +64,7 @@ func SanitizeFilename(name string) string {
 
 // UniquePath returns a path that does not exist yet, appending " (n)" before
 // the extension the way browsers do. It also treats an in-progress download
-// (path + ".dm" sidecar) as taken.
+// (path + ".odm" sidecar) as taken.
 func UniquePath(dir, name string) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err

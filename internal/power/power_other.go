@@ -34,7 +34,7 @@ func Actions() []Action {
 func Label(a Action) string {
 	switch a {
 	case ExitDM:
-		return "Exit DM"
+		return "Exit ODM"
 	case Sleep:
 		return "Sleep"
 	case Hibernate:

@@ -1,11 +1,11 @@
-// DM Integration -- service worker.
+// ODM Integration -- service worker.
 //
 // The job here is narrow: notice a download Chrome is about to make, cancel
-// it, and hand the URL to the DM daemon together with the credentials the tab
+// it, and hand the URL to the ODM daemon together with the credentials the tab
 // would have used. Without the cookies, Referer and User-Agent, an
 // authenticated download fetched by an outside process just gets a 403.
 
-const HOST = "com.dm.host";
+const HOST = "com.odm.host";
 
 const DEFAULTS = {
   enabled: true,
@@ -29,8 +29,8 @@ function sendNative(msg) {
     chrome.runtime.sendNativeMessage(HOST, msg, (reply) => {
       const err = chrome.runtime.lastError;
       if (err) return reject(new Error(err.message));
-      if (!reply) return reject(new Error("no reply from the DM native host"));
-      if (!reply.ok) return reject(new Error(reply.error || "unknown DM error"));
+      if (!reply) return reject(new Error("no reply from the ODM native host"));
+      if (!reply.ok) return reject(new Error(reply.error || "unknown ODM error"));
       resolve(reply.data);
     });
   });
@@ -54,7 +54,7 @@ async function cookieHeader(url) {
     if (!jar.length) return "";
     return jar.map((c) => `${c.name}=${c.value}`).join("; ");
   } catch (e) {
-    console.warn("DM: could not read cookies", e);
+    console.warn("ODM: could not read cookies", e);
     return "";
   }
 }
@@ -95,7 +95,7 @@ chrome.downloads.onCreated.addListener(async (item) => {
     await chrome.downloads.cancel(item.id);
     await chrome.downloads.erase({ id: item.id });
   } catch (e) {
-    console.warn("DM: could not cancel download", e);
+    console.warn("ODM: could not cancel download", e);
     return; // Chrome already finished it; leave it alone.
   }
 
@@ -109,10 +109,10 @@ chrome.downloads.onCreated.addListener(async (item) => {
       cookie: await cookieHeader(url),
       userAgent: navigator.userAgent,
     });
-    if (cfg.notify) notify("Sent to DM", filename || url);
+    if (cfg.notify) notify("Sent to ODM", filename || url);
   } catch (e) {
-    console.error("DM: handoff failed", e);
-    if (cfg.notify) notify("DM unavailable", e.message + " -- downloading in Chrome instead");
+    console.error("ODM: handoff failed", e);
+    if (cfg.notify) notify("ODM unavailable", e.message + " -- downloading in Chrome instead");
     // Do not silently lose the user's download.
     passthrough.add(url);
     chrome.downloads.download({ url }, () => {
@@ -124,12 +124,12 @@ chrome.downloads.onCreated.addListener(async (item) => {
 
 // --- context menu -----------------------------------------------------------
 
-const MENU_ID = "dm-download";
+const MENU_ID = "odm-download";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_ID,
-    title: "Download with DM",
+    title: "Download with ODM",
     contexts: ["link", "image", "video", "audio", "selection"],
   }, () => void chrome.runtime.lastError);
 });
@@ -138,7 +138,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== MENU_ID) return;
   const url = info.linkUrl || info.srcUrl || info.selectionText;
   if (!url || !isFetchable(url)) {
-    notify("DM", "That is not a downloadable http(s) link.");
+    notify("ODM", "That is not a downloadable http(s) link.");
     return;
   }
   try {
@@ -149,15 +149,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       cookie: await cookieHeader(url),
       userAgent: navigator.userAgent,
     });
-    notify("Sent to DM", url);
+    notify("Sent to ODM", url);
   } catch (e) {
-    notify("DM error", e.message);
+    notify("ODM error", e.message);
   }
 });
 
 // Let the popup and options page reuse the one-shot native channel.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (!msg || msg.scope !== "dm") return false;
+  if (!msg || msg.scope !== "odm") return false;
   sendNative(msg.payload)
     .then((data) => sendResponse({ ok: true, data }))
     .catch((e) => sendResponse({ ok: false, error: e.message }));
@@ -204,7 +204,7 @@ async function recordMedia(tabId, url, kind) {
 // pushToTab tells the in-page panel what we found, so the button can appear
 // the moment the player asks for its playlist rather than on the next scroll.
 function pushToTab(tabId, media) {
-  chrome.tabs.sendMessage(tabId, { scope: "dm-media-update", media },
+  chrome.tabs.sendMessage(tabId, { scope: "odm-media-update", media },
     () => void chrome.runtime.lastError); // no content script here is fine
 }
 
@@ -265,14 +265,14 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 // The popup asks for a named tab's finds; a content script asks for its own.
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return false;
-  if (msg.scope === "dm-media") {
+  if (msg.scope === "odm-media") {
     (async () => {
       const all = await readMedia();
       sendResponse({ ok: true, media: all[String(msg.tabId)] || [] });
     })();
     return true;
   }
-  if (msg.scope === "dm-media-self") {
+  if (msg.scope === "odm-media-self") {
     (async () => {
       const tabId = sender.tab && sender.tab.id;
       if (tabId === undefined || tabId < 0) {

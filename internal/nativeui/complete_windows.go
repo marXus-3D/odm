@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 // Control ids for the Download complete form.

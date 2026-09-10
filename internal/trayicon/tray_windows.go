@@ -1,6 +1,6 @@
 //go:build windows
 
-// Package trayicon puts DM in the notification area.
+// Package trayicon puts ODM in the notification area.
 //
 // This is hand-rolled Win32 rather than a library because the machine has no
 // C toolchain, and every Go systray package needs cgo. Everything here goes
@@ -17,7 +17,7 @@ import (
 	"unsafe"
 )
 
-//go:embed dm.ico
+//go:embed odm.ico
 var iconBytes []byte
 
 var (
@@ -204,7 +204,7 @@ func Run(tooltip string, items []MenuItem) (*Tray, error) {
 	hwnd, _, err := procCreateWindowEx.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(utf16Ptr("DM"))),
+		uintptr(unsafe.Pointer(utf16Ptr("ODM"))),
 		0, 0, 0, 0, 0, 0, 0,
 		inst, 0,
 	)
@@ -381,11 +381,11 @@ func writeIcon() (string, error) {
 	if err != nil || dir == "" {
 		dir = os.TempDir()
 	}
-	dir = filepath.Join(dir, "dm")
+	dir = filepath.Join(dir, "odm")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		dir = os.TempDir()
 	}
-	path := filepath.Join(dir, "dm-tray.ico")
+	path := filepath.Join(dir, "odm-tray.ico")
 	if st, err := os.Stat(path); err == nil && st.Size() == int64(len(iconBytes)) {
 		return path, nil // already there and the right size
 	}

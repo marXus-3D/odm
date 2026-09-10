@@ -1,4 +1,4 @@
-// Command dmd is the DM download daemon: it owns the queue, serves the web
+// Command odmd is the ODM download daemon: it owns the queue, serves the web
 // UI on loopback, and is what the browser extension ultimately talks to.
 package main
 
@@ -15,13 +15,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/marXus-3D/dm/internal/api"
-	"github.com/marXus-3D/dm/internal/client"
-	"github.com/marXus-3D/dm/internal/engine"
-	"github.com/marXus-3D/dm/internal/manager"
-	"github.com/marXus-3D/dm/internal/nativeui"
-	"github.com/marXus-3D/dm/internal/store"
-	"github.com/marXus-3D/dm/internal/trayicon"
+	"github.com/marXus-3D/odm/internal/api"
+	"github.com/marXus-3D/odm/internal/client"
+	"github.com/marXus-3D/odm/internal/engine"
+	"github.com/marXus-3D/odm/internal/manager"
+	"github.com/marXus-3D/odm/internal/nativeui"
+	"github.com/marXus-3D/odm/internal/store"
+	"github.com/marXus-3D/odm/internal/trayicon"
 )
 
 func main() {
@@ -43,7 +43,7 @@ func main() {
 	hasConsole := attachConsole()
 
 	log.SetFlags(log.Ltime)
-	log.SetPrefix("dmd: ")
+	log.SetPrefix("odmd: ")
 
 	// Always keep a log on disk unless the user is watching a real console;
 	// a daemon launched from Explorer or by the browser otherwise leaves no
@@ -79,14 +79,14 @@ func main() {
 	defer shutdown()
 
 	mgr := manager.New(ctx, st)
-	// The "Exit DM" completion action needs a way to stop the daemon.
+	// The "Exit ODM" completion action needs a way to stop the daemon.
 	mgr.SetExitFunc(func() { shutdown() })
 	mgr.StartFlusher(ctx, 2*time.Second)
 
 	srv := api.New(mgr, st, token, addr, shutdown)
 	ln, httpSrv, err := srv.Listen()
 	if err != nil {
-		log.Fatalf("listen on %s: %v (is another dmd already running?)", addr, err)
+		log.Fatalf("listen on %s: %v (is another odmd already running?)", addr, err)
 	}
 
 	// The port is written where the CLI and the native messaging host can

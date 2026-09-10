@@ -11,20 +11,20 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/marXus-3D/dm/internal/shortcut"
-	"github.com/marXus-3D/dm/internal/startup"
+	"github.com/marXus-3D/odm/internal/shortcut"
+	"github.com/marXus-3D/odm/internal/startup"
 )
 
 // Uninstall removes everything the installer put in place. userData says
 // whether to delete the download list and settings as well.
 func Uninstall(dir string, userData bool, say Reporter) error {
-	say("Stopping DM...")
+	say("Stopping ODM...")
 	stopRunning()
 
 	id := manifestExtensionID(dir)
 
 	say("Removing the browser integration...")
-	setup := filepath.Join(dir, "bin", "dm-setup.exe")
+	setup := filepath.Join(dir, "bin", "odm-setup.exe")
 	if _, err := os.Stat(setup); err == nil {
 		exec.Command(setup, "-uninstall").Run()
 	}
@@ -47,7 +47,7 @@ func Uninstall(dir string, userData bool, say Reporter) error {
 	if userData {
 		if state := os.Getenv("APPDATA"); state != "" {
 			say("Removing settings and the download list...")
-			os.RemoveAll(filepath.Join(state, "dm"))
+			os.RemoveAll(filepath.Join(state, "odm"))
 		}
 	} else {
 		say("Keeping your settings and download list.")
@@ -58,7 +58,7 @@ func Uninstall(dir string, userData bool, say Reporter) error {
 		return err
 	}
 	say("")
-	say("DM has been removed.")
+	say("ODM has been removed.")
 	return nil
 }
 
@@ -139,7 +139,7 @@ func scheduleSelfDelete(dir string) {
 func FindInstallDir() string {
 	if self, err := os.Executable(); err == nil {
 		dir := filepath.Dir(self)
-		if _, err := os.Stat(filepath.Join(dir, "bin", "dmd.exe")); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, "bin", "odmd.exe")); err == nil {
 			return dir
 		}
 	}

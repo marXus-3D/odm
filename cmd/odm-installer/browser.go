@@ -30,7 +30,7 @@ var externalExtensionKeys = map[string]string{
 // is the supported way to offer one, and Chrome may still leave it
 // disabled or ignore it, so the guided path is always offered too.
 func setupBrowser(dir string, say Reporter) {
-	setup := filepath.Join(dir, "bin", "dm-setup.exe")
+	setup := filepath.Join(dir, "bin", "odm-setup.exe")
 	if out, err := exec.Command(setup).CombinedOutput(); err != nil {
 		say("  native messaging host: %v", err)
 	} else {
@@ -41,7 +41,7 @@ func setupBrowser(dir string, say Reporter) {
 	}
 
 	id := manifestExtensionID(dir)
-	crx := filepath.Join(dir, "dm.crx")
+	crx := filepath.Join(dir, "odm.crx")
 	if _, err := os.Stat(crx); err == nil && id != "" {
 		n := registerExternalExtension(id, crx, extensionVersion(dir))
 		say("  offered the packaged extension to %d browser(s)", n)
@@ -95,7 +95,7 @@ func manifestExtensionID(dir string) string {
 	return crxID(der)
 }
 
-// extensionIDFrom digs the id out of dm-setup's output, so the two agree
+// extensionIDFrom digs the id out of odm-setup's output, so the two agree
 // even if the manifest could not be read.
 func extensionIDFrom(out []byte) string {
 	const marker = "extension id"

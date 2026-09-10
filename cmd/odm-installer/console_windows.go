@@ -9,7 +9,7 @@ import (
 
 // The installer is linked as a GUI binary so double-clicking it does not
 // flash a console. That leaves -silent with nowhere to print, so it borrows
-// the console of whatever started it, the same trick dmd uses.
+// the console of whatever started it, the same trick odmd uses.
 func attachConsole() {
 	const (
 		attachParentProcess = ^uintptr(0)

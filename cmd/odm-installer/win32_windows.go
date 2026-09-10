@@ -308,9 +308,9 @@ func enableVisualStyles() {
 	if err != nil || dir == "" {
 		dir = os.TempDir()
 	}
-	dir = filepath.Join(dir, "dm")
+	dir = filepath.Join(dir, "odm")
 	os.MkdirAll(dir, 0o700)
-	path := filepath.Join(dir, "dm-installer.manifest")
+	path := filepath.Join(dir, "odm-installer.manifest")
 	if b, err := os.ReadFile(path); err != nil || string(b) != manifest {
 		if os.WriteFile(path, []byte(manifest), 0o644) != nil {
 			return

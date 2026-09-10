@@ -8,7 +8,7 @@ import (
 )
 
 // DaemonName is the daemon binary this package looks for.
-const DaemonName = "dmd.exe"
+const DaemonName = "odmd.exe"
 
 // detach starts the daemon in its own process group with no console window,
 // so closing the browser does not take the daemon down with it.

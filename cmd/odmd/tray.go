@@ -5,10 +5,10 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/marXus-3D/dm/internal/manager"
-	"github.com/marXus-3D/dm/internal/nativeui"
-	"github.com/marXus-3D/dm/internal/store"
-	"github.com/marXus-3D/dm/internal/trayicon"
+	"github.com/marXus-3D/odm/internal/manager"
+	"github.com/marXus-3D/odm/internal/nativeui"
+	"github.com/marXus-3D/odm/internal/store"
+	"github.com/marXus-3D/odm/internal/trayicon"
 )
 
 // runTray shows the notification-area icon and blocks until the tray is
@@ -27,7 +27,7 @@ func runTray(uiURL string, mgr *manager.Manager, st *store.Store, shutdown func(
 	items := []trayicon.MenuItem{
 		// The first enabled entry is also what a left click runs, so the
 		// most useful action goes first.
-		{Label: "Open DM", OnClick: func() {
+		{Label: "Open ODM", OnClick: func() {
 			// Bring the desktop window back if it exists; otherwise there
 			// is no window in this process and the web UI is the next best
 			// thing.
@@ -44,11 +44,11 @@ func runTray(uiURL string, mgr *manager.Manager, st *store.Store, shutdown func(
 			mgr.PauseAll()
 		}},
 		{Separator: true},
-		{Label: "Quit DM", OnClick: shutdown},
+		{Label: "Quit ODM", OnClick: shutdown},
 	}
 
 	log.Printf("showing the notification-area icon")
-	if _, err := trayicon.Run("DM download manager", items); err != nil {
+	if _, err := trayicon.Run("Open Download Manager", items); err != nil {
 		log.Printf("tray icon unavailable: %v", err)
 		return false
 	}

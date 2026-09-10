@@ -4,8 +4,8 @@ import Motion from "@/components/Motion";
 
 // The repository and the newest release's setup program. GitHub redirects
 // the second URL to the asset of the latest published release.
-const repo = "https://github.com/marXus-3D/dm";
-const setupUrl = `${repo}/releases/latest/download/DM-Setup.exe`;
+const repo = "https://github.com/marXus-3D/odm";
+const setupUrl = `${repo}/releases/latest/download/ODM-Setup.exe`;
 
 const downloads = [
   {
@@ -55,7 +55,7 @@ const cells: [string, string, string][] = [
   [
     "↺",
     "Exact resume",
-    "Finished ranges are recorded as they land. Restart the app, the PC or the network and DM continues from the byte it stopped at.",
+    "Finished ranges are recorded as they land. Restart the app, the PC or the network and ODM continues from the byte it stopped at.",
   ],
   [
     "▶",
@@ -70,7 +70,7 @@ const cells: [string, string, string][] = [
   [
     "$",
     "Web UI and CLI",
-    "The same list on localhost for the browser, and dm add, dm ls, dm pause for scripts.",
+    "The same list on localhost for the browser, and odm add, odm ls, odm pause for scripts.",
   ],
   [
     "◫",
@@ -82,23 +82,23 @@ const cells: [string, string, string][] = [
 const faq: [string, string][] = [
   [
     "Does it need administrator rights?",
-    "No. DM installs to your user folder and registers the browser hook for your user only, so Windows never shows an elevation prompt. For unattended installs run DM-Setup.exe -silent.",
+    "No. ODM installs to your user folder and registers the browser hook for your user only, so Windows never shows an elevation prompt. For unattended installs run ODM-Setup.exe -silent.",
   ],
   [
     "What happens if my PC restarts mid-download?",
-    "Nothing is lost. Every finished range is on disk at its final offset and recorded the moment it lands. The next time DM runs, the transfer continues from the byte it stopped at.",
+    "Nothing is lost. Every finished range is on disk at its final offset and recorded the moment it lands. The next time ODM runs, the transfer continues from the byte it stopped at.",
   ],
   [
     "Which browsers does the extension support?",
-    "Chrome, Edge, Brave and Vivaldi, over the browser's native-messaging channel. From any other browser, paste the link into DM or use the command line.",
+    "Chrome, Edge, Brave and Vivaldi, over the browser's native-messaging channel. From any other browser, paste the link into ODM or use the command line.",
   ],
   [
     "Do downloads behind a login work?",
-    "Yes. The extension hands DM the link together with the cookies the browser would have sent, so files behind a sign-in download the way they would in the browser, only faster.",
+    "Yes. The extension hands ODM the link together with the cookies the browser would have sent, so files behind a sign-in download the way they would in the browser, only faster.",
   ],
   [
     "What about streaming video?",
-    "Point DM at an HLS playlist, or press the button the extension adds on video pages. Segments come down in parallel and, with ffmpeg installed, are written out as a single MP4.",
+    "Point ODM at an HLS playlist, or press the button the extension adds on video pages. Segments come down in parallel and, with ffmpeg installed, are written out as a single MP4.",
   ],
   [
     "Is eight connections always faster?",
@@ -106,11 +106,11 @@ const faq: [string, string][] = [
   ],
   [
     "Is it open source?",
-    "Yes, under the MIT license. The engine, the window, the extension and the setup program are all in one repository on GitHub, and releases are built there by a workflow from a tagged commit, so the DM-Setup.exe you download is the one the public build produced.",
+    "Yes, under the MIT license. The engine, the window, the extension and the setup program are all in one repository on GitHub, and releases are built there by a workflow from a tagged commit, so the ODM-Setup.exe you download is the one the public build produced.",
   ],
   [
     "How do I uninstall?",
-    "Run the same DM-Setup.exe again. It removes the app and the browser hook and keeps your download list unless you tell it not to.",
+    "Run the same ODM-Setup.exe again. It removes the app and the browser hook and keeps your download list unless you tell it not to.",
   ],
 ];
 
@@ -131,7 +131,7 @@ export default function Page() {
           <div className="in">
             <a className="brand" href="#">
               <i />
-              dm
+              odm
             </a>
             <nav>
               <a href="#how">How it works</a>
@@ -153,16 +153,16 @@ export default function Page() {
               <span className="eyebrow">
                 <b>v0.1</b> Open source · Windows 10 and 11 · no admin rights
               </span>
-              <h1>The download manager for Windows.</h1>
+              <h1>The open download manager for Windows.</h1>
               <p className="lede">
                 Eight connections per file, exact resume after anything,
                 streaming video to MP4, and a browser extension that hands links
                 over with your cookies. One 28 MB file installs it.
               </p>
-              <CopyCommand command="DM-Setup.exe -silent" />
+              <CopyCommand command="ODM-Setup.exe -silent" />
               <div className="acts">
                 <a className="btn" href={setupUrl}>
-                  Download DM-Setup.exe
+                  Download ODM-Setup.exe
                 </a>
                 <a className="btn ghost" href="#how">
                   How it works
@@ -170,9 +170,9 @@ export default function Page() {
               </div>
             </div>
 
-            <div className="win" role="img" aria-label="DM download list">
+            <div className="win" role="img" aria-label="ODM download list">
               <div className="bar">
-                <span>DM</span>
+                <span>ODM</span>
                 <span>— ▢ ✕</span>
               </div>
               {downloads.map((d) => (
@@ -235,7 +235,7 @@ export default function Page() {
                 <h2>One file, eight ranges, written in place.</h2>
               </div>
               <p>
-                DM asks the server for the size, preallocates the file and
+                ODM asks the server for the size, preallocates the file and
                 splits it into ranges. Every connection writes to its own offset
                 in the same file, so there is nothing to merge when it finishes,
                 and a slow connection never sets the finishing time.
@@ -339,9 +339,9 @@ export default function Page() {
                   13.7 s
                 </span>
               </div>
-              <div className="lane dm" data-seconds="6.5">
+              <div className="lane odm" data-seconds="6.5">
                 <span className="who">
-                  8 connections <small>DM</small>
+                  8 connections <small>ODM</small>
                 </span>
                 <div className="bar">
                   <span className="fill" style={{ width: "47.4%" }} />
@@ -389,7 +389,7 @@ export default function Page() {
               </div>
               <p>
                 Window, web page, command line and browser extension all talk to
-                the same DM. Add a download in one place and it shows up in the
+                the same ODM. Add a download in one place and it shows up in the
                 others.
               </p>
             </div>
@@ -397,7 +397,7 @@ export default function Page() {
               <div>
                 <div className="mock mock-win">
                   <div className="tb">
-                    <span>DM</span>
+                    <span>ODM</span>
                     <span>— ▢ ✕</span>
                   </div>
                   <i style={{ width: "40%" }} />
@@ -424,9 +424,9 @@ export default function Page() {
               </div>
               <div>
                 <div className="mock mock-cli mono">
-                  <span>&gt; dm add https://…/x.iso</span>
+                  <span>&gt; odm add https://…/x.iso</span>
                   <span className="dim">a91f added, 8 connections</span>
-                  <span>&gt; dm ls</span>
+                  <span>&gt; odm ls</span>
                   <span className="dim">a91f 40% 41.4 MB/s</span>
                 </div>
                 <h3>Command line</h3>
@@ -438,7 +438,7 @@ export default function Page() {
               <div>
                 <div className="mock mock-ext">
                   <div className="url mono">example.com/files/report.pdf</div>
-                  <span className="chip">Download with DM</span>
+                  <span className="chip">Download with ODM</span>
                 </div>
                 <h3>Browser extension</h3>
                 <p>
@@ -458,7 +458,7 @@ export default function Page() {
               <h2>The extension hands over the link.</h2>
               <p>
                 When the browser starts a download the extension intercepts it
-                and passes URL and cookies to DM over native messaging. No
+                and passes URL and cookies to ODM over native messaging. No
                 network port is opened. Files behind a login download the way
                 they would in the browser, only faster.
               </p>
@@ -478,20 +478,20 @@ export default function Page() {
                     "download intercepted  ubuntu-24.04.1-desktop-amd64.iso",
                   ],
                   ["12:04:01.204", "ext", "cookies attached      2"],
-                  ["12:04:01.211", "dm ", "HEAD ok  5.8 GB  ranges: yes"],
-                  ["12:04:01.212", "dm ", "preallocated, 8 connections"],
-                  ["12:04:01.240", "dm ", "c1 200  0-3 116 000 000"],
+                  ["12:04:01.211", "odm", "HEAD ok  5.8 GB  ranges: yes"],
+                  ["12:04:01.212", "odm", "preallocated, 8 connections"],
+                  ["12:04:01.240", "odm", "c1 200  0-3 116 000 000"],
                   [
                     "12:04:01.241",
-                    "dm ",
+                    "odm",
                     "c2 206  3 116 000 000-5 800 000 000",
                   ],
                   [
                     "12:04:03.902",
-                    "dm ",
+                    "odm",
                     "c4 idle, split c1: takes 1 558 000 000-",
                   ],
-                  ["12:04:07.115", "dm ", "41.4 MB/s  40%"],
+                  ["12:04:07.115", "odm", "41.4 MB/s  40%"],
                 ].map(([t, who, msg]) => (
                   <span data-line key={t}>
                     <i>{t}</i> <b>{who}</b> {msg}
@@ -536,14 +536,14 @@ export default function Page() {
             <span className="label mono">06 · Install</span>
             <h2>One file. No prompt.</h2>
             <p>
-              DM-Setup.exe installs to your user folder, registers the browser
+              ODM-Setup.exe installs to your user folder, registers the browser
               hook and offers the extension. The same file uninstalls.
             </p>
             <div className="acts">
               <a className="btn" href={setupUrl}>
-                Download DM-Setup.exe
+                Download ODM-Setup.exe
               </a>
-              <CopyCommand command="DM-Setup.exe -silent" />
+              <CopyCommand command="ODM-Setup.exe -silent" />
             </div>
             <small>
               Windows 10 and 11 · 28 MB · open source, MIT · written in Go with
@@ -558,7 +558,7 @@ export default function Page() {
               <div>
                 <a className="brand" href="#">
                   <i />
-                  dm
+                  odm
                 </a>
                 <p>A download manager for Windows.</p>
               </div>
@@ -582,7 +582,7 @@ export default function Page() {
               </div>
             </div>
             <div className="fine">
-              <span>DM 0.1 · MIT</span>
+              <span>ODM 0.1 · MIT</span>
               <span>Windows 10 and 11</span>
             </div>
           </div>

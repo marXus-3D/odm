@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-// attachConsole reconnects stdout and stderr when dmd is run from a terminal.
+// attachConsole reconnects stdout and stderr when odmd is run from a terminal.
 //
 // The binary is linked with -H windowsgui so that double-clicking it does not
 // flash a console window. The cost is that it starts with no standard
@@ -52,7 +52,7 @@ func hasConsoleWindow() bool {
 // logToFile sends the log somewhere readable when there is no console, which
 // is the normal case for a background daemon.
 func logToFile(stateDir string) {
-	path := filepath.Join(stateDir, "dmd.log")
+	path := filepath.Join(stateDir, "odmd.log")
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return

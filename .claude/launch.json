@@ -10,7 +10,7 @@
     {
       "name": "landing-drafts",
       "runtimeExecutable": "go",
-      "runtimeArgs": ["run", "./cmd/dm-site"],
+      "runtimeArgs": ["run", "./cmd/odm-site"],
       "port": 8090
     }
   ]

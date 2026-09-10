@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	metaSuffix  = ".dm"
+	metaSuffix  = ".odm"
 	metaVersion = 1
 )
 

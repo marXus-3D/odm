@@ -1,4 +1,4 @@
-// Command dm-pack signs the extension into a .crx for the installer to
+// Command odm-pack signs the extension into a .crx for the installer to
 // ship. It is a build-time tool, not something the user ever runs.
 //
 // The private key stays on the build machine. What ships is the public key
@@ -21,13 +21,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/marXus-3D/dm/internal/crx"
+	"github.com/marXus-3D/odm/internal/crx"
 )
 
 func main() {
 	extDir := flag.String("extension", "extension", "the extension folder to pack")
-	out := flag.String("out", "dist/dm.crx", "where to write the signed .crx")
-	keyPath := flag.String("key", "", "signing key (default: the key dm-setup uses)")
+	out := flag.String("out", "dist/odm.crx", "where to write the signed .crx")
+	keyPath := flag.String("key", "", "signing key (default: the key odm-setup uses)")
 	flag.Parse()
 
 	if *keyPath == "" {
@@ -60,7 +60,7 @@ func main() {
 	fmt.Printf("extension id %s\n", id)
 }
 
-// defaultKeyPath is the key dm-setup generates, so a machine that has been
+// defaultKeyPath is the key odm-setup generates, so a machine that has been
 // developing against a loaded unpacked extension keeps the same id.
 func defaultKeyPath() string {
 	base := os.Getenv("APPDATA")
@@ -71,7 +71,7 @@ func defaultKeyPath() string {
 		}
 		base = filepath.Join(home, ".config")
 	}
-	return filepath.Join(base, "dm", "extension_key.pem")
+	return filepath.Join(base, "odm", "extension_key.pem")
 }
 
 func loadOrCreateKey(path string) (*rsa.PrivateKey, error) {
@@ -148,7 +148,7 @@ func setManifestKey(path, key string) error {
 
 func check(err error, what string) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "dm-pack: could not %s: %v\n", what, err)
+		fmt.Fprintf(os.Stderr, "odm-pack: could not %s: %v\n", what, err)
 		os.Exit(1)
 	}
 }

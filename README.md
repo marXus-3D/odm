@@ -1,4 +1,4 @@
-# DM
+# ODM, Open Download Manager
 
 An IDM-style download manager for Windows: a native desktop app with
 parallel range downloads, dynamic segmentation, resume across restarts, HLS
@@ -29,7 +29,7 @@ The naive approach splits the file into N fixed chunks up front. Every fast
 connection then sits idle while one straggler grinds through its share, and
 the slowest peer sets the total time.
 
-DM instead starts with a single whole-file range. Each idle worker splits the
+ODM instead starts with a single whole-file range. Each idle worker splits the
 largest *remaining* range in half and takes the tail
 ([`acquire`](internal/engine/download.go)). Workers stay busy to the end of
 the transfer, and a slow peer automatically ends up owning less of the file.
@@ -44,7 +44,7 @@ their own offsets — no temp part files and no merge pass at the end.
 A 429 or 503 means the server wants *fewer* connections, so retrying harder is
 the wrong move. Every worker but the last hands its range back and exits; the
 survivor waits out `Retry-After`. Hetzner's speed-test host rate-limits
-exactly this way, and DM finishes the transfer instead of failing.
+exactly this way, and ODM finishes the transfer instead of failing.
 
 A connection that stops delivering bytes for 30s is dropped and its range
 retried on a fresh socket, so a black-holed route cannot pin a worker.
@@ -52,12 +52,12 @@ retried on a fresh socket, so a black-holed route cannot pin a worker.
 ## Layout
 
 ```
-cmd/dm         CLI: standalone downloads, and a client for the daemon
-cmd/dmd        the app: desktop window, tray, queue, web UI, HTTP API
-cmd/dm-nmh     Chrome native messaging host
-cmd/dm-setup   installs the browser integration
-cmd/dm-installer  the setup program: DM-Setup.exe, and the uninstaller
-cmd/dm-pack    build tool: signs the extension into a .crx
+cmd/odm         CLI: standalone downloads, and a client for the daemon
+cmd/odmd        the app: desktop window, tray, queue, web UI, HTTP API
+cmd/odm-nmh     Chrome native messaging host
+cmd/odm-setup   installs the browser integration
+cmd/odm-installer  the setup program: ODM-Setup.exe, and the uninstaller
+cmd/odm-pack    build tool: signs the extension into a .crx
 internal/engine   byte-range segments, dynamic splitting, resume, retry
 internal/hls      M3U8 parsing, parallel segment fetch, AES-128, remux
 internal/manager  queue, concurrency limits, engine selection
@@ -79,7 +79,7 @@ extension/        MV3 Chrome extension
 ```
 
 That builds the four binaries into `.\bin`, runs the tests, validates the
-extension and packages it to `.\dist\dm-extension-<version>.zip`. Use
+extension and packages it to `.\dist\odm-extension-<version>.zip`. Use
 `-SkipTests` or `-SkipExtension` to do less.
 
 Go 1.22+ is required (the API uses method-aware `http.ServeMux` patterns).
@@ -88,13 +88,13 @@ Go 1.22+ is required (the API uses method-aware `http.ServeMux` patterns).
 ## Install it
 
 ```
-dist\DM-Setup.exe
+dist\ODM-Setup.exe
 ```
 
 One file. It carries the binaries, the extension and the signed `.crx`
 inside itself and installs per user, so there is no administrator prompt:
 
-- program files in `%LOCALAPPDATA%\Programs\DM`
+- program files in `%LOCALAPPDATA%\Programs\ODM`
 - a Start menu shortcut, and a desktop one if asked
 - start at sign-in, through the `HKCU` run key
 - an **Add or remove programs** entry, which runs the same exe with
@@ -112,11 +112,11 @@ the clipboard for **Load unpacked**.
 For a scripted install:
 
 ```
-dist\DM-Setup.exe -silent [-dir PATH] [-no-startup] [-no-desktop] [-no-browser]
-dist\DM-Setup.exe -uninstall -silent [-remove-data]
+dist\ODM-Setup.exe -silent [-dir PATH] [-no-startup] [-no-desktop] [-no-browser]
+dist\ODM-Setup.exe -uninstall -silent [-remove-data]
 ```
 
-Uninstalling keeps the download list and settings in `%APPDATA%\dm` unless
+Uninstalling keeps the download list and settings in `%APPDATA%\odm` unless
 `-remove-data` says otherwise.
 
 ## Use it
@@ -126,7 +126,7 @@ Uninstalling keeps the download list and settings in `%APPDATA%\dm` unless
 Download right now, in this process:
 
 ```bash
-./bin/dm.exe -n 8 https://example.com/big.iso
+./bin/odm.exe -n 8 https://example.com/big.iso
 ```
 
 Ctrl-C pauses and writes resume state; rerun the same command to continue.
@@ -136,28 +136,28 @@ Flags: `-n` connections, `-d` directory, `-o` filename, `-limit` KiB/s,
 Or drive the daemon, which starts on demand:
 
 ```bash
-./bin/dm.exe add https://example.com/big.iso
-./bin/dm.exe ls
-./bin/dm.exe pause <id>
-./bin/dm.exe resume <id>
-./bin/dm.exe rm -f <id>
-./bin/dm.exe pause-all
-./bin/dm.exe resume-all
-./bin/dm.exe stop-all         # pause everything and clear the queue
-./bin/dm.exe startup on       # run DM at login
-./bin/dm.exe on-finish sleep  # what to do once everything is done
-./bin/dm.exe limit 500        # KiB/s across everything; "off" to remove
-./bin/dm.exe open <id>        # or "show" to reveal in Explorer
-./bin/dm.exe ui               # print the web UI url
-./bin/dm.exe daemon stop      # graceful: pauses downloads, saves state
+./bin/odm.exe add https://example.com/big.iso
+./bin/odm.exe ls
+./bin/odm.exe pause <id>
+./bin/odm.exe resume <id>
+./bin/odm.exe rm -f <id>
+./bin/odm.exe pause-all
+./bin/odm.exe resume-all
+./bin/odm.exe stop-all         # pause everything and clear the queue
+./bin/odm.exe startup on       # run ODM at login
+./bin/odm.exe on-finish sleep  # what to do once everything is done
+./bin/odm.exe limit 500        # KiB/s across everything; "off" to remove
+./bin/odm.exe open <id>        # or "show" to reveal in Explorer
+./bin/odm.exe ui               # print the web UI url
+./bin/odm.exe daemon stop      # graceful: pauses downloads, saves state
 ```
 
 ### The app
 
-Double-click `bin\dmd.exe`, or run it:
+Double-click `bin\odmd.exe`, or run it:
 
 ```bash
-./bin/dmd.exe
+./bin/odmd.exe
 ```
 
 That opens the desktop window: a real Win32 application with a menu bar, a
@@ -168,7 +168,7 @@ same actions as the menus, and several rows can be selected at once.
 
 Closing the window leaves the daemon running and the icon in the
 notification area, the way a download manager should behave. **File → Exit**
-or the tray's **Quit DM** stops it properly. The tray's **Open DM** brings
+or the tray's **Quit ODM** stops it properly. The tray's **Open ODM** brings
 the window back; left-clicking the tray icon does the same.
 
 > On Windows 11 new tray icons start hidden. If you cannot see it, click the
@@ -176,13 +176,13 @@ the window back; left-clicking the tray icon does the same.
 > Taskbar → Other system tray icons.
 
 There is no separate GUI binary and no dependency behind this: the window is
-Win32 through `syscall`, for the same reason as the tray, so `dmd.exe` is
+Win32 through `syscall`, for the same reason as the tray, so `odmd.exe` is
 still one self-contained executable.
 
 `-no-window` runs it headless, `-open` uses the browser UI instead.
 
-**Run at login.** Options -> Start DM with Windows, or `dm startup on`. The
-setting reports the real registry state, so an entry removed behind DM's
+**Run at login.** Options -> Start ODM with Windows, or `odm startup on`. The
+setting reports the real registry state, so an entry removed behind ODM's
 back is shown accurately rather than assumed.
 
 **Categories.** Finished downloads are filed by type into General,
@@ -214,15 +214,15 @@ If no browser has ever connected, the app says so once and offers to open
 Options -> When everything finishes, or:
 
 ```bash
-./bin/dm.exe on-finish sleep      # none exit sleep hibernate shutdown restart
-./bin/dm.exe on-finish cancel     # call off a pending one
+./bin/odm.exe on-finish sleep      # none exit sleep hibernate shutdown restart
+./bin/odm.exe on-finish cancel     # call off a pending one
 ```
 
 It fires once nothing is left running, queued or remuxing, and is one-shot:
 the setting clears before the action runs, so the machine does not shut down
 every time the list happens to empty. Shutdown and restart use the OS timer
 with a 60 second grace, so Windows shows its own countdown and `shutdown /a`
-calls it off even if DM has exited.
+calls it off even if ODM has exited.
 
 ### Web UI
 
@@ -230,7 +230,7 @@ The web UI is still there and does everything the window does, plus
 settings. **File → Open web UI**, the tray menu, or:
 
 ```bash
-./bin/dm.exe ui
+./bin/odm.exe ui
 ```
 
 It shows live speed, connection count and a per-segment progress map, and
@@ -240,17 +240,17 @@ The daemon also starts on demand — the extension launches it if it is not
 already running, so you do not have to keep it running yourself. Started
 that way it does not open a browser tab.
 
-`dm.exe` is the command line client, not the app — double-clicking it just
+`odm.exe` is the command line client, not the app — double-clicking it just
 prints its usage and exits.
 
-`dmd` is a GUI binary, so it does not flash a console window, but it still
+`odmd` is a GUI binary, so it does not flash a console window, but it still
 prints normally when run from a terminal, and always logs to
-`%APPDATA%\dm\dmd.log`.
+`%APPDATA%\odm\odmd.log`.
 
 ### Browser extension
 
 ```powershell
-.\bin\dm-setup.exe
+.\bin\odm-setup.exe
 ```
 
 That writes the native messaging host manifest, generating a keypair for a
@@ -262,18 +262,18 @@ Vivaldi and Opera. Then:
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
 3. **Load unpacked** → the `extension` folder
-4. Check the id matches the one `dm-setup` printed
+4. Check the id matches the one `odm-setup` printed
 
 Reload the extension after any rebuild that changes it.
 
-Undo with `.\bin\dm-setup.exe -uninstall` plus removing the extension.
+Undo with `.\bin\odm-setup.exe -uninstall` plus removing the extension.
 
 **If you get "Access to the specified native messaging host is forbidden"**,
 the extension's id and the id in the host manifest have diverged. Rerun
-`dm-setup`, then press Reload on the extension card.
+`odm-setup`, then press Reload on the extension card.
 
 ```powershell
-.\bin\dm-setup.exe -check
+.\bin\odm-setup.exe -check
 ```
 
 prints the id in the extension manifest, the ids the host manifest allows,
@@ -281,7 +281,7 @@ the id each browser actually loaded it under, and the registry entries, and
 exits non-zero naming the one that is wrong.
 
 The id comes from the `key` in the extension manifest, so it survives moving
-the folder — and `dm-setup` reads the id back out of that manifest after
+the folder — and `odm-setup` reads the id back out of that manifest after
 writing it, rather than deriving it from the key file, because Chrome only
 ever sees the manifest. It also allows the ids browsers report for this
 extension and the path-derived ids Chrome uses when a manifest has no key,
@@ -291,7 +291,7 @@ so an extension loaded before the key was added keeps working.
 anything matching your rules, and forwards the URL to the daemon along with
 the tab's cookies (including HttpOnly ones), `Referer` and `User-Agent`.
 Without those, an outside process fetching a logged-in download just gets a
-403. There is also a "Download with DM" context-menu item for links, images,
+403. There is also a "Download with ODM" context-menu item for links, images,
 video and audio.
 
 **The video panel.** A floating "Download this video" button appears over
@@ -315,8 +315,8 @@ download normally, rather than losing it.
 
 ## Streaming video
 
-Give DM an `.m3u8` URL -- from the extension popup, the web UI or
-`dm add` -- and it is recognised automatically and fetched as a playlist
+Give ODM an `.m3u8` URL -- from the extension popup, the web UI or
+`odm add` -- and it is recognised automatically and fetched as a playlist
 rather than saved as a text manifest.
 
 - Segments are downloaded many at a time and written strictly in playlist
@@ -345,7 +345,7 @@ manifest.
 ### TS to MP4
 
 HLS segments concatenate into a valid `.ts`, but plenty of players and
-editors will not open one, so DM converts it.
+editors will not open one, so ODM converts it.
 
 ```powershell
 winget install --id Gyan.FFmpeg -e
@@ -362,7 +362,7 @@ Details that matter in practice:
   or a killed ffmpeg never leaves a truncated file looking finished. The
   `.ts` is deleted only once the `.mp4` is in place under its real name.
 - `aac_adtstoasc` is required to put ADTS AAC from a transport stream into
-  MP4, but ffmpeg rejects the filter outright for any other audio codec. DM
+  MP4, but ffmpeg rejects the filter outright for any other audio codec. ODM
   tries with it and falls back without, so an MP2 or AC-3 stream still
   converts.
 - `-fflags +genpts`, because TS assembled from HLS segments often has gaps
@@ -380,15 +380,15 @@ ffmpeg decode pass with zero errors, and `moov` before `mdat`.
 The daemon listens on loopback, which every page in your browser can also
 reach, so the API is not open:
 
-- **Shared secret.** A 32-byte token in a `0600` file under `%APPDATA%\dm`.
+- **Shared secret.** A 32-byte token in a `0600` file under `%APPDATA%\odm`.
   Local processes running as you can read it; a web page cannot.
-- **Custom auth header.** Requiring `X-DM-Token` forces a CORS preflight for
+- **Custom auth header.** Requiring `X-ODM-Token` forces a CORS preflight for
   any cross-origin request, which is never approved, so the browser blocks it
   before it is sent.
 - **Origin check.** Requests carrying a foreign `Origin` are rejected outright.
 - The extension never sees the token — it talks to the daemon through the
   native host, which reads the token from disk.
-- Only paths DM itself chose are handed to the shell for open/reveal; callers
+- Only paths ODM itself chose are handed to the shell for open/reveal; callers
   pass a download id, never a filename.
 
 Verified: no token → 401, wrong token → 401, valid token with a foreign
@@ -396,9 +396,9 @@ Origin → 403.
 
 ## State
 
-`%APPDATA%\dm` holds `config.json`, `downloads.json`, `token`, `port`,
+`%APPDATA%\odm` holds `config.json`, `downloads.json`, `token`, `port`,
 `extension_key.pem` and the native host manifest. In-progress downloads keep a
-`<file>.dm` sidecar next to the output holding the per-segment offsets and the
+`<file>.odm` sidecar next to the output holding the per-segment offsets and the
 `ETag`/`Last-Modified` used to prove on resume that the remote file has not
 changed. `If-Range` catches the case where it has, rather than splicing two
 versions of a file together.
@@ -455,7 +455,7 @@ installed.
 ## Releases
 
 Releases are built on GitHub. Tag the commit with the version, matching
-`const Version` in `cmd/dm-installer/main.go` and `version` in
+`const Version` in `cmd/odm-installer/main.go` and `version` in
 `extension/manifest.json`, and push the tag:
 
 ```
@@ -464,20 +464,20 @@ git push origin v0.1.0
 ```
 
 The release workflow refuses a tag that disagrees with either version,
-runs `build.ps1`, and publishes `DM-Setup.exe`, `dm-extension-<version>.zip`,
-`dm.crx` and `SHA256SUMS.txt` on the release. Set the repository secret
-`EXTENSION_SIGNING_KEY` to the contents of `%APPDATA%\dm\extension_key.pem`
+runs `build.ps1`, and publishes `ODM-Setup.exe`, `odm-extension-<version>.zip`,
+`odm.crx` and `SHA256SUMS.txt` on the release. Set the repository secret
+`EXTENSION_SIGNING_KEY` to the contents of `%APPDATA%\odm\extension_key.pem`
 so the extension keeps its id between releases; `build.ps1` passes the key
-to `dm-pack` through `DM_EXTENSION_KEY`. CI on every push builds and tests
+to `odm-pack` through `DM_EXTENSION_KEY`. CI on every push builds and tests
 the Go code on Windows, cross-compiles for Linux and macOS, syntax-checks
 the extension and builds the landing page.
 
 ## Landing page
 
 The landing page is a Next.js site in `landing/`, exported as static files
-and served by Vercel at <https://dm-landing-mu.vercel.app>. Deploy from
+and served by Vercel at <https://odm-landing-mu.vercel.app>. Deploy from
 `landing/` with `vercel deploy --prod`; the project is linked as
-`dm-landing` and `.vercel/` is ignored.
+`odm-landing` and `.vercel/` is ignored.
 
 ```
 cd landing
@@ -497,7 +497,7 @@ on server-rendered markup: every animation is a `from`, so the page with
 JavaScript off or reduced motion on is the resting state.
 
 Twenty drafts are kept in `site/pages` and served by
-`go run ./cmd/dm-site` at <http://127.0.0.1:8090/1> through `/20`.
+`go run ./cmd/odm-site` at <http://127.0.0.1:8090/1> through `/20`.
 
 ## License
 

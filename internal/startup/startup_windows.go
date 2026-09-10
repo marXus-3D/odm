@@ -1,6 +1,6 @@
 //go:build windows
 
-// Package startup registers DM to run when the user logs in.
+// Package startup registers ODM to run when the user logs in.
 package startup
 
 import (
@@ -10,9 +10,9 @@ import (
 )
 
 const runKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-const valueName = "DM Download Manager"
+const valueName = "Open Download Manager"
 
-// Enabled reports whether DM is registered to run at login.
+// Enabled reports whether ODM is registered to run at login.
 func Enabled() bool {
 	out, err := exec.Command("reg", "query", runKey, "/v", valueName).CombinedOutput()
 	if err != nil {

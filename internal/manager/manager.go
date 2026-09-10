@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/marXus-3D/dm/internal/engine"
-	"github.com/marXus-3D/dm/internal/hls"
-	"github.com/marXus-3D/dm/internal/power"
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/engine"
+	"github.com/marXus-3D/odm/internal/hls"
+	"github.com/marXus-3D/odm/internal/power"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 // Event is a change the UI should react to.
@@ -325,8 +325,8 @@ func (m *Manager) Remove(id string, deleteFile bool) error {
 	if deleteFile && rec.Path != "" {
 		// The sidecar always goes: leaving it behind would make a later
 		// download to the same name resume into a stale plan.
-		os.Remove(rec.Path + ".dm")
-		os.Remove(rec.Path + ".dm.tmp")
+		os.Remove(rec.Path + ".odm")
+		os.Remove(rec.Path + ".odm.tmp")
 		os.Remove(rec.Path + ".dmh")
 		os.Remove(rec.Path + ".dmh.tmp")
 		if err := os.Remove(rec.Path); err != nil && !os.IsNotExist(err) {
@@ -515,7 +515,7 @@ func (m *Manager) maybeFinishAction() {
 	// Clear it first, so a failure to sleep does not leave the machine
 	// trying again on every subsequent completion.
 	if err := m.st.SetConfig(store.Config{OnComplete: string(power.None)}); err != nil {
-		fmt.Fprintf(os.Stderr, "dm: clear on-complete: %v\n", err)
+		fmt.Fprintf(os.Stderr, "odm: clear on-complete: %v\n", err)
 	}
 	m.broadcast(Event{Type: "finished-all", Item: store.Record{State: string(act)}})
 
@@ -527,12 +527,12 @@ func (m *Manager) maybeFinishAction() {
 	}
 	go func() {
 		if err := power.Do(act); err != nil {
-			fmt.Fprintf(os.Stderr, "dm: %s: %v\n", act, err)
+			fmt.Fprintf(os.Stderr, "odm: %s: %v\n", act, err)
 		}
 	}()
 }
 
-// SetExitFunc supplies the callback used by the "Exit DM" completion
+// SetExitFunc supplies the callback used by the "Exit ODM" completion
 // action, which only the daemon knows how to perform.
 func (m *Manager) SetExitFunc(f func()) { m.onExit = f }
 
@@ -651,12 +651,12 @@ func (m *Manager) StartFlusher(ctx context.Context, every time.Duration) {
 			select {
 			case <-ctx.Done():
 				if err := m.st.Flush(); err != nil {
-					fmt.Fprintf(os.Stderr, "dm: final flush: %v\n", err)
+					fmt.Fprintf(os.Stderr, "odm: final flush: %v\n", err)
 				}
 				return
 			case <-t.C:
 				if err := m.st.Flush(); err != nil {
-					fmt.Fprintf(os.Stderr, "dm: flush: %v\n", err)
+					fmt.Fprintf(os.Stderr, "odm: flush: %v\n", err)
 				}
 			}
 		}

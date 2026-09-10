@@ -1,4 +1,4 @@
-// Package client talks to a running dmd over loopback HTTP, starting one if
+// Package client talks to a running odmd over loopback HTTP, starting one if
 // needed. Both the CLI and the browser native messaging host use it.
 package client
 
@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marXus-3D/dm/internal/store"
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 // Client is a connection to the daemon.
@@ -78,7 +78,7 @@ func Discover() (*Client, error) {
 	dir := store.StateDir()
 	tok, err := os.ReadFile(filepath.Join(dir, "token"))
 	if err != nil {
-		return nil, fmt.Errorf("no DM state found in %s: %w", dir, err)
+		return nil, fmt.Errorf("no ODM state found in %s: %w", dir, err)
 	}
 	port := 9111
 	if b, err := os.ReadFile(filepath.Join(dir, "port")); err == nil {
@@ -110,10 +110,10 @@ func Connect(exeDir string) (*Client, error) {
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-	return nil, errors.New("the DM daemon did not come up; check nmh.log in the state directory")
+	return nil, errors.New("the ODM daemon did not come up; check nmh.log in the state directory")
 }
 
-// StartDaemon launches dmd detached so it outlives whatever spawned it.
+// StartDaemon launches odmd detached so it outlives whatever spawned it.
 func StartDaemon(exeDir string) error {
 	if exeDir == "" {
 		self, err := os.Executable()
@@ -122,13 +122,13 @@ func StartDaemon(exeDir string) error {
 		}
 		exeDir = filepath.Dir(self)
 	}
-	dmd := filepath.Join(exeDir, DaemonName)
-	if _, err := os.Stat(dmd); err != nil {
+	odmd := filepath.Join(exeDir, DaemonName)
+	if _, err := os.Stat(odmd); err != nil {
 		return fmt.Errorf("cannot find %s in %s: %w", DaemonName, exeDir, err)
 	}
 	// -background: this is an automatic start on behalf of the browser, so
 	// the daemon should not pop open the web UI.
-	cmd := exec.Command(dmd, "-background")
+	cmd := exec.Command(odmd, "-background")
 	detach(cmd)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start daemon: %w", err)
@@ -150,7 +150,7 @@ func (c *Client) do(method, path string, body, out any) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("X-DM-Token", c.Token)
+	req.Header.Set("X-ODM-Token", c.Token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.http.Do(req)

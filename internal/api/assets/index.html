@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DM</title>
+<title>ODM</title>
 <style>
-  /* DM is dark only. These are the same values the desktop window uses,
+  /* ODM is dark only. These are the same values the desktop window uses,
      so the two surfaces do not look like different applications. */
   :root {
     color-scheme: dark;
@@ -127,7 +127,7 @@ const $ = (id) => document.getElementById(id);
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     ...opts,
-    headers: { "X-DM-Token": TOKEN, "Content-Type": "application/json", ...(opts.headers || {}) },
+    headers: { "X-ODM-Token": TOKEN, "Content-Type": "application/json", ...(opts.headers || {}) },
   });
   if (!res.ok) throw new Error((await res.text()) || res.statusText);
   return res.status === 204 ? null : res.json();

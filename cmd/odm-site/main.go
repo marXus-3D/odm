@@ -1,4 +1,4 @@
-// Command dm-site serves the landing page drafts in ./site. Each draft is
+// Command odm-site serves the landing page drafts in ./site. Each draft is
 // reachable at /1, /2, ... and the page itself carries a switcher to jump
 // between them. It is a development tool: nothing in the product uses it.
 package main
@@ -20,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	if _, err := os.Stat(filepath.Join(*dir, "pages")); err != nil {
-		fmt.Fprintf(os.Stderr, "dm-site: %s has no pages folder\n", *dir)
+		fmt.Fprintf(os.Stderr, "odm-site: %s has no pages folder\n", *dir)
 		os.Exit(1)
 	}
 
@@ -41,7 +41,7 @@ func main() {
 
 	fmt.Printf("landing page drafts at http://%s/1\n", *addr)
 	if err := http.ListenAndServe(*addr, nil); err != nil {
-		fmt.Fprintln(os.Stderr, "dm-site:", err)
+		fmt.Fprintln(os.Stderr, "odm-site:", err)
 		os.Exit(1)
 	}
 }
