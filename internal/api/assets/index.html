@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b; --line: #2a2f3a;
+    --text: #e6e9ef; --muted: #8b93a7; --accent: #4f9cf9; --ok: #3ecf8e;
+    --warn: #f5a524; --err: #f4586a; --radius: 10px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9; --panel: #fff; --panel-2: #f0f2f5; --line: #dfe3e9;
+      --text: #16181d; --muted: #61697c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5; background: var(--panel);
+    border-bottom: 1px solid var(--line); padding: 14px 20px;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .brand { font-weight: 700; letter-spacing: .5px; font-size: 16px; }
+  .brand span { color: var(--accent); }
+  form.add { display: flex; gap: 8px; flex: 1; min-width: 320px; }
+  input, select, button {
+    font: inherit; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+  input[type=url], input[type=text] { flex: 1; min-width: 0; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #05070c; font-weight: 600; }
+  button.ghost { background: transparent; }
+  main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+  .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+  .item {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px;
+  }
+  .row { display: flex; gap: 12px; align-items: baseline; }
+  .name { font-weight: 600; overflow-wrap: anywhere; }
+  .url { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .spacer { flex: 1; }
+  .badge {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+    padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line);
+    color: var(--muted); white-space: nowrap;
+  }
+  .badge.downloading { color: var(--accent); border-color: var(--accent); }
+  .badge.done { color: var(--ok); border-color: var(--ok); }
+  .badge.error { color: var(--err); border-color: var(--err); }
+  .badge.paused { color: var(--warn); border-color: var(--warn); }
+  .bar {
+    position: relative; height: 8px; background: var(--panel-2);
+    border-radius: 999px; overflow: hidden; margin: 10px 0 8px;
+  }
+  .bar > i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; }
+  .item.done .bar > i { background: var(--ok); }
+  .item.error .bar > i { background: var(--err); }
+  /* Segment map: one cell per active range, mirroring the engine's split. */
+  .segs { display: flex; gap: 2px; height: 14px; margin-bottom: 8px; }
+  .segs > div { position: relative; flex-grow: 1; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+  .segs > div > i { position: absolute; inset: 0 auto 0 0; background: var(--accent); opacity: .75; }
+  .meta { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+  .actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .actions button { padding: 5px 10px; font-size: 13px; }
+  .err { color: var(--err); font-size: 12px; margin-top: 6px; overflow-wrap: anywhere; }
+  dialog {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--panel); color: var(--text); padding: 20px; min-width: 320px;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  dialog label { display: block; margin: 12px 0 4px; font-size: 13px; color: var(--muted); }
+  dialog input { width: 100%; }
+  .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status.live::before { content: "●"; color: var(--ok); margin-right: 5px; }
+  .status.down::before { content: "●"; color: var(--err); margin-right: 5px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">D<span>M</span></div>
+  <form class="add" id="addForm">
+    <input type="url" id="url" placeholder="Paste a URL to download" required autocomplete="off">
+    <button class="primary" type="submit">Download</button>
+  </form>
+  <span class="status" id="status">connecting</span>
+  <button class="ghost" id="settingsBtn">Settings</button>
+</header>
+
+<main>
+  <div id="list"></div>
+  <div class="empty" id="empty">Nothing here yet. Paste a URL above.</div>
+</main>
+
+<dialog id="settings">
+  <form method="dialog" id="settingsForm">
+    <strong>Settings</strong>
+    <label for="cfgDir">Download folder</label>
+    <input type="text" id="cfgDir">
+    <label for="cfgConns">Connections per download</label>
+    <input type="number" id="cfgConns" min="1" max="32">
+    <label for="cfgConcurrent">Downloads at once</label>
+    <input type="number" id="cfgConcurrent" min="1" max="10">
+    <div class="dlg-actions">
+      <button value="cancel" class="ghost">Cancel</button>
+      <button value="save" class="primary" id="saveCfg">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const TOKEN = "{{.Token}}";
+const $ = (id) => document.getElementById(id);
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { "X-DM-Token": TOKEN, "Content-Type": "application/json", ...(opts.headers || {}) },
+  });
+  if (!res.ok) throw new Error((await res.text()) || res.statusText);
+  return res.status === 204 ? null : res.json();
+}
+
+function human(n) {
+  if (n === undefined || n === null || n < 0) return "?";
+  const u = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
+}
+
+function eta(seconds) {
+  if (!seconds || seconds <= 0) return "";
+  const s = Math.round(seconds);
+  const m = Math.floor(s / 60), h = Math.floor(m / 60);
+  if (h) return `${h}h ${m % 60}m`;
+  if (m) return `${m}m ${s % 60}s`;
+  return `${s}s`;
+}
+
+const state = new Map();   // id -> record
+const live = new Map();    // id -> engine stats for running downloads
+let config = {};
+
+function render() {
+  const items = [...state.values()].sort((a, b) => new Date(b.created) - new Date(a.created));
+  $("empty").style.display = items.length ? "none" : "";
+
+  const list = $("list");
+  list.textContent = "";
+  for (const r of items) list.appendChild(renderItem(r));
+}
+
+function renderItem(r) {
+  const st = live.get(r.id);
+  const total = r.size > 0 ? r.size : 0;
+  const done = r.downloaded || 0;
+  const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
+
+  const el = document.createElement("div");
+  el.className = "item " + r.state;
+
+  const head = document.createElement("div");
+  head.className = "row";
+  const nm = document.createElement("div");
+  nm.className = "name";
+  nm.textContent = r.filename || r.url;
+  head.appendChild(nm);
+  head.appendChild(Object.assign(document.createElement("div"), { className: "spacer" }));
+  const badge = document.createElement("span");
+  badge.className = "badge " + r.state;
+  badge.textContent = r.state + (st && st.throttled ? " · throttled" : "");
+  head.appendChild(badge);
+  el.appendChild(head);
+
+  const u = document.createElement("div");
+  u.className = "url";
+  u.textContent = r.url;
+  el.appendChild(u);
+
+  const bar = document.createElement("div");
+  bar.className = "bar";
+  const fill = document.createElement("i");
+  fill.style.width = (r.state === "done" ? 100 : pct) + "%";
+  bar.appendChild(fill);
+  el.appendChild(bar);
+
+  // Show the live segment map only while the engine is actually working, so
+  // the split behaviour is visible rather than just claimed.
+  if (st && st.segments && st.segments.length > 1 && r.state === "downloading") {
+    const segs = document.createElement("div");
+    segs.className = "segs";
+    for (const s of st.segments) {
+      const span = s.end - s.start;
+      const cell = document.createElement("div");
+      cell.style.flexGrow = String(Math.max(span, 1));
+      const f = document.createElement("i");
+      f.style.width = span > 0 ? ((s.cur - s.start) / span) * 100 + "%" : "100%";
+      cell.appendChild(f);
+      segs.appendChild(cell);
+    }
+    el.appendChild(segs);
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const bits = [`${human(done)} / ${total ? human(total) : "?"}`];
+  if (st && st.speedBps > 0) bits.push(`${human(st.speedBps)}/s`);
+  if (st && st.conns) bits.push(`${st.conns} conn`);
+  if (st && st.segments) bits.push(`${st.segments.length} seg`);
+  if (st && st.eta > 0) bits.push("ETA " + eta(st.eta / 1e9));
+  for (const b of bits) {
+    const sp = document.createElement("span");
+    sp.textContent = b;
+    meta.appendChild(sp);
+  }
+  el.appendChild(meta);
+
+  if (r.error) {
+    const e = document.createElement("div");
+    e.className = "err";
+    e.textContent = r.error;
+    el.appendChild(e);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const add = (label, fn, cls = "ghost") => {
+    const b = document.createElement("button");
+    b.className = cls;
+    b.textContent = label;
+    b.onclick = fn;
+    actions.appendChild(b);
+  };
+
+  if (r.state === "downloading" || r.state === "probing" || r.state === "queued") {
+    add("Pause", () => api(`/api/downloads/${r.id}/pause`, { method: "POST" }).catch(alert));
+  } else if (r.state === "paused" || r.state === "error") {
+    add("Resume", () => api(`/api/downloads/${r.id}/resume`, { method: "POST" }).catch(alert), "primary");
+  }
+  if (r.state === "done") {
+    add("Open", () => api(`/api/downloads/${r.id}/open`, { method: "POST" }).catch(alert));
+  }
+  if (r.path) {
+    add("Show in folder", () => api(`/api/downloads/${r.id}/reveal`, { method: "POST" }).catch(alert));
+  }
+  add("Remove", async () => {
+    const wipe = r.state !== "done" && confirm("Also delete the partial file from disk?");
+    await api(`/api/downloads/${r.id}?deleteFile=${wipe}`, { method: "DELETE" }).catch(alert);
+  });
+  el.appendChild(actions);
+  return el;
+}
+
+$("addForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const url = $("url").value.trim();
+  if (!url) return;
+  try {
+    await api("/api/downloads", { method: "POST", body: JSON.stringify({ url }) });
+    $("url").value = "";
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+// Implicit form submission on Enter is standard, but a paste-and-go field is
+// the primary path here, so make it explicit rather than rely on it.
+$("url").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.isComposing) {
+    e.preventDefault();
+    $("addForm").requestSubmit();
+  }
+});
+
+$("settingsBtn").onclick = () => {
+  $("cfgDir").value = config.dir || "";
+  $("cfgConns").value = config.maxConns || 8;
+  $("cfgConcurrent").value = config.maxConcurrent || 3;
+  $("settings").showModal();
+};
+
+$("settingsForm").onsubmit = async (e) => {
+  if (e.submitter && e.submitter.value !== "save") return;
+  try {
+    config = await api("/api/config", {
+      method: "PUT",
+      body: JSON.stringify({
+        dir: $("cfgDir").value,
+        maxConns: Number($("cfgConns").value),
+        maxConcurrent: Number($("cfgConcurrent").value),
+      }),
+    });
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+async function loadState() {
+  const s = await api("/api/state");
+  config = s.config;
+  state.clear();
+  for (const r of s.downloads || []) state.set(r.id, r);
+  render();
+}
+
+// Progress details (speed, segments) are not in the event payload, so poll
+// the running downloads only -- idle ones cost nothing.
+async function pollLive() {
+  const running = [...state.values()].filter((r) => r.state === "downloading" || r.state === "probing");
+  const ids = new Set(running.map((r) => r.id));
+  for (const id of [...live.keys()]) if (!ids.has(id)) live.delete(id);
+  await Promise.all(running.map(async (r) => {
+    try { live.set(r.id, await api(`/api/downloads/${r.id}/progress`)); } catch { live.delete(r.id); }
+  }));
+  if (running.length) render();
+}
+
+function connect() {
+  const es = new EventSource(`/api/events?token=${encodeURIComponent(TOKEN)}`);
+  es.onopen = () => { $("status").className = "status live"; $("status").textContent = "live"; };
+  es.onerror = () => { $("status").className = "status down"; $("status").textContent = "reconnecting"; };
+  es.onmessage = (ev) => {
+    const { type, item } = JSON.parse(ev.data);
+    if (type === "removed") { state.delete(item.id); live.delete(item.id); }
+    else state.set(item.id, item);
+    render();
+  };
+}
+
+loadState().then(connect).catch((e) => {
+  $("status").className = "status down";
+  $("status").textContent = e.message;
+});
+setInterval(pollLive, 700);
+</script>
+</body>
+</html>

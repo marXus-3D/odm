@@ -1,0 +1,8 @@
+# Keep everything LF in the repository. Go tooling, gofmt and the embedded
+# web assets all assume LF, and Windows editors handle it fine.
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+
+*.png binary
+*.exe binary

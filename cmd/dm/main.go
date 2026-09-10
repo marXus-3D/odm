@@ -1,0 +1,138 @@
+// Command dm downloads a URL with parallel range requests.
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/marcus/dm/internal/engine"
+)
+
+func main() {
+	var (
+		conns = flag.Int("n", engine.DefaultMaxConns, "parallel connections")
+		dir   = flag.String("d", "", "output directory (default: user Downloads)")
+		out   = flag.String("o", "", "output filename")
+		quiet = flag.Bool("q", false, "suppress the progress line")
+		ref   = flag.String("referer", "", "Referer header")
+		ua    = flag.String("ua", "", "User-Agent header")
+		cook  = flag.String("cookie", "", "Cookie header")
+	)
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: dm [flags] <url>\n\n")
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+	if flag.NArg() != 1 {
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	headers := map[string]string{}
+	if *ref != "" {
+		headers["Referer"] = *ref
+	}
+	if *ua != "" {
+		headers["User-Agent"] = *ua
+	}
+	if *cook != "" {
+		headers["Cookie"] = *cook
+	}
+
+	req := engine.Request{
+		URL:      flag.Arg(0),
+		Dir:      *dir,
+		Filename: *out,
+		Headers:  headers,
+		MaxConns: *conns,
+	}
+
+	d := engine.New("cli", req, engine.Options{})
+	if !*quiet {
+		d.OnUpdate = func(s engine.Stats) { renderProgress(d, s) }
+	}
+
+	// First Ctrl-C pauses cleanly so the sidecar is written; a second one
+	// aborts outright.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		<-ctx.Done()
+		fmt.Fprintln(os.Stderr, "\ninterrupted, saving resume state...")
+		d.Pause()
+	}()
+
+	start := time.Now()
+	err := d.Run(context.Background())
+	if !*quiet {
+		fmt.Fprintln(os.Stderr)
+	}
+
+	switch {
+	case errors.Is(err, engine.ErrPaused):
+		fmt.Fprintf(os.Stderr, "paused at %s -- rerun the same command to resume\n",
+			humanBytes(d.Downloaded()))
+		os.Exit(1)
+	case err != nil:
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	el := time.Since(start)
+	fmt.Printf("%s  %s in %s (%s/s)\n", d.Path, humanBytes(d.Downloaded()),
+		el.Round(time.Millisecond),
+		humanBytes(int64(float64(d.Downloaded())/el.Seconds())))
+}
+
+var lastLen int
+
+func renderProgress(d *engine.Download, s engine.Stats) {
+	var bar string
+	if s.Total > 0 {
+		pct := float64(s.Downloaded) / float64(s.Total)
+		const width = 28
+		filled := int(pct * width)
+		bar = fmt.Sprintf("[%s%s] %5.1f%%",
+			strings.Repeat("=", filled), strings.Repeat(" ", width-filled), pct*100)
+	} else {
+		bar = "[  streaming  ]"
+	}
+
+	eta := "--:--"
+	if s.ETA > 0 {
+		eta = fmt.Sprintf("%02d:%02d", int(s.ETA.Minutes()), int(s.ETA.Seconds())%60)
+	}
+	line := fmt.Sprintf("\r%s %9s/%-9s %9s/s  %2d conn  %2d seg  ETA %s",
+		bar, humanBytes(s.Downloaded), humanBytes(s.Total),
+		humanBytes(int64(s.SpeedBPS)), s.Conns, len(s.Segments), eta)
+
+	// Pad over whatever the previous, possibly longer, line left behind.
+	if pad := lastLen - len(line); pad > 0 {
+		line += strings.Repeat(" ", pad)
+	}
+	lastLen = len(line)
+	fmt.Fprint(os.Stderr, line)
+}
+
+func humanBytes(n int64) string {
+	if n < 0 {
+		return "?"
+	}
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit && exp < 4; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTP"[exp])
+}

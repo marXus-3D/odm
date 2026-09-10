@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: light dark; }
+  body { width: 340px; margin: 0; font: 13px/1.45 system-ui, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #8884; }
+  .brand { font-weight: 700; }
+  .brand span { color: #4f9cf9; }
+  .spacer { flex: 1; }
+  button { font: inherit; padding: 4px 9px; border-radius: 6px; border: 1px solid #8886; background: transparent; cursor: pointer; }
+  #list { max-height: 380px; overflow: auto; }
+  .row { padding: 9px 12px; border-bottom: 1px solid #8882; }
+  .name { font-weight: 600; overflow-wrap: anywhere; }
+  .bar { height: 5px; background: #8883; border-radius: 999px; overflow: hidden; margin: 6px 0 4px; }
+  .bar > i { display: block; height: 100%; background: #4f9cf9; }
+  .row.done .bar > i { background: #3ecf8e; }
+  .row.error .bar > i { background: #f4586a; }
+  .meta { opacity: .7; font-size: 11px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .msg { padding: 20px 12px; text-align: center; opacity: .7; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">D<span>M</span></div>
+  <div class="spacer"></div>
+  <button id="openUI">Open DM</button>
+  <button id="opts">Settings</button>
+</header>
+<div id="list"><div class="msg">Connecting...</div></div>
+<script src="popup.js"></script>
+</body>
+</html>
