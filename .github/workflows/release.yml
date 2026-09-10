@@ -25,10 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          # No third-party modules, so there is no go.sum to key a cache on.
+          cache: false
 
       - name: Check the tag matches the code
         shell: pwsh
