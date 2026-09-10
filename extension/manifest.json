@@ -1,10 +1,32 @@
 {
-  "manifest_version": 3,
-  "name": "DM Integration",
-  "version": "0.1.0",
+  "action": {
+    "default_icon": {
+      "128": "icons/icon128.png",
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    },
+    "default_popup": "popup.html",
+    "default_title": "DM"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
   "description": "Hand browser downloads to the DM download manager for parallel, resumable transfers.",
-  "minimum_chrome_version": "116",
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "icons": {
+    "128": "icons/icon128.png",
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png"
+  },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwz6R8gEOvjI/rsmhikXIJVhXZS+xT3Ug0Nn/H8J9GEt6XRZrWN0TsnKlJWE0h5/a6sO2Ls9WkrfuJY1zRKQvqJuEyDWodAwaMRDR9tx/2mNWXkn+lalO6F1DpBiLAxzIm3ZcuwzfMZxA4a8Lz7/tgq9YmbfbHesFRkHtwX9dVypRG+GlwYkHfEBBymyx4qsMm01XGBhY1dX2kRh5HZIKyn0vQd0XnqorCW98igqWQPURe2kl6LCFlycO42rPl6viZDVnwFoXFtaQj1gFFpotPSJe4rPFqlPm4p5hEbC+Zg9YjWwXU+LX8LdQLAyZkuuTwg66DNDX5maNdcd5KSuFzQIDAQAB",
+  "manifest_version": 3,
+  "minimum_chrome_version": "116",
+  "name": "DM Integration",
+  "options_page": "options.html",
   "permissions": [
     "downloads",
     "cookies",
@@ -15,27 +37,5 @@
     "webRequest",
     "tabs"
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "action": {
-    "default_title": "DM",
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
-  "options_page": "options.html",
-  "icons": {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  }
+  "version": "0.1.0"
 }

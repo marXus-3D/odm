@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -20,6 +19,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
+	"strings"
 
 	"github.com/marcus/dm/internal/store"
 )
@@ -42,6 +43,8 @@ func main() {
 		extDir    = flag.String("extension", "", "path to the extension directory (default: ../extension next to this binary)")
 		stateDir  = flag.String("state", store.StateDir(), "DM state directory")
 		uninstall = flag.Bool("uninstall", false, "remove the native host registration")
+		check     = flag.Bool("check", false, "report on the current installation without changing it")
+		extraIDs  = flag.String("extension-id", "", "comma separated extension ids to allow in addition to the ones detected")
 	)
 	flag.Parse()
 
@@ -49,7 +52,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, "dm-setup currently registers native hosts on Windows only.")
 		os.Exit(1)
 	}
-
 	if *uninstall {
 		removeRegistrations()
 		return
@@ -64,51 +66,177 @@ func main() {
 	}
 	ext, err := filepath.Abs(*extDir)
 	must(err, "resolve the extension path")
-	if _, err := os.Stat(filepath.Join(ext, "manifest.json")); err != nil {
+	manifestPath := filepath.Join(ext, "manifest.json")
+	if _, err := os.Stat(manifestPath); err != nil {
 		fatal("no manifest.json in %s -- pass -extension with the right path", ext)
 	}
 
 	nmh := filepath.Join(binDir, "dm-nmh.exe")
+	hostManifest := filepath.Join(*stateDir, hostName+".json")
+
+	if *check {
+		runCheck(ext, manifestPath, nmh, hostManifest)
+		return
+	}
+
 	if _, err := os.Stat(nmh); err != nil {
 		fatal("dm-nmh.exe is not next to dm-setup (looked in %s)", binDir)
 	}
-
 	must(os.MkdirAll(*stateDir, 0o700), "create the state directory")
 
 	pub, err := loadOrCreateKey(filepath.Join(*stateDir, "extension_key.pem"))
 	must(err, "prepare the extension signing key")
-
 	der, err := x509.MarshalPKIXPublicKey(pub)
 	must(err, "encode the public key")
-	keyB64 := base64.StdEncoding.EncodeToString(der)
-	extID := extensionID(der)
+	must(writeManifestKey(manifestPath, base64.StdEncoding.EncodeToString(der)),
+		"write the extension key")
 
-	must(writeManifestKey(filepath.Join(ext, "manifest.json"), keyB64), "write the extension key")
+	// Derive the id from the key that is actually in manifest.json now, not
+	// from the key we meant to write. Chrome reads the manifest, so if the
+	// two ever disagree the registration names an id that does not exist and
+	// every connection fails with "forbidden".
+	primary, err := idFromManifest(manifestPath)
+	must(err, "read back the extension id")
 
-	hostManifest := filepath.Join(*stateDir, hostName+".json")
-	must(writeHostManifest(hostManifest, nmh, extID), "write the native host manifest")
+	ids := []string{primary}
+	ids = append(ids, idsFromPath(ext)...)
+	for _, id := range strings.Split(*extraIDs, ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	loaded := discoverLoadedIDs(ext)
+	for _, l := range loaded {
+		ids = append(ids, l.ID)
+	}
+	ids = dedupe(ids)
 
+	must(writeHostManifest(hostManifest, nmh, ids), "write the native host manifest")
 	registered := registerAll(hostManifest)
 
 	fmt.Println("DM browser integration installed.")
 	fmt.Println()
-	fmt.Printf("  extension id     %s\n", extID)
+	fmt.Printf("  extension id     %s\n", primary)
 	fmt.Printf("  extension folder %s\n", ext)
 	fmt.Printf("  native host      %s\n", nmh)
 	fmt.Printf("  host manifest    %s\n", hostManifest)
 	if len(registered) > 0 {
-		fmt.Printf("  registered for   %v\n", registered)
+		fmt.Printf("  registered for   %s\n", strings.Join(registered, ", "))
 	} else {
-		fmt.Println("  registered for   (none -- no supported browser registry keys could be written)")
+		fmt.Println("  registered for   (none -- no browser registry keys could be written)")
 	}
+	if len(loaded) > 0 {
+		fmt.Println()
+		fmt.Println("  Already loaded in:")
+		for _, l := range loaded {
+			marker := ""
+			if l.ID != primary {
+				marker = "  <- different id, allowed as well"
+			}
+			fmt.Printf("    %-8s %-10s %s%s\n", l.Browser, l.Profile, l.ID, marker)
+		}
+	}
+	if len(ids) > 1 {
+		fmt.Printf("\n  allowing %d ids in total\n", len(ids))
+	}
+
 	fmt.Println()
 	fmt.Println("Next steps:")
 	fmt.Println("  1. Open chrome://extensions (or edge://extensions)")
 	fmt.Println("  2. Turn on Developer mode")
 	fmt.Printf("  3. Load unpacked -> %s\n", ext)
-	fmt.Printf("  4. Confirm the id shown matches %s\n", extID)
+	fmt.Println("  4. Press Reload on the DM card if it was already loaded")
 	fmt.Println()
-	fmt.Println("The daemon starts on demand; nothing else needs to be running.")
+	fmt.Println("If you get \"Access to the specified native messaging host is")
+	fmt.Println("forbidden\", the id changed: rerun dm-setup, then reload the")
+	fmt.Println("extension. Run 'dm-setup -check' to see what is registered.")
+}
+
+// runCheck reports the state of an existing installation.
+func runCheck(extDir, manifestPath, nmh, hostManifest string) {
+	fmt.Println("DM browser integration check")
+	fmt.Println()
+
+	primary, err := idFromManifest(manifestPath)
+	if err != nil {
+		fmt.Printf("  manifest.json      ERROR: %v\n", err)
+	} else {
+		fmt.Printf("  manifest.json      key -> %s\n", primary)
+	}
+
+	if _, err := os.Stat(nmh); err != nil {
+		fmt.Printf("  dm-nmh.exe         MISSING at %s\n", nmh)
+	} else {
+		fmt.Printf("  dm-nmh.exe         %s\n", nmh)
+	}
+
+	allowed := map[string]bool{}
+	b, err := os.ReadFile(hostManifest)
+	if err != nil {
+		fmt.Printf("  host manifest      MISSING at %s\n", hostManifest)
+	} else {
+		var hm hostManifestFile
+		if err := json.Unmarshal(b, &hm); err != nil {
+			fmt.Printf("  host manifest      UNREADABLE: %v\n", err)
+		} else {
+			fmt.Printf("  host manifest      %s\n", hostManifest)
+			for _, o := range hm.AllowedOrigins {
+				id := strings.TrimSuffix(strings.TrimPrefix(o, "chrome-extension://"), "/")
+				allowed[id] = true
+				fmt.Printf("     allows          %s\n", id)
+			}
+			if hm.Path != nmh {
+				fmt.Printf("     WARNING         points at %s\n", hm.Path)
+			}
+		}
+	}
+
+	fmt.Println()
+	loaded := discoverLoadedIDs(extDir)
+	if len(loaded) == 0 {
+		fmt.Println("  Not loaded in any browser yet (or the browser has not")
+		fmt.Println("  written its preferences to disk since you loaded it).")
+	}
+	problems := 0
+	for _, l := range loaded {
+		status := "ok"
+		if !allowed[l.ID] {
+			status = "NOT ALLOWED -- rerun dm-setup"
+			problems++
+		}
+		fmt.Printf("  %-8s %-10s %s  %s\n", l.Browser, l.Profile, l.ID, status)
+	}
+
+	fmt.Println()
+	for _, name := range sortedBrowserNames() {
+		out, err := exec.Command("reg", "query", browsers[name], "/ve").CombinedOutput()
+		if err != nil {
+			fmt.Printf("  %-9s registry   not registered\n", name)
+			continue
+		}
+		line := ""
+		for _, l := range strings.Split(string(out), "\n") {
+			if strings.Contains(l, "REG_SZ") {
+				parts := strings.SplitN(strings.TrimSpace(l), "REG_SZ", 2)
+				line = strings.TrimSpace(parts[len(parts)-1])
+			}
+		}
+		fmt.Printf("  %-9s registry   %s\n", name, line)
+	}
+
+	if problems > 0 {
+		fmt.Printf("\n%d loaded extension(s) are not in allowed_origins. Run dm-setup again.\n", problems)
+		os.Exit(1)
+	}
+}
+
+func sortedBrowserNames() []string {
+	names := make([]string, 0, len(browsers))
+	for n := range browsers {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // loadOrCreateKey keeps one RSA key for the life of the install. The public
@@ -117,8 +245,7 @@ func main() {
 // registration breaks the moment the folder moves.
 func loadOrCreateKey(path string) (*rsa.PublicKey, error) {
 	if b, err := os.ReadFile(path); err == nil {
-		block, _ := pem.Decode(b)
-		if block != nil {
+		if block, _ := pem.Decode(b); block != nil {
 			if key, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
 				return &key.PublicKey, nil
 			}
@@ -138,16 +265,27 @@ func loadOrCreateKey(path string) (*rsa.PublicKey, error) {
 	return &key.PublicKey, nil
 }
 
-// extensionID reproduces Chrome's id derivation: the first 16 bytes of the
-// SHA-256 of the DER public key, with each nibble mapped into a..p.
-func extensionID(der []byte) string {
-	sum := sha256.Sum256(der)
-	out := make([]byte, 32)
-	for i := 0; i < 16; i++ {
-		out[i*2] = 'a' + (sum[i] >> 4)
-		out[i*2+1] = 'a' + (sum[i] & 0xf)
+// idFromManifest derives the extension id from the key stored in the
+// manifest, which is the only key Chrome ever sees.
+func idFromManifest(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
 	}
-	return string(out)
+	var m struct {
+		Key string `json:"key"`
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return "", fmt.Errorf("%s is not valid json: %w", path, err)
+	}
+	if m.Key == "" {
+		return "", fmt.Errorf("%s has no \"key\"", path)
+	}
+	der, err := base64.StdEncoding.DecodeString(m.Key)
+	if err != nil {
+		return "", fmt.Errorf("the \"key\" in %s is not valid base64: %w", path, err)
+	}
+	return idFromKey(der), nil
 }
 
 // writeManifestKey adds or replaces the "key" field in the extension
@@ -186,7 +324,7 @@ func marshalNoEscape(v any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-type hostManifest struct {
+type hostManifestFile struct {
 	Name           string   `json:"name"`
 	Description    string   `json:"description"`
 	Path           string   `json:"path"`
@@ -194,21 +332,38 @@ type hostManifest struct {
 	AllowedOrigins []string `json:"allowed_origins"`
 }
 
-func writeHostManifest(path, exe, extID string) error {
-	m := hostManifest{
+func writeHostManifest(path, exe string, ids []string) error {
+	origins := make([]string, 0, len(ids))
+	for _, id := range ids {
+		origins = append(origins, "chrome-extension://"+id+"/")
+	}
+	m := hostManifestFile{
 		Name:        hostName,
 		Description: "DM download manager native host",
 		Path:        exe,
 		Type:        "stdio",
-		// Only our own extension may launch the host. Anything else Chrome
-		// refuses to connect, which is the whole point of this list.
-		AllowedOrigins: []string{"chrome-extension://" + extID + "/"},
+		// Only these extensions may launch the host; Chrome refuses anything
+		// else, which is the point of the list.
+		AllowedOrigins: origins,
 	}
-	b, err := json.MarshalIndent(m, "", "  ")
+	b, err := marshalNoEscape(m)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(b, '\n'), 0o644)
+	return os.WriteFile(path, b, 0o644)
+}
+
+func dedupe(in []string) []string {
+	seen := map[string]bool{}
+	out := in[:0:0]
+	for _, s := range in {
+		if s == "" || seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
 }
 
 // registerAll points every installed Chromium-family browser at the manifest.
@@ -216,8 +371,8 @@ func writeHostManifest(path, exe, extID string) error {
 // ever are, so a failure here is not fatal.
 func registerAll(manifestPath string) []string {
 	var ok []string
-	for name, key := range browsers {
-		cmd := exec.Command("reg", "add", key, "/ve", "/t", "REG_SZ",
+	for _, name := range sortedBrowserNames() {
+		cmd := exec.Command("reg", "add", browsers[name], "/ve", "/t", "REG_SZ",
 			"/d", manifestPath, "/f")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not register for %s: %v: %s\n",
@@ -230,11 +385,10 @@ func registerAll(manifestPath string) []string {
 }
 
 func removeRegistrations() {
-	for name, key := range browsers {
-		cmd := exec.Command("reg", "delete", key, "/f")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			fmt.Printf("%-9s not registered\n", name)
+	for _, name := range sortedBrowserNames() {
+		if out, err := exec.Command("reg", "delete", browsers[name], "/f").CombinedOutput(); err != nil {
 			_ = out
+			fmt.Printf("%-9s not registered\n", name)
 			continue
 		}
 		fmt.Printf("%-9s removed\n", name)
