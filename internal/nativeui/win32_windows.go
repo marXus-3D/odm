@@ -69,12 +69,25 @@ var (
 	procSetWindowLongPtr    = user32.NewProc("SetWindowLongPtrW")
 	procGetWindowLongPtr    = user32.NewProc("GetWindowLongPtrW")
 	procIsIconic            = user32.NewProc("IsIconic")
+	procGetDC               = user32.NewProc("GetDC")
+	procReleaseDC           = user32.NewProc("ReleaseDC")
+	procDrawIconEx          = user32.NewProc("DrawIconEx")
+	procTrackMouseEvent     = user32.NewProc("TrackMouseEvent")
+	procRedrawWindow        = user32.NewProc("RedrawWindow")
+	procGetWindowRect       = user32.NewProc("GetWindowRect")
+	procBeginPaint          = user32.NewProc("BeginPaint")
+	procEndPaint            = user32.NewProc("EndPaint")
 
 	procCreateFontIndirect = gdi32.NewProc("CreateFontIndirectW")
+	procCreatePen          = gdi32.NewProc("CreatePen")
+	procRoundRect          = gdi32.NewProc("RoundRect")
+	procGetTextFace        = gdi32.NewProc("GetTextFaceW")
+	procSetStretchBltMode  = gdi32.NewProc("SetStretchBltMode")
 	procCreateSolidBrush   = gdi32.NewProc("CreateSolidBrush")
 	procDeleteObject       = gdi32.NewProc("DeleteObject")
 	procSetBkMode          = gdi32.NewProc("SetBkMode")
 	procSetTextColor       = gdi32.NewProc("SetTextColor")
+	procSetBkColor         = gdi32.NewProc("SetBkColor")
 	procSelectObject       = gdi32.NewProc("SelectObject")
 
 	procGetModuleHandle = kernel32.NewProc("GetModuleHandleW")
@@ -82,22 +95,36 @@ var (
 	procActivateActCtx  = kernel32.NewProc("ActivateActCtx")
 
 	procInitCommonControlsEx = comctl32.NewProc("InitCommonControlsEx")
+	procSetWindowSubclass    = comctl32.NewProc("SetWindowSubclass")
+	procDefSubclassProc      = comctl32.NewProc("DefSubclassProc")
+	procImageListCreate      = comctl32.NewProc("ImageList_Create")
+	procImageListAddIcon     = comctl32.NewProc("ImageList_ReplaceIcon")
 	procGetSaveFileName      = comdlg32.NewProc("GetSaveFileNameW")
 	procShellExecute         = shell32.NewProc("ShellExecuteW")
 )
 
 // Window messages.
 const (
-	wmDestroy       = 0x0002
-	wmSize          = 0x0005
-	wmSetFont       = 0x0030
-	wmClose         = 0x0010
-	wmNotify        = 0x004E
-	wmCommand       = 0x0111
-	wmTimer         = 0x0113
-	wmGetMinMaxInfo = 0x0024
-	wmSysCommand    = 0x0112
-	wmApp           = 0x8000
+	wmDestroy         = 0x0002
+	wmSize            = 0x0005
+	wmSetFont         = 0x0030
+	wmClose           = 0x0010
+	wmNotify          = 0x004E
+	wmCommand         = 0x0111
+	wmTimer           = 0x0113
+	wmGetMinMaxInfo   = 0x0024
+	wmSysCommand      = 0x0112
+	wmApp             = 0x8000
+	wmEraseBkgnd      = 0x0014
+	wmDrawItem        = 0x002B
+	wmMouseMove       = 0x0200
+	wmMouseLeave      = 0x02A3
+	wmCtlColorEdit    = 0x0133
+	wmCtlColorStatic  = 0x0138
+	wmCtlColorBtn     = 0x0135
+	wmCtlColorDlg     = 0x0136
+	wmCtlColorListBox = 0x0134
+	wmPaint           = 0x000F
 
 	scMinimize = 0xF020
 
@@ -133,6 +160,12 @@ const (
 	bsDefPushButton = 0x00000001
 	bsAutoCheckBox  = 0x00000003
 	bsGroupBox      = 0x00000007
+	bsOwnerDraw     = 0x0000000B
+
+	// DRAWITEMSTRUCT item states.
+	odsSelected = 0x0001
+	odsDisabled = 0x0004
+	odsFocus    = 0x0010
 
 	esAutoHScroll = 0x0080
 	esReadOnly    = 0x0800
@@ -180,6 +213,18 @@ const (
 	lvmGetSubItemRect = lvmFirst + 56
 	lvmSetItemCount   = lvmFirst + 47
 	lvmEnsureVisible  = lvmFirst + 19
+	lvmSetBkColor     = lvmFirst + 1
+	lvmSetTextColor   = lvmFirst + 36
+	lvmSetTextBkColor = lvmFirst + 38
+	lvmGetHeader      = lvmFirst + 31
+	lvmSetImageList   = lvmFirst + 3
+	lvmGetItemState   = lvmFirst + 44
+
+	lvsilNormal = 0
+	lvsilSmall  = 1
+
+	// Header custom draw arrives through the list view's own notify.
+	hdmFirst = 0x1200
 
 	lvsReport        = 0x0001
 	lvsSingleSel     = 0x0004
@@ -275,6 +320,16 @@ const (
 type rect struct{ Left, Top, Right, Bottom int32 }
 
 type point struct{ X, Y int32 }
+
+// paintStruct is PAINTSTRUCT.
+type paintStruct struct {
+	Hdc         syscall.Handle
+	Erase       int32
+	RcPaint     rect
+	Restore     int32
+	IncUpdate   int32
+	RgbReserved [32]byte
+}
 
 type msgStruct struct {
 	Hwnd    syscall.Handle
@@ -443,6 +498,50 @@ type openFileName struct {
 	DwReserved    uint32
 	FlagsEx       uint32
 }
+
+// trackMouseEvent asks for a WM_MOUSELEAVE, which is the only way to know
+// the pointer has gone so a hover highlight can be cleared.
+type trackMouseEvent struct {
+	Size      uint32
+	Flags     uint32
+	TrackHwnd syscall.Handle
+	HoverTime uint32
+}
+
+const tmeLeave = 0x00000002
+
+// drawItemStruct is DRAWITEMSTRUCT, delivered with WM_DRAWITEM for the
+// owner-drawn toolbar buttons.
+type drawItemStruct struct {
+	CtlType    uint32
+	CtlID      uint32
+	ItemID     uint32
+	ItemAction uint32
+	ItemState  uint32
+	HwndItem   syscall.Handle
+	Hdc        syscall.Handle
+	RcItem     rect
+	ItemData   uintptr
+}
+
+// shFileInfo is SHFILEINFOW, used to borrow the shell's file type icons.
+type shFileInfo struct {
+	Icon        syscall.Handle
+	Icon2       int32
+	Attributes  uint32
+	DisplayName [260]uint16
+	TypeName    [80]uint16
+}
+
+const (
+	shgfiIcon           = 0x000000100
+	shgfiSmallIcon      = 0x000000001
+	shgfiUseFileAttrs   = 0x000000010
+	shgfiSysIconIndex   = 0x000004000
+	fileAttributeNormal = 0x00000080
+	ilcColor32          = 0x00000020
+	ilcMask             = 0x00000001
+)
 
 type actCtx struct {
 	Size                  uint32

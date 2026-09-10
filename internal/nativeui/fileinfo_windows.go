@@ -51,21 +51,7 @@ var fileInfoDlg *fileInfo
 // user cancelled, in which case the caller removes the download.
 func (a *App) showFileInfo(rec store.Record, cfg store.Config) (client.Confirmation, bool, bool) {
 	inst, _, _ := procGetModuleHandle.Call(0)
-	className := utf16Ptr("DMFileInfo")
-	cursor, _, _ := procLoadCursor.Call(0, idcArrow)
-	bg, _, _ := procGetSysColorBrush.Call(colorBtnFace)
-
-	wc := wndClassEx{
-		WndProc:    syscall.NewCallback(fileInfoProc),
-		Instance:   syscall.Handle(inst),
-		Cursor:     syscall.Handle(cursor),
-		Background: syscall.Handle(bg),
-		ClassName:  className,
-		Icon:       loadAppIcon(),
-		IconSm:     loadAppIcon(),
-	}
-	wc.Size = uint32(unsafe.Sizeof(wc))
-	procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
+	className := dialogClass("DMFileInfo", syscall.NewCallback(fileInfoProc), inst)
 
 	d := &fileInfo{rec: rec, cfg: cfg, categories: cfg.Categories}
 	fileInfoDlg = d
@@ -82,6 +68,7 @@ func (a *App) showFileInfo(rec store.Record, cfg store.Config) (client.Confirmat
 		return client.Confirmation{}, false, false
 	}
 	d.hwnd = syscall.Handle(hwnd)
+	applyDarkTitleBar(d.hwnd)
 
 	mk := func(class, text string, style uintptr, x, y, cw, ch int32, id uintptr, exStyle uintptr) syscall.Handle {
 		var t uintptr
@@ -95,6 +82,7 @@ func (a *App) showFileInfo(rec store.Record, cfg store.Config) (client.Confirmat
 			hwnd, id, inst, 0)
 		if h != 0 {
 			procSendMessage.Call(h, wmSetFont, uintptr(a.font), 1)
+			applyDarkControlTheme(syscall.Handle(h))
 		}
 		return syscall.Handle(h)
 	}
@@ -130,8 +118,8 @@ func (a *App) showFileInfo(rec store.Record, cfg store.Config) (client.Confirmat
 	mk("STATIC", "Save As:", ssLeft, 12, 90, labelW, 18, 0, 0)
 	d.saveAs = mk("EDIT", filepath.Join(dir, name), wsTabStop|esAutoHScroll,
 		fieldX, 87, fieldW-40, 23, idFISaveAs, wsExClientEdge)
-	mk("BUTTON", "...", wsTabStop|bsPushButton,
-		fieldX+fieldW-34, 86, 34, 25, idFIBrowse, 0)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "...",
+		fieldX+fieldW-34, 86, 34, 25, idFIBrowse, false)
 
 	d.remember = mk("BUTTON", "Remember this path for the \""+rec.Category+"\" category",
 		wsTabStop|bsAutoCheckBox, fieldX, 120, 400, 20, idFIRemember, 0)
@@ -140,9 +128,12 @@ func (a *App) showFileInfo(rec store.Record, cfg store.Config) (client.Confirmat
 	d.desc = mk("EDIT", rec.Description, wsTabStop|esAutoHScroll,
 		fieldX, 151, fieldW, 23, idFIDescription, wsExClientEdge)
 
-	mk("BUTTON", "Download Later", wsTabStop|bsPushButton, 190, 200, 120, 28, idFILater, 0)
-	mk("BUTTON", "Start Download", wsTabStop|bsDefPushButton, 320, 200, 120, 28, idFIStart, 0)
-	mk("BUTTON", "Cancel", wsTabStop|bsPushButton, 450, 200, 100, 28, idFICancel, 0)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Download Later",
+		190, 200, 120, 28, idFILater, false)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Start Download",
+		320, 200, 120, 28, idFIStart, true)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Cancel",
+		450, 200, 100, 28, idFICancel, false)
 
 	procEnableWindow.Call(uintptr(a.hwnd), 0)
 	procSetFocus.Call(uintptr(d.saveAs))
@@ -233,6 +224,15 @@ func (d *fileInfo) categoryChanged() {
 func fileInfoProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {
 	d := fileInfoDlg
 	switch message {
+	case wmCtlColorStatic, wmCtlColorBtn, wmCtlColorDlg,
+		wmCtlColorEdit, wmCtlColorListBox:
+		if brush, ok := darkCtlColor(message, wparam); ok {
+			return brush
+		}
+	case wmDrawItem:
+		if app != nil && drawDialogButton((*drawItemStruct)(lparamPtr(lparam)), app.font) {
+			return 1
+		}
 	case wmCommand:
 		if d == nil {
 			break

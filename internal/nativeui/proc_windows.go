@@ -18,9 +18,42 @@ func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) ui
 	switch message {
 	case wmSize:
 		if a != nil && a.list != 0 {
+			// Width changed, so the right-anchored Menu button moves too.
+			a.layoutToolbar(int32(lparam & 0xFFFF))
 			a.layout()
 		}
 		return 0
+
+	case wmEraseBkgnd:
+		// Painting is handled entirely in WM_PAINT; letting the default
+		// erase happen first causes a visible flash on resize.
+		return 1
+
+	case wmPaint:
+		if a != nil {
+			a.paintChrome()
+			return 0
+		}
+
+	case wmDrawItem:
+		if a != nil {
+			dis := (*drawItemStruct)(lparamPtr(lparam))
+			a.drawToolButton(dis)
+			return 1
+		}
+
+	// Every control that asks about its colours gets the dark palette;
+	// without this the dialogs come back light grey in patches.
+	case wmCtlColorStatic, wmCtlColorBtn, wmCtlColorDlg:
+		procSetBkMode.Call(wparam, transparent)
+		procSetTextColor.Call(wparam, colText)
+		procSetBkColor.Call(wparam, colSurface)
+		return brushes.surface
+
+	case wmCtlColorEdit, wmCtlColorListBox:
+		procSetTextColor.Call(wparam, colText)
+		procSetBkColor.Call(wparam, colList)
+		return brushes.list
 
 	case wmTimer:
 		if a != nil {
@@ -86,6 +119,40 @@ func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) ui
 	}
 	ret, _, _ := procDefWindowProc.Call(uintptr(hwnd), uintptr(message), wparam, lparam)
 	return ret
+}
+
+// paintChrome draws the toolbar strip and the status bar. The list view
+// paints itself in between.
+func (a *App) paintChrome() {
+	var ps paintStruct
+	hdc, _, _ := procBeginPaint.Call(uintptr(a.hwnd), uintptr(unsafe.Pointer(&ps)))
+	if hdc == 0 {
+		return
+	}
+	defer procEndPaint.Call(uintptr(a.hwnd), uintptr(unsafe.Pointer(&ps)))
+
+	var cr rect
+	procGetClientRect.Call(uintptr(a.hwnd), uintptr(unsafe.Pointer(&cr)))
+	w, h := cr.Right-cr.Left, cr.Bottom-cr.Top
+
+	a.drawToolbarChrome(syscall.Handle(hdc), w)
+
+	// Status bar.
+	top := h - statusHeight
+	if top < toolbarHeight {
+		top = toolbarHeight
+	}
+	fillRect(syscall.Handle(hdc), rect{0, top, w, h}, colSurface)
+	fillRect(syscall.Handle(hdc), rect{0, top, w, top + 1}, colBorder)
+
+	a.mu.Lock()
+	text := a.status
+	a.mu.Unlock()
+	if text != "" {
+		drawText(syscall.Handle(hdc), text,
+			rect{12, top, w - 12, h}, colTextDim, a.smallFont,
+			dtLeft|dtVCenter|dtSingleLine|dtEndEllipsis)
+	}
 }
 
 // drainDialogs shows the queued modal dialogs one at a time.
@@ -225,6 +292,21 @@ func (a *App) onCustomDraw(lparam uintptr) uintptr {
 	case cddsPrePaint:
 		return cdrfNotifyItemDraw
 	case cddsItemPrePaint:
+		// Alternate row shading, and a distinct selection colour, because
+		// the list view's own defaults are tuned for a light theme.
+		idx := int(cd.Nmcd.DwItemSpec)
+		bg := colList
+		if idx%2 == 1 {
+			bg = colRowAlt
+		}
+		selected, _, _ := procSendMessage.Call(uintptr(a.list), lvmGetItemState,
+			uintptr(idx), lvisSelected)
+		if selected != 0 {
+			bg = colSelect
+		}
+		fillRect(cd.Nmcd.Hdc, cd.Nmcd.Rc, bg)
+		cd.ClrTextBk = uint32(bg)
+		cd.ClrText = uint32(colText)
 		return cdrfNotifySubItemDraw
 	case cddsItemPrePaint | cddsSubItem:
 		if cd.ISubItem != 2 {
@@ -262,18 +344,18 @@ func (a *App) drawProgress(hdc syscall.Handle, rc rect, r row) {
 		return
 	}
 
-	trackBrush, _, _ := procCreateSolidBrush.Call(rgb(226, 229, 234))
-	defer procDeleteObject.Call(trackBrush)
-	procFillRect.Call(uintptr(hdc), uintptr(unsafe.Pointer(&bar)), trackBrush)
+	roundRect(hdc, bar, 7, colTrack, 0)
 
-	fillColor := rgb(79, 156, 249) // downloading
+	fillColor := colAccent
 	switch r.State {
 	case "done":
-		fillColor = rgb(62, 175, 124)
+		fillColor = colOK
 	case "error":
-		fillColor = rgb(226, 88, 106)
+		fillColor = colError
 	case "paused":
-		fillColor = rgb(230, 160, 40)
+		fillColor = colWarn
+	case "queued", "confirm":
+		fillColor = colTextDim
 	}
 
 	pct := r.Pct
@@ -284,28 +366,22 @@ func (a *App) drawProgress(hdc syscall.Handle, rc rect, r row) {
 		pct = 100
 	}
 	width := int32(float64(bar.Right-bar.Left) * pct / 100)
-	if width > 0 {
+	if width > 8 {
 		fill := rect{Left: bar.Left, Top: bar.Top, Right: bar.Left + width, Bottom: bar.Bottom}
-		brush, _, _ := procCreateSolidBrush.Call(fillColor)
-		procFillRect.Call(uintptr(hdc), uintptr(unsafe.Pointer(&fill)), brush)
-		procDeleteObject.Call(brush)
+		roundRect(hdc, fill, 7, fillColor, 0)
+	} else if width > 0 {
+		// Too narrow to round without looking like a smudge.
+		fillRect(hdc, rect{bar.Left, bar.Top + 2, bar.Left + width, bar.Bottom - 2}, fillColor)
 	}
 
-	edge, _, _ := procCreateSolidBrush.Call(rgb(188, 194, 204))
-	procFrameRect.Call(uintptr(hdc), uintptr(unsafe.Pointer(&bar)), edge)
-	procDeleteObject.Call(edge)
-
-	// The number goes on top of the bar, centred.
+	// The number sits on the bar, in whichever colour stays legible over
+	// the filled portion.
 	label := formatPct(pct)
-	procSetBkMode.Call(uintptr(hdc), transparent)
-	procSetTextColor.Call(uintptr(hdc), rgb(28, 32, 40))
-	old, _, _ := procSelectObject.Call(uintptr(hdc), uintptr(a.font))
-	textRect := bar
-	procDrawTextEx.Call(uintptr(hdc), uintptr(unsafe.Pointer(utf16Ptr(label))), ^uintptr(0),
-		uintptr(unsafe.Pointer(&textRect)), dtCenter|dtVCenter|dtSingleLine, 0)
-	if old != 0 {
-		procSelectObject.Call(uintptr(hdc), old)
+	textCol := colText
+	if pct > 55 {
+		textCol = rgb(0x0A, 0x0E, 0x14)
 	}
+	drawText(hdc, label, bar, textCol, a.smallFont, dtCenter|dtVCenter|dtSingleLine)
 }
 
 func formatPct(p float64) string {
@@ -345,6 +421,8 @@ func (a *App) onCommand(id uint32) {
 	switch id {
 	case cmdAdd:
 		a.promptAdd()
+	case cmdMenu:
+		a.showMainMenu()
 	case cmdExit:
 		// Exit means stop DM entirely, not just close the window.
 		if a.onQuit != nil {

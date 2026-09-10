@@ -37,21 +37,7 @@ var completeDlg *complete
 // asked not to see the dialog again.
 func (a *App) showComplete(rec store.Record) bool {
 	inst, _, _ := procGetModuleHandle.Call(0)
-	className := utf16Ptr("DMComplete")
-	cursor, _, _ := procLoadCursor.Call(0, idcArrow)
-	bg, _, _ := procGetSysColorBrush.Call(colorBtnFace)
-
-	wc := wndClassEx{
-		WndProc:    syscall.NewCallback(completeProc),
-		Instance:   syscall.Handle(inst),
-		Cursor:     syscall.Handle(cursor),
-		Background: syscall.Handle(bg),
-		ClassName:  className,
-		Icon:       loadAppIcon(),
-		IconSm:     loadAppIcon(),
-	}
-	wc.Size = uint32(unsafe.Sizeof(wc))
-	procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
+	className := dialogClass("DMComplete", syscall.NewCallback(completeProc), inst)
 
 	d := &complete{rec: rec}
 	completeDlg = d
@@ -70,6 +56,7 @@ func (a *App) showComplete(rec store.Record) bool {
 		return false
 	}
 	d.hwnd = syscall.Handle(hwnd)
+	applyDarkTitleBar(d.hwnd)
 
 	mk := func(class, text string, style uintptr, x, y, cw, ch int32, id uintptr, ex uintptr) syscall.Handle {
 		var t uintptr
@@ -83,6 +70,7 @@ func (a *App) showComplete(rec store.Record) bool {
 			hwnd, id, inst, 0)
 		if h != 0 {
 			procSendMessage.Call(h, wmSetFont, uintptr(a.font), 1)
+			applyDarkControlTheme(syscall.Handle(h))
 		}
 		return syscall.Handle(h)
 	}
@@ -103,10 +91,14 @@ func (a *App) showComplete(rec store.Record) bool {
 	mk("EDIT", rec.Path, esAutoHScroll|esReadOnly|wsTabStop,
 		16, 142, 424, 23, idDCPath, wsExClientEdge)
 
-	mk("BUTTON", "Open", wsTabStop|bsDefPushButton, 16, 180, 95, 28, idDCOpen, 0)
-	mk("BUTTON", "Open with...", wsTabStop|bsPushButton, 117, 180, 100, 28, idDCOpenWith, 0)
-	mk("BUTTON", "Open folder", wsTabStop|bsPushButton, 223, 180, 100, 28, idDCFolder, 0)
-	mk("BUTTON", "Close", wsTabStop|bsPushButton, 345, 180, 95, 28, idDCClose, 0)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Open",
+		16, 180, 95, 28, idDCOpen, true)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Open with...",
+		117, 180, 100, 28, idDCOpenWith, false)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Open folder",
+		223, 180, 100, 28, idDCFolder, false)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Close",
+		345, 180, 95, 28, idDCClose, false)
 
 	d.dontShow = mk("BUTTON", "Don't show this dialog again",
 		wsTabStop|bsAutoCheckBox, 16, 214, 250, 20, idDCDontShow, 0)
@@ -147,6 +139,15 @@ func (d *complete) finish() {
 func completeProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {
 	d := completeDlg
 	switch message {
+	case wmCtlColorStatic, wmCtlColorBtn, wmCtlColorDlg,
+		wmCtlColorEdit, wmCtlColorListBox:
+		if brush, ok := darkCtlColor(message, wparam); ok {
+			return brush
+		}
+	case wmDrawItem:
+		if app != nil && drawDialogButton((*drawItemStruct)(lparamPtr(lparam)), app.font) {
+			return 1
+		}
 	case wmCommand:
 		if d == nil {
 			break

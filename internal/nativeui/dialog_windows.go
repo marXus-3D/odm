@@ -55,21 +55,7 @@ func (a *App) promptAdd() {
 // askURL shows a small modal form and returns what was typed.
 func (a *App) askURL() string {
 	inst, _, _ := procGetModuleHandle.Call(0)
-	className := utf16Ptr("DMAddDialog")
-
-	cursor, _, _ := procLoadCursor.Call(0, idcArrow)
-	bg, _, _ := procGetSysColorBrush.Call(colorBtnFace)
-	wc := wndClassEx{
-		WndProc:    syscall.NewCallback(dialogProc),
-		Instance:   syscall.Handle(inst),
-		Cursor:     syscall.Handle(cursor),
-		Background: syscall.Handle(bg),
-		ClassName:  className,
-		Icon:       loadAppIcon(),
-		IconSm:     loadAppIcon(),
-	}
-	wc.Size = uint32(unsafe.Sizeof(wc))
-	procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc))) // fine if already registered
+	className := dialogClass("DMAddDialog", syscall.NewCallback(dialogProc), inst)
 
 	d := &addDialog{}
 	dlg = d
@@ -87,6 +73,7 @@ func (a *App) askURL() string {
 		return ""
 	}
 	d.hwnd = syscall.Handle(hwnd)
+	applyDarkTitleBar(d.hwnd)
 
 	label, _, _ := procCreateWindowEx.Call(0,
 		uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
@@ -100,21 +87,13 @@ func (a *App) askURL() string {
 		wsChild|wsVisible|wsTabStop|esAutoHScroll,
 		14, 36, 484, 24, hwnd, idEdit, inst, 0)
 	d.edit = syscall.Handle(edit)
+	applyDarkControlTheme(d.edit)
 	procSendMessage.Call(edit, wmSetFont, uintptr(a.font), 1)
 
-	ok, _, _ := procCreateWindowEx.Call(0,
-		uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
-		uintptr(unsafe.Pointer(utf16Ptr("Download"))),
-		wsChild|wsVisible|wsTabStop|bsDefPushButton,
-		318, 76, 85, 27, hwnd, idOK, inst, 0)
-	procSendMessage.Call(ok, wmSetFont, uintptr(a.font), 1)
-
-	cancel, _, _ := procCreateWindowEx.Call(0,
-		uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
-		uintptr(unsafe.Pointer(utf16Ptr("Cancel"))),
-		wsChild|wsVisible|wsTabStop|bsPushButton,
-		411, 76, 85, 27, hwnd, idCancel, inst, 0)
-	procSendMessage.Call(cancel, wmSetFont, uintptr(a.font), 1)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Download",
+		318, 76, 85, 27, idOK, true)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Cancel",
+		411, 76, 85, 27, idCancel, false)
 
 	// Modal: disable the parent, then run a nested message loop until the
 	// form closes. Simpler and more predictable than a dialog box procedure.
@@ -163,6 +142,15 @@ func (d *addDialog) finish(accept bool) {
 func dialogProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {
 	d := dlg
 	switch message {
+	case wmCtlColorStatic, wmCtlColorBtn, wmCtlColorDlg,
+		wmCtlColorEdit, wmCtlColorListBox:
+		if brush, ok := darkCtlColor(message, wparam); ok {
+			return brush
+		}
+	case wmDrawItem:
+		if app != nil && drawDialogButton((*drawItemStruct)(lparamPtr(lparam)), app.font) {
+			return 1
+		}
 	case wmCommand:
 		if d == nil {
 			break

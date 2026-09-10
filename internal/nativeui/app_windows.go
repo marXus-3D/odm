@@ -39,6 +39,7 @@ const (
 	cmdShowStartDialog
 	cmdShowCompleteDialog
 	cmdSelectAll
+	cmdMenu
 )
 
 // cmdOnFinishBase is the first of a run of ids, one per completion action.
@@ -77,14 +78,18 @@ var columns = []column{
 
 // App is the desktop window.
 type App struct {
-	hwnd    syscall.Handle
-	list    syscall.Handle
-	font    syscall.Handle
-	buttons []syscall.Handle
+	hwnd      syscall.Handle
+	list      syscall.Handle
+	font      syscall.Handle
+	glyphFont syscall.Handle
+	smallFont syscall.Handle
+	iconList  syscall.Handle
 
-	client      *client.Client
-	optionsMenu syscall.Handle
-	finishMenu  syscall.Handle
+	toolbarWidth int32
+	status       string
+	state        client.State
+
+	client *client.Client
 
 	mu      sync.Mutex
 	rows    []row
@@ -138,6 +143,8 @@ var app *App // the window procedure needs to reach the App
 func Run(c *client.Client, onQuit func()) error {
 	enableVisualStyles()
 	initCommonControls()
+	enableDarkMode()
+	initBrushes()
 
 	a := &App{client: c, onQuit: onQuit, seenDone: map[string]bool{}}
 	app = a
@@ -152,11 +159,12 @@ func Run(c *client.Client, onQuit func()) error {
 		WndProc:    syscall.NewCallback(mainWndProc),
 		Instance:   syscall.Handle(inst),
 		Cursor:     syscall.Handle(cursor),
-		Background: syscall.Handle(bg),
+		Background: syscall.Handle(brushes.background),
 		ClassName:  className,
 		Icon:       loadAppIcon(),
 		IconSm:     loadAppIcon(),
 	}
+	_ = bg
 	wc.Size = uint32(unsafe.Sizeof(wc))
 	if ret, _, err := procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc))); ret == 0 {
 		return fmt.Errorf("register window class: %w", err)
@@ -175,8 +183,10 @@ func Run(c *client.Client, onQuit func()) error {
 	}
 	a.hwnd = syscall.Handle(hwnd)
 	a.font = uiFont()
+	a.glyphFont = iconFont(15)
+	a.smallFont = uiFontOfSize(12, false)
+	applyDarkTitleBar(a.hwnd)
 
-	a.buildMenu()
 	a.buildChildren(inst)
 	a.refresh()
 	a.mu.Lock()
@@ -222,109 +232,104 @@ func Quit() {
 	}
 }
 
-func (a *App) buildMenu() {
-	menuBar, _, _ := procCreateMenu.Call()
+// showMainMenu drops the application menu from the toolbar Menu button.
+//
+// A classic menu bar is gone on purpose: Windows paints one with the system
+// colours whatever the window does, so a dark app ends up wearing a light
+// strip across the top. A popup follows the dark preference set for the
+// process, so everything stays consistent.
+func (a *App) showMainMenu() {
+	menu, _, _ := procCreatePopupMenu.Call()
+	if menu == 0 {
+		return
+	}
+	defer procDestroyMenu.Call(menu)
 
-	file, _, _ := procCreatePopupMenu.Call()
-	procAppendMenu.Call(file, mfString, cmdAdd, uintptr(unsafe.Pointer(utf16Ptr("&Add URL...\tIns"))))
-	procAppendMenu.Call(file, mfSeparator, 0, 0)
-	procAppendMenu.Call(file, mfString, cmdOpenFolder, uintptr(unsafe.Pointer(utf16Ptr("Open &downloads folder"))))
-	procAppendMenu.Call(file, mfString, cmdWebUI, uintptr(unsafe.Pointer(utf16Ptr("Open &web UI"))))
-	procAppendMenu.Call(file, mfSeparator, 0, 0)
-	procAppendMenu.Call(file, mfString, cmdExit, uintptr(unsafe.Pointer(utf16Ptr("E&xit"))))
-	procAppendMenu.Call(menuBar, mfPopup, file, uintptr(unsafe.Pointer(utf16Ptr("&File"))))
+	add := func(id uintptr, label string) {
+		procAppendMenu.Call(menu, mfString, id, uintptr(unsafe.Pointer(utf16Ptr(label))))
+	}
+	sep := func() { procAppendMenu.Call(menu, mfSeparator, 0, 0) }
+	check := func(id uintptr, label string, on bool) {
+		flags := uintptr(mfString)
+		if on {
+			flags |= mfChecked
+		}
+		procAppendMenu.Call(menu, flags, id, uintptr(unsafe.Pointer(utf16Ptr(label))))
+	}
 
-	dl, _, _ := procCreatePopupMenu.Call()
-	procAppendMenu.Call(dl, mfString, cmdResume, uintptr(unsafe.Pointer(utf16Ptr("&Resume"))))
-	procAppendMenu.Call(dl, mfString, cmdPause, uintptr(unsafe.Pointer(utf16Ptr("&Pause"))))
-	procAppendMenu.Call(dl, mfSeparator, 0, 0)
-	procAppendMenu.Call(dl, mfString, cmdOpen, uintptr(unsafe.Pointer(utf16Ptr("&Open file"))))
-	procAppendMenu.Call(dl, mfString, cmdReveal, uintptr(unsafe.Pointer(utf16Ptr("Show in &Explorer"))))
-	procAppendMenu.Call(dl, mfSeparator, 0, 0)
-	procAppendMenu.Call(dl, mfString, cmdRemove, uintptr(unsafe.Pointer(utf16Ptr("Remove from &list\tDel"))))
-	procAppendMenu.Call(dl, mfString, cmdRemoveFile, uintptr(unsafe.Pointer(utf16Ptr("Remove and &delete file"))))
-	procAppendMenu.Call(dl, mfSeparator, 0, 0)
-	procAppendMenu.Call(dl, mfString, cmdResumeAll, uintptr(unsafe.Pointer(utf16Ptr("Resume a&ll"))))
-	procAppendMenu.Call(dl, mfString, cmdPauseAll, uintptr(unsafe.Pointer(utf16Ptr("Pause &all"))))
-	procAppendMenu.Call(dl, mfString, cmdStopAll, uintptr(unsafe.Pointer(utf16Ptr("&Stop all"))))
-	procAppendMenu.Call(menuBar, mfPopup, dl, uintptr(unsafe.Pointer(utf16Ptr("&Downloads"))))
+	st := a.lastState()
 
-	// Options carries the switches that change how DM behaves, checked to
-	// reflect the current setting.
-	opt, _, _ := procCreatePopupMenu.Call()
-	a.optionsMenu = syscall.Handle(opt)
-	procAppendMenu.Call(opt, mfString, cmdStartWithWindows,
-		uintptr(unsafe.Pointer(utf16Ptr("Start DM with &Windows"))))
-	procAppendMenu.Call(opt, mfSeparator, 0, 0)
-	procAppendMenu.Call(opt, mfString, cmdShowStartDialog,
-		uintptr(unsafe.Pointer(utf16Ptr("Ask where to save each &download"))))
-	procAppendMenu.Call(opt, mfString, cmdShowCompleteDialog,
-		uintptr(unsafe.Pointer(utf16Ptr("Show the download &complete dialog"))))
-	procAppendMenu.Call(opt, mfSeparator, 0, 0)
+	add(cmdAdd, "Add URL...")
+	sep()
+	add(cmdResumeAll, "Resume all")
+	add(cmdPauseAll, "Pause all")
+	add(cmdStopAll, "Stop all")
+	sep()
+	add(cmdOpenFolder, "Open downloads folder")
+	add(cmdWebUI, "Settings and more (web UI)...")
+	sep()
+	check(cmdStartWithWindows, "Start DM with Windows", st.StartWithWindows)
+	check(cmdShowStartDialog, "Ask where to save each download", st.Config.ShowStartDialog)
+	check(cmdShowCompleteDialog, "Show the download complete dialog", st.Config.ShowCompleteDialog)
 
-	// "When everything finishes" as a submenu, one entry per action.
 	fin, _, _ := procCreatePopupMenu.Call()
-	a.finishMenu = syscall.Handle(fin)
+	cur := st.Config.OnComplete
+	if cur == "" {
+		cur = string(power.None)
+	}
 	for i, act := range power.Actions() {
-		procAppendMenu.Call(fin, mfString, uintptr(cmdOnFinishBase+i),
+		flags := uintptr(mfString)
+		if string(act) == cur {
+			flags |= mfChecked
+		}
+		procAppendMenu.Call(fin, flags, uintptr(cmdOnFinishBase+i),
 			uintptr(unsafe.Pointer(utf16Ptr(power.Label(act)))))
 	}
-	procAppendMenu.Call(opt, mfPopup, fin,
-		uintptr(unsafe.Pointer(utf16Ptr("When everything &finishes"))))
+	procAppendMenu.Call(menu, mfPopup, fin,
+		uintptr(unsafe.Pointer(utf16Ptr("When everything finishes"))))
 
-	procAppendMenu.Call(opt, mfSeparator, 0, 0)
-	procAppendMenu.Call(opt, mfString, cmdWebUI,
-		uintptr(unsafe.Pointer(utf16Ptr("More settings (&web UI)..."))))
-	procAppendMenu.Call(menuBar, mfPopup, opt, uintptr(unsafe.Pointer(utf16Ptr("&Options"))))
+	sep()
+	add(cmdAbout, "About DM")
+	add(cmdExit, "Exit")
 
-	help, _, _ := procCreatePopupMenu.Call()
-	procAppendMenu.Call(help, mfString, cmdAbout, uintptr(unsafe.Pointer(utf16Ptr("&About DM"))))
-	procAppendMenu.Call(menuBar, mfPopup, help, uintptr(unsafe.Pointer(utf16Ptr("&Help"))))
-
-	procSetMenu.Call(uintptr(a.hwnd), menuBar)
+	// Dropped under the button rather than at the pointer, the way an
+	// application menu behaves.
+	x, y := a.menuAnchor()
+	procSetForegroundWindow.Call(uintptr(a.hwnd))
+	cmd, _, _ := procTrackPopupMenu.Call(menu,
+		tpmLeftAlign|tpmReturnCmd, uintptr(x), uintptr(y), 0, uintptr(a.hwnd), 0)
+	procDestroyMenu.Call(fin)
+	if cmd != 0 {
+		a.onCommand(uint32(cmd))
+	}
 }
 
-// toolbarButton is one of the buttons across the top of the window.
-type toolbarButton struct {
-	label string
-	cmd   uintptr
-	width int32
+// menuAnchor is the screen position just under the Menu button.
+func (a *App) menuAnchor() (int32, int32) {
+	for _, b := range toolButtons {
+		if b.cmd == cmdMenu && b.hwnd != 0 {
+			var wr rect
+			procGetWindowRect.Call(uintptr(b.hwnd), uintptr(unsafe.Pointer(&wr)))
+			return wr.Left, wr.Bottom + 2
+		}
+	}
+	var pt point
+	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+	return pt.X, pt.Y
 }
 
-var toolbarButtons = []toolbarButton{
-	{"Add URL", cmdAdd, 84},
-	{"Resume", cmdResume, 74},
-	{"Pause", cmdPause, 66},
-	{"Remove", cmdRemove, 74},
-	{"Open", cmdOpen, 62},
-	{"Folder", cmdReveal, 66},
-	{"Resume All", cmdResumeAll, 86},
-	{"Pause All", cmdPauseAll, 78},
-	{"Stop All", cmdStopAll, 74},
+// lastState returns the most recent daemon state, for the menu ticks.
+func (a *App) lastState() client.State {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.state
 }
-
-const toolbarHeight = 38
 
 func (a *App) buildChildren(inst uintptr) {
-	x := int32(8)
-	for _, b := range toolbarButtons {
-		h, _, _ := procCreateWindowEx.Call(
-			0,
-			uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
-			uintptr(unsafe.Pointer(utf16Ptr(b.label))),
-			wsChild|wsVisible|wsTabStop|bsPushButton,
-			uintptr(x), 7, uintptr(b.width), 25,
-			uintptr(a.hwnd), b.cmd, inst, 0,
-		)
-		if h != 0 {
-			procSendMessage.Call(h, wmSetFont, uintptr(a.font), 1)
-			a.buttons = append(a.buttons, syscall.Handle(h))
-		}
-		x += b.width + 6
-	}
+	a.buildToolbar(inst)
 
 	lv, _, _ := procCreateWindowEx.Call(
-		wsExClientEdge,
+		0, // no client edge: the flat border suits a dark theme better
 		uintptr(unsafe.Pointer(utf16Ptr("SysListView32"))),
 		0,
 		wsChild|wsVisible|wsTabStop|lvsReport|lvsShowSelAlways,
@@ -335,6 +340,24 @@ func (a *App) buildChildren(inst uintptr) {
 	procSendMessage.Call(lv, wmSetFont, uintptr(a.font), 1)
 	procSendMessage.Call(lv, lvmSetExtendedLVS, 0,
 		lvsExFullRowSelect|lvsExDoubleBuffer|lvsExHeaderDragDrop)
+
+	// Explicit colours, and the shell's dark theme for the scrollbars and
+	// the header, which do not follow LVM_SETBKCOLOR.
+	procSendMessage.Call(lv, lvmSetBkColor, 0, colList)
+	procSendMessage.Call(lv, lvmSetTextBkColor, 0, colList)
+	procSendMessage.Call(lv, lvmSetTextColor, 0, colText)
+	applyDarkControlTheme(a.list)
+	if hdr, _, _ := procSendMessage.Call(lv, lvmGetHeader, 0, 0); hdr != 0 {
+		applyDarkControlTheme(syscall.Handle(hdr))
+	}
+
+	// An image list is attached purely to set the row height: list view
+	// rows are sized to the icons, and the default is too cramped to read.
+	il, _, _ := procImageListCreate.Call(16, 22, ilcColor32|ilcMask, 8, 8)
+	if il != 0 {
+		a.iconList = syscall.Handle(il)
+		procSendMessage.Call(lv, lvmSetImageList, lvsilSmall, il)
+	}
 
 	for i, c := range columns {
 		col := lvColumn{
@@ -349,11 +372,21 @@ func (a *App) buildChildren(inst uintptr) {
 	a.layout()
 }
 
+// statusHeight is the strip along the bottom showing totals.
+const statusHeight = 26
+
 func (a *App) layout() {
 	var r rect
 	procGetClientRect.Call(uintptr(a.hwnd), uintptr(unsafe.Pointer(&r)))
+	h := r.Bottom - r.Top - toolbarHeight - statusHeight
+	if h < 0 {
+		h = 0
+	}
 	procMoveWindow.Call(uintptr(a.list), 0, toolbarHeight,
-		uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top-toolbarHeight), 1)
+		uintptr(r.Right-r.Left), uintptr(h), 1)
+	a.stretchLastColumn(r.Right - r.Left)
+	// Repaint the chrome; the list moved out from under it.
+	procInvalidateRect.Call(uintptr(a.hwnd), 0, 0)
 }
 
 // --- data ------------------------------------------------------------------
@@ -459,8 +492,11 @@ func (a *App) refresh() {
 		procPostMessage.Call(uintptr(a.hwnd), wmAppDialog, 0, 0)
 	}
 
-	a.syncOptionsMenu(st)
+	a.mu.Lock()
+	a.state = *st
+	a.mu.Unlock()
 	a.maybePromptExtension(st)
+	a.setStatus(rows, st)
 
 	title := "DM Download Manager"
 	if active > 0 {
@@ -472,39 +508,77 @@ func (a *App) refresh() {
 	procSetWindowText.Call(uintptr(a.hwnd), uintptr(unsafe.Pointer(utf16Ptr(title))))
 }
 
-// syncOptionsMenu ticks the Options entries to match the live settings.
-func (a *App) syncOptionsMenu(st *client.State) {
-	if a.optionsMenu == 0 {
+// stretchLastColumn widens the final column to fill the list, so the
+// header does not stop short with dead space beside it.
+func (a *App) stretchLastColumn(clientW int32) {
+	if a.list == 0 || len(columns) == 0 {
 		return
 	}
-	check := func(id uintptr, on bool) {
-		flag := uintptr(mfUnchecked)
-		if on {
-			flag = mfChecked
-		}
-		procCheckMenuItem.Call(uintptr(a.optionsMenu), id, mfByCommand|flag)
+	var used int32
+	for _, c := range columns[:len(columns)-1] {
+		used += c.width
 	}
-	check(cmdStartWithWindows, st.StartWithWindows)
-	check(cmdShowStartDialog, st.Config.ShowStartDialog)
-	check(cmdShowCompleteDialog, st.Config.ShowCompleteDialog)
-	if a.finishMenu != 0 {
-		cur := st.Config.OnComplete
-		if cur == "" {
-			cur = string(power.None)
+	// Leave room for a vertical scrollbar so the last column does not
+	// bounce in width as rows appear.
+	last := clientW - used - 20
+	if last < columns[len(columns)-1].width {
+		last = columns[len(columns)-1].width
+	}
+	procSendMessage.Call(uintptr(a.list), lvmSetColumnWidth,
+		uintptr(len(columns)-1), uintptr(last))
+}
+
+// setStatus composes the summary line along the bottom.
+func (a *App) setStatus(rows []row, st *client.State) {
+	var active, done, queued int
+	var speed float64
+	var total, got int64
+	for _, r := range rows {
+		switch r.State {
+		case "downloading", "probing", "remuxing":
+			active++
+			speed += r.SpeedBPS
+		case "done":
+			done++
+		case "queued", "confirm":
+			queued++
 		}
-		for i, act := range power.Actions() {
-			flag := uintptr(mfUnchecked)
-			if string(act) == cur {
-				flag = mfChecked
-			}
-			procCheckMenuItem.Call(uintptr(a.finishMenu),
-				uintptr(cmdOnFinishBase+i), mfByCommand|flag)
+		if r.Size > 0 {
+			total += r.Size
+			got += r.Done
 		}
 	}
-	if !st.StartWithWindowsSupported {
-		procEnableMenuItem.Call(uintptr(a.optionsMenu), cmdStartWithWindows,
-			mfByCommand|mfGrayed)
+
+	parts := []string{fmt.Sprintf("%d download%s", len(rows), plural(len(rows)))}
+	if active > 0 {
+		parts = append(parts, fmt.Sprintf("%d active", active))
 	}
+	if queued > 0 {
+		parts = append(parts, fmt.Sprintf("%d queued", queued))
+	}
+	if done > 0 {
+		parts = append(parts, fmt.Sprintf("%d done", done))
+	}
+	if speed > 0 {
+		parts = append(parts, humanBytes(int64(speed))+"/s")
+	}
+	if st.Config.LimitKBps > 0 {
+		parts = append(parts, fmt.Sprintf("limit %d KiB/s", st.Config.LimitKBps))
+	}
+	if act := st.Config.OnComplete; act != "" && act != "none" {
+		parts = append(parts, "then "+power.Label(power.Action(act)))
+	}
+
+	a.mu.Lock()
+	a.status = strings.Join(parts, "   ·   ")
+	a.mu.Unlock()
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // applyPending redraws the list from whatever the last refresh fetched. It

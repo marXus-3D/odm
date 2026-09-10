@@ -53,21 +53,7 @@ func (a *App) maybePromptExtension(st *client.State) {
 // showExtPrompt runs the prompt and reports whether to stop asking.
 func (a *App) showExtPrompt() bool {
 	inst, _, _ := procGetModuleHandle.Call(0)
-	className := utf16Ptr("DMExtPrompt")
-	cursor, _, _ := procLoadCursor.Call(0, idcArrow)
-	bg, _, _ := procGetSysColorBrush.Call(colorBtnFace)
-
-	wc := wndClassEx{
-		WndProc:    syscall.NewCallback(extPromptProc),
-		Instance:   syscall.Handle(inst),
-		Cursor:     syscall.Handle(cursor),
-		Background: syscall.Handle(bg),
-		ClassName:  className,
-		Icon:       loadAppIcon(),
-		IconSm:     loadAppIcon(),
-	}
-	wc.Size = uint32(unsafe.Sizeof(wc))
-	procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
+	className := dialogClass("DMExtPrompt", syscall.NewCallback(extPromptProc), inst)
 
 	d := &extPrompt{extDir: extensionDir()}
 	extPromptDlg = d
@@ -84,6 +70,7 @@ func (a *App) showExtPrompt() bool {
 		return false
 	}
 	d.hwnd = syscall.Handle(hwnd)
+	applyDarkTitleBar(d.hwnd)
 
 	mk := func(class, text string, style uintptr, x, y, cw, ch int32, id uintptr, ex uintptr) syscall.Handle {
 		var t uintptr
@@ -97,6 +84,7 @@ func (a *App) showExtPrompt() bool {
 			hwnd, id, inst, 0)
 		if h != 0 {
 			procSendMessage.Call(h, wmSetFont, uintptr(a.font), 1)
+			applyDarkControlTheme(syscall.Handle(h))
 		}
 		return syscall.Handle(h)
 	}
@@ -113,13 +101,14 @@ func (a *App) showExtPrompt() bool {
 	mk("EDIT", d.extDir, esAutoHScroll|esReadOnly|wsTabStop,
 		16, 140, 514, 23, idEPPath, wsExClientEdge)
 
-	mk("BUTTON", "Open extensions page", wsTabStop|bsDefPushButton,
-		16, 180, 150, 28, idEPOpenExtensions, 0)
-	mk("BUTTON", "Open this folder", wsTabStop|bsPushButton,
-		172, 180, 130, 28, idEPOpenFolder, 0)
-	mk("BUTTON", "Later", wsTabStop|bsPushButton, 340, 180, 90, 28, idEPLater, 0)
-	mk("BUTTON", "Don't ask again", wsTabStop|bsPushButton,
-		436, 180, 94, 28, idEPNever, 0)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Open extensions page",
+		16, 180, 150, 28, idEPOpenExtensions, true)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Open this folder",
+		172, 180, 130, 28, idEPOpenFolder, false)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Later",
+		340, 180, 90, 28, idEPLater, false)
+	makeButton(syscall.Handle(hwnd), inst, a.font, "Don't ask again",
+		436, 180, 94, 28, idEPNever, false)
 
 	mk("STATIC", "DM keeps working without it -- you can still add URLs by hand.",
 		ssLeft, 16, 220, 510, 20, 0, 0)
@@ -157,6 +146,15 @@ func (d *extPrompt) finish(dismiss bool) {
 func extPromptProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {
 	d := extPromptDlg
 	switch message {
+	case wmCtlColorStatic, wmCtlColorBtn, wmCtlColorDlg,
+		wmCtlColorEdit, wmCtlColorListBox:
+		if brush, ok := darkCtlColor(message, wparam); ok {
+			return brush
+		}
+	case wmDrawItem:
+		if app != nil && drawDialogButton((*drawItemStruct)(lparamPtr(lparam)), app.font) {
+			return 1
+		}
 	case wmCommand:
 		if d == nil {
 			break

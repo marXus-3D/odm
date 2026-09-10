@@ -5,16 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DM</title>
 <style>
+  /* DM is dark only. These are the same values the desktop window uses,
+     so the two surfaces do not look like different applications. */
   :root {
-    --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b; --line: #2a2f3a;
+    color-scheme: dark;
+    --bg: #16181d; --panel: #1d2128; --panel-2: #14161b; --line: #2c313b;
     --text: #e6e9ef; --muted: #8b93a7; --accent: #4f9cf9; --ok: #3ecf8e;
     --warn: #f5a524; --err: #f4586a; --radius: 10px;
-  }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #f6f7f9; --panel: #fff; --panel-2: #f0f2f5; --line: #dfe3e9;
-      --text: #16181d; --muted: #61697c;
-    }
   }
   * { box-sizing: border-box; }
   body {
