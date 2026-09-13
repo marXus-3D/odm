@@ -85,8 +85,9 @@ func Do(a Action) error {
 
 // CancelPending calls off a scheduled shutdown or restart.
 func CancelPending() error {
-	// Fails harmlessly when nothing is scheduled.
-	exec.Command("shutdown", "/a").Run()
+	// Fails harmlessly when nothing is scheduled. Routed through run so it
+	// does not flash a console window out of the GUI daemon.
+	_ = run("shutdown", "/a")
 	return nil
 }
 

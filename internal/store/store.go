@@ -2,6 +2,7 @@
 package store
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -72,7 +73,18 @@ type Config struct {
 	// resets itself after firing, so a machine does not shut down every
 	// time the queue happens to empty.
 	OnComplete string `json:"onComplete"`
+
+	// ConfigVersion records which defaults this file was written against,
+	// so a changed default can be applied once to an existing install
+	// instead of only to new ones. See migrate.
+	ConfigVersion int `json:"configVersion"`
 }
+
+// currentConfigVersion is bumped whenever an existing config needs a value
+// changed under it. Version 1 turned ShowStartDialog on: it shipped off,
+// which left the browser extension and the app starting downloads with no
+// dialog at all, and no clue that one existed.
+const currentConfigVersion = 1
 
 // DefaultConfig is used the first time the daemon starts.
 func DefaultConfig(downloadDir string) Config {
@@ -84,8 +96,9 @@ func DefaultConfig(downloadDir string) Config {
 		LimitKBps:          0,
 		Categories:         DefaultCategories(),
 		StartWithWindows:   false,
-		ShowStartDialog:    false,
+		ShowStartDialog:    true,
 		ShowCompleteDialog: true,
+		ConfigVersion:      currentConfigVersion,
 		Theme:              "system",
 		OnComplete:         "none",
 	}
@@ -108,6 +121,12 @@ type Store struct {
 // Dir returns the directory holding the daemon state.
 func (s *Store) Dir() string { return s.dir }
 
+// trimBOM drops a UTF-8 byte-order mark. encoding/json rejects one outright,
+// so without this a config.json that has been through Notepad, or any editor
+// that adds a BOM, would fail to parse and every setting in it would be
+// silently ignored.
+func trimBOM(b []byte) []byte { return bytes.TrimPrefix(b, []byte{0xEF, 0xBB, 0xBF}) }
+
 // Open loads (or creates) the state directory.
 func Open(dir string, defaultDownloadDir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -117,6 +136,7 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 
 	s.cfg = DefaultConfig(defaultDownloadDir)
 	if b, err := os.ReadFile(s.configPath()); err == nil {
+		b = trimBOM(b)
 		// Booleans are decoded separately as pointers. Decoding them into a
 		// plain Config cannot tell "absent" from "false", so a config file
 		// written before a flag existed would silently turn it off.
@@ -164,12 +184,14 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 			if flags.ShowCompleteDialog != nil {
 				s.cfg.ShowCompleteDialog = *flags.ShowCompleteDialog
 			}
+			s.cfg.ConfigVersion = c.ConfigVersion
+			s.migrate()
 		}
 	}
 
 	if b, err := os.ReadFile(s.dbPath()); err == nil {
 		var list []*Record
-		if err := json.Unmarshal(b, &list); err == nil {
+		if err := json.Unmarshal(trimBOM(b), &list); err == nil {
 			for _, r := range list {
 				s.records[r.ID] = r
 			}
@@ -185,7 +207,28 @@ func (s *Store) ExtensionSeen() bool {
 	return err == nil
 }
 
-func (s *Store) dbPath() string     { return filepath.Join(s.dir, "downloads.json") }
+func (s *Store) dbPath() string { return filepath.Join(s.dir, "downloads.json") }
+
+// migrate brings a config written against older defaults up to date and
+// writes it straight back, so the change happens once instead of on every
+// start. It runs under Open, before anything can read the config, and only
+// ever moves forward.
+func (s *Store) migrate() {
+	if s.cfg.ConfigVersion >= currentConfigVersion {
+		return
+	}
+	if s.cfg.ConfigVersion < 1 {
+		// Shipped off by mistake. Anyone who turns it off from now on does
+		// so against a config that already records version 1, so their
+		// choice is never overwritten.
+		s.cfg.ShowStartDialog = true
+	}
+	s.cfg.ConfigVersion = currentConfigVersion
+	if b, err := json.MarshalIndent(s.cfg, "", "  "); err == nil {
+		_ = writeAtomic(s.configPath(), b, 0o600)
+	}
+}
+
 func (s *Store) configPath() string { return filepath.Join(s.dir, "config.json") }
 func (s *Store) tokenPath() string  { return filepath.Join(s.dir, "token") }
 

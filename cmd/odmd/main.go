@@ -107,10 +107,14 @@ func main() {
 		}
 	}()
 
-	// Launched by hand rather than by the browser, so show the user
-	// something: otherwise double-clicking the binary looks like nothing
-	// happened at all.
-	showWindow := !*background && !*noWindow && !*openUI
+	// The window is built unless the user asked for headless or for the
+	// browser. -background only decides whether it is shown: started for the
+	// browser extension or from the login item, ODM belongs in the tray, but
+	// the window still has to exist. Without it the tray's "Open ODM" had
+	// nothing to raise and fell back to the web UI, and the dialog that asks
+	// where to save a download could never appear.
+	runWindow := !*noWindow && !*openUI
+	startHidden := *background
 	if *openUI || (!*background && *noWindow) {
 		openURL(uiURL)
 	}
@@ -132,15 +136,19 @@ func main() {
 		}()
 	}
 
-	if showWindow {
+	if runWindow {
 		runtime.LockOSThread()
-		err := nativeui.Run(client.NewLocal(uiURL, token), shutdown)
+		err := nativeui.Run(client.NewLocal(uiURL, token), shutdown, startHidden)
 		runtime.UnlockOSThread()
 		if err != nil {
 			// No desktop window on this platform, or it failed to start:
-			// fall back to the browser rather than leaving nothing.
+			// fall back to the browser rather than leaving nothing. Not
+			// when running for the browser or a login item, though; those
+			// must not throw a tab in the user's face.
 			log.Printf("desktop window unavailable: %v", err)
-			openURL(uiURL)
+			if !*background {
+				openURL(uiURL)
+			}
 			<-ctx.Done()
 		}
 	} else {

@@ -140,7 +140,12 @@ var app *App // the window procedure needs to reach the App
 //
 // It must be called on a goroutine locked to its OS thread: Windows delivers
 // messages to the thread that created the window.
-func Run(c *client.Client, onQuit func()) error {
+// Run creates the desktop window and pumps its messages until the window
+// closes. When hidden is true the window is built but not shown: the daemon
+// is running for the browser or from a login item, and the user reaches it
+// through the tray. The window still has to exist, because Show and the
+// download dialogs are drawn by it.
+func Run(c *client.Client, onQuit func(), hidden bool) error {
 	enableVisualStyles()
 	initCommonControls()
 	enableDarkMode()
@@ -194,8 +199,14 @@ func Run(c *client.Client, onQuit func()) error {
 	a.mu.Unlock()
 
 	procSetTimer.Call(uintptr(a.hwnd), idTimer, refreshMs, 0)
-	procShowWindow.Call(uintptr(a.hwnd), swShowNormal)
-	procUpdateWindow.Call(uintptr(a.hwnd))
+	// Started for the browser or at login: the window exists and pumps
+	// messages, so Show and the download dialogs work, but it does not
+	// appear or take focus until the user asks for it. The class has no
+	// WS_VISIBLE, so simply not calling ShowWindow leaves it hidden.
+	if !hidden {
+		procShowWindow.Call(uintptr(a.hwnd), swShowNormal)
+		procUpdateWindow.Call(uintptr(a.hwnd))
+	}
 
 	var m msgStruct
 	for {

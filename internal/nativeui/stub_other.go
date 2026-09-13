@@ -14,7 +14,7 @@ import (
 // ErrUnsupported means there is no native window on this platform.
 var ErrUnsupported = errors.New("the native window is only implemented on Windows")
 
-func Run(c *client.Client, onQuit func()) error { return ErrUnsupported }
+func Run(c *client.Client, onQuit func(), hidden bool) error { return ErrUnsupported }
 
 // Show reports that there was no window to raise.
 func Show() bool { return false }
