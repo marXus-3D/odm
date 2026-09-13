@@ -94,6 +94,11 @@ const (
 	wmCtlColorStatic  = 0x0138
 	wmApp             = 0x8000
 	wmAppDone         = wmApp + 1
+	wmAppLog          = wmApp + 2
+
+	// Edit control messages, used to keep the newest log line in view.
+	emSetSel      = 0x00B1
+	emScrollCaret = 0x00B7
 
 	wsCaption      = 0x00C00000
 	wsSysMenu      = 0x00080000

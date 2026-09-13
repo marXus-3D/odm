@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -45,23 +46,41 @@ type wizard struct {
 	checkBrow  syscall.Handle
 	checkData  syscall.Handle
 
+	// uninstall is fixed before the window exists, so it needs no guard.
 	uninstall bool
-	running   bool
-	finished  bool
-	failed    bool
 
-	// installedDir is where the work actually happened, which may differ
-	// from the default once the user has browsed for a folder.
+	// Everything below is written by the install worker and read by the UI
+	// thread, so it lives under mu. installedDir is where the work actually
+	// happened, which may differ from the default once the user has browsed
+	// for a folder.
+	mu           sync.Mutex
+	running      bool
+	finished     bool
+	failed       bool
 	installedDir string
+	log          []string
+}
 
-	mu  sync.Mutex
-	log []string
+// state reports the worker's progress to the UI thread.
+func (w *wizard) state() (running, finished, failed bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.running, w.finished, w.failed
 }
 
 var wz *wizard
 
 // RunWizard shows the installer window. It returns when the user closes it.
+//
+// Windows gives every thread its own message queue and only the thread that
+// created a window may pump it, so the goroutine running this must stay on
+// one OS thread. Without the lock the Go scheduler is free to move it as
+// soon as the install worker starts, after which nothing drains the queue
+// and the window is left hung. Same rule as trayicon.Run and nativeui.Run.
 func RunWizard(uninstall bool) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	initTheme()
 
 	w := &wizard{inst: moduleHandle(), uninstall: uninstall}
@@ -173,17 +192,30 @@ func (w *wizard) build() {
 	makeButton(w.hwnd, w.inst, w.font, "Cancel", 492, 392, 100, 34, idCancel, false)
 }
 
-// say appends a line to the log pane.
+// say appends a line to the log pane. It is called from the install worker,
+// so it only records the line and asks the UI thread to redraw. Touching the
+// control here instead would mean SetWindowText, which is a synchronous
+// SendMessage into the window's own thread: the worker would then block
+// whenever the UI is busy, and block forever if the UI is not pumping.
+// PostMessage returns immediately and is safe from any thread.
 func (w *wizard) say(format string, args ...any) {
 	line := fmt.Sprintf(format, args...)
 	w.mu.Lock()
 	w.log = append(w.log, line)
+	w.mu.Unlock()
+	procPostMessage.Call(uintptr(w.hwnd), wmAppLog, 0, 0)
+}
+
+// renderLog repaints the log pane from the recorded lines. It runs on the UI
+// thread. Rewriting the whole text keeps it correct even when several posted
+// messages are coalesced into one.
+func (w *wizard) renderLog() {
+	w.mu.Lock()
 	text := strings.Join(w.log, "\r\n")
 	w.mu.Unlock()
 
 	procSetWindowText.Call(uintptr(w.logEdit), uintptr(unsafe.Pointer(utf16Ptr(text))))
 	// Keep the newest line in view.
-	const emSetSel, emScrollCaret = 0x00B1, 0x00B7
 	procSendMessage.Call(uintptr(w.logEdit), emSetSel, ^uintptr(0), ^uintptr(0))
 	procSendMessage.Call(uintptr(w.logEdit), emScrollCaret, 0, 0)
 }
@@ -199,13 +231,15 @@ func (w *wizard) checked(h syscall.Handle) bool {
 // start runs the install or uninstall on a worker, so the window keeps
 // painting while files are copied.
 func (w *wizard) start() {
-	if w.running || w.finished {
-		if w.finished {
+	if running, finished, _ := w.state(); running || finished {
+		if finished {
 			w.finishAction()
 		}
 		return
 	}
+	w.mu.Lock()
 	w.running = true
+	w.mu.Unlock()
 
 	dir := DefaultDir()
 	if w.uninstall {
@@ -246,18 +280,24 @@ func (w *wizard) start() {
 			w.say("")
 			w.say("Failed: %v", err)
 		}
+		w.mu.Lock()
 		w.running = false
 		w.finished = true
 		w.installedDir = dir
 		w.failed = err != nil
+		w.mu.Unlock()
 		procPostMessage.Call(uintptr(w.hwnd), wmAppDone, 0, 0)
 	}()
 }
 
 // finishAction is what the primary button does once the work is over.
 func (w *wizard) finishAction() {
-	if !w.failed && !w.uninstall {
-		exe := filepath.Join(w.installedDir, "bin", "odmd.exe")
+	w.mu.Lock()
+	failed, dir := w.failed, w.installedDir
+	w.mu.Unlock()
+
+	if !failed && !w.uninstall {
+		exe := filepath.Join(dir, "bin", "odmd.exe")
 		cmd := exec.Command(exe)
 		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		cmd.Start()
@@ -266,9 +306,10 @@ func (w *wizard) finishAction() {
 }
 
 func (w *wizard) onDone() {
+	_, _, failed := w.state()
 	if w.uninstall {
 		setButtonLabel(idInstall, "Close")
-	} else if w.failed {
+	} else if failed {
 		setButtonLabel(idInstall, "Close")
 	} else {
 		setButtonLabel(idInstall, "Finish")
@@ -316,7 +357,8 @@ func (w *wizard) paint() {
 
 	// A one pixel frame behind the path field: the edit is unthemed so it
 	// has no border of its own, and the children clip over this.
-	if !w.uninstall && !w.running && !w.finished {
+	running, finished, _ := w.state()
+	if !w.uninstall && !running && !finished {
 		fillRect(dc, rect{28, 140, 498, 166}, colBorder)
 		fillRect(dc, rect{29, 141, 497, 165}, colField)
 	}
@@ -344,6 +386,11 @@ func wizardProc(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) uintptr
 		if brush, ok := darkCtlColor(msg, wparam); ok {
 			return brush
 		}
+	case wmAppLog:
+		if w != nil {
+			w.renderLog()
+		}
+		return 0
 	case wmAppDone:
 		if w != nil {
 			w.onDone()
@@ -367,7 +414,10 @@ func wizardProc(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) uintptr
 			}
 			return 0
 		case idOpenExtensions:
-			OpenExtensionsPage(w.installedDir)
+			w.mu.Lock()
+			dir := w.installedDir
+			w.mu.Unlock()
+			OpenExtensionsPage(dir)
 			messageBox(w.hwnd, "Load the extension",
 				"The extensions page is open and the folder is on your clipboard.\n\n"+
 					"1.  Turn on Developer mode\n"+
