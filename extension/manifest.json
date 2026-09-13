@@ -35,7 +35,7 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png"
   },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwz6R8gEOvjI/rsmhikXIJVhXZS+xT3Ug0Nn/H8J9GEt6XRZrWN0TsnKlJWE0h5/a6sO2Ls9WkrfuJY1zRKQvqJuEyDWodAwaMRDR9tx/2mNWXkn+lalO6F1DpBiLAxzIm3ZcuwzfMZxA4a8Lz7/tgq9YmbfbHesFRkHtwX9dVypRG+GlwYkHfEBBymyx4qsMm01XGBhY1dX2kRh5HZIKyn0vQd0XnqorCW98igqWQPURe2kl6LCFlycO42rPl6viZDVnwFoXFtaQj1gFFpotPSJe4rPFqlPm4p5hEbC+Zg9YjWwXU+LX8LdQLAyZkuuTwg66DNDX5maNdcd5KSuFzQIDAQAB",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA12MSaMN4QJnX8QWIvxmSHkyh/1UBDj2Ot/1xlVOsmtVkpEDHsqrdgFwiTP6/xfgcAuovWIpvqqsLcpVmeXDBKrhVkzbvm9lt1jKZcq1OS0b2rUPh1RivzNbLByV9Nl9TFYXLZVBytyyVOrGCGJiSPI7gmevJ2mCF3Yt3XV6q8AeaBO2UqwL69Gf7vDwOvhKvWdtVXF4mR9n4CfE2MI2A7Ywhkuheo2gxWJyhjbLSfzWMO84L7H3U/gtRWE/X4N/olsUP6So2Rta08P4MyyPQZevCtBZkW9/ce0oNbNtjW7+6TqpYyAGTi9VpUGZOeXU4ca9hL+p6nYJ3mEHMSJMfOQIDAQAB",
   "manifest_version": 3,
   "minimum_chrome_version": "116",
   "name": "ODM Integration",
@@ -50,5 +50,5 @@
     "webRequest",
     "tabs"
   ],
-  "version": "0.1.1"
+  "version": "0.1.2"
 }
