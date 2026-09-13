@@ -100,6 +100,10 @@ type App struct {
 	// seenDone remembers which downloads have already had their completion
 	// dialog, so a finished row does not reopen it on every refresh.
 	seenDone map[string]bool
+	// seenConfirm remembers which downloads have already been put to the
+	// user on the Download File Info form, so a record sitting in that
+	// state is not queued again by every poll.
+	seenConfirm map[string]bool
 	// dialogOpen serialises the modal dialogs; without it a burst of
 	// finishes would try to stack several at once.
 	dialogOpen bool
@@ -136,12 +140,13 @@ type row struct {
 
 var app *App // the window procedure needs to reach the App
 
-// Run opens the window and pumps messages until it is closed.
+// Run creates the desktop window and pumps its messages until the window
+// closes.
 //
 // It must be called on a goroutine locked to its OS thread: Windows delivers
 // messages to the thread that created the window.
-// Run creates the desktop window and pumps its messages until the window
-// closes. When hidden is true the window is built but not shown: the daemon
+//
+// When hidden is true the window is built but not shown: the daemon
 // is running for the browser or from a login item, and the user reaches it
 // through the tray. The window still has to exist, because Show and the
 // download dialogs are drawn by it.
@@ -151,7 +156,7 @@ func Run(c *client.Client, onQuit func(), hidden bool) error {
 	enableDarkMode()
 	initBrushes()
 
-	a := &App{client: c, onQuit: onQuit, seenDone: map[string]bool{}}
+	a := &App{client: c, onQuit: onQuit, seenDone: map[string]bool{}, seenConfirm: map[string]bool{}}
 	app = a
 
 	inst, _, _ := procGetModuleHandle.Call(0)
@@ -428,8 +433,20 @@ func (a *App) refresh() {
 	rows := make([]row, 0, len(st.Downloads))
 	var active int
 	for _, r := range st.Downloads {
+		// A download waiting on the form is asked about once. It stays in
+		// this state until the user answers, and the refresh runs several
+		// times a second, so without the guard every poll queued another
+		// copy of the same dialog: closing one revealed the next, which
+		// looked like a form that would not go away, and cancelling one of
+		// the duplicates deleted a download that had already started.
 		if r.State == manager.StateConfirm {
-			confirms = append(confirms, r)
+			a.mu.Lock()
+			asked := a.seenConfirm[r.ID]
+			a.seenConfirm[r.ID] = true
+			a.mu.Unlock()
+			if !asked {
+				confirms = append(confirms, r)
+			}
 		}
 		// A completion is announced once. Records already finished when the
 		// window opened are marked seen without a dialog, so starting the
