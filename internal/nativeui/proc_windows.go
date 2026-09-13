@@ -112,6 +112,9 @@ func mainWndProc(hwnd syscall.Handle, message uint32, wparam, lparam uintptr) ui
 	case wmDestroy:
 		if a != nil {
 			procKillTimer.Call(uintptr(a.hwnd), idTimer)
+			// The per-download windows are top level, so nothing tears them
+			// down with the main one.
+			a.closeProgressWindows()
 			a.hwnd = 0
 		}
 		procPostQuitMessage.Call(0)
@@ -448,7 +451,7 @@ func (a *App) onCommand(id uint32) {
 		go func() { a.client.ResumeAll(); a.refresh() }()
 	case cmdStopAll:
 		go func() { a.client.StopAll(); a.refresh() }()
-	case cmdStartWithWindows, cmdShowStartDialog, cmdShowCompleteDialog:
+	case cmdStartWithWindows, cmdShowStartDialog, cmdShowCompleteDialog, cmdShowProgressDialog:
 		a.toggleFlag(id)
 	case cmdPause, cmdResume, cmdOpen, cmdReveal, cmdRemove, cmdRemoveFile:
 		a.applyToSelection(id)
@@ -495,6 +498,12 @@ func (a *App) toggleFlag(id uint32) {
 		case cmdShowCompleteDialog:
 			v := !st.Config.ShowCompleteDialog
 			f.ShowCompleteDialog = &v
+		case cmdShowProgressDialog:
+			v := !st.Config.ShowProgressDialog
+			f.ShowProgressDialog = &v
+			if !v {
+				a.closeProgressWindows()
+			}
 		}
 		if _, err := a.client.SetFlags(f); err != nil {
 			messageBox(a.hwnd, "Settings",

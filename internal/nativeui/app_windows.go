@@ -38,6 +38,7 @@ const (
 	cmdStartWithWindows
 	cmdShowStartDialog
 	cmdShowCompleteDialog
+	cmdShowProgressDialog
 	cmdSelectAll
 	cmdMenu
 )
@@ -104,6 +105,11 @@ type App struct {
 	// user on the Download File Info form, so a record sitting in that
 	// state is not queued again by every poll.
 	seenConfirm map[string]bool
+	// progress holds the open per-download windows, keyed by download id,
+	// and progressShown remembers which have had one so closing a window
+	// is not undone by the next poll.
+	progress      map[string]*progressWin
+	progressShown map[string]bool
 	// dialogOpen serialises the modal dialogs; without it a burst of
 	// finishes would try to stack several at once.
 	dialogOpen bool
@@ -128,6 +134,7 @@ type App struct {
 type row struct {
 	ID       string
 	Name     string
+	URL      string
 	Size     int64
 	Done     int64
 	State    string
@@ -136,7 +143,16 @@ type row struct {
 	Pct      float64
 	Path     string
 	Created  time.Time
+
+	// Conns and Segments feed the per-download progress window. They come
+	// from the same progress call the speed and ETA already use, so showing
+	// the window costs no extra round trip.
+	Conns    int
+	Segments []segment
 }
+
+// segment is one connection's slice of the file, as the engine reports it.
+type segment struct{ Start, Cur, End int64 }
 
 var app *App // the window procedure needs to reach the App
 
@@ -156,7 +172,13 @@ func Run(c *client.Client, onQuit func(), hidden bool) error {
 	enableDarkMode()
 	initBrushes()
 
-	a := &App{client: c, onQuit: onQuit, seenDone: map[string]bool{}, seenConfirm: map[string]bool{}}
+	a := &App{
+		client: c, onQuit: onQuit,
+		seenDone:      map[string]bool{},
+		seenConfirm:   map[string]bool{},
+		progress:      map[string]*progressWin{},
+		progressShown: map[string]bool{},
+	}
 	app = a
 
 	inst, _, _ := procGetModuleHandle.Call(0)
@@ -287,6 +309,7 @@ func (a *App) showMainMenu() {
 	check(cmdStartWithWindows, "Start ODM with Windows", st.StartWithWindows)
 	check(cmdShowStartDialog, "Ask where to save each download", st.Config.ShowStartDialog)
 	check(cmdShowCompleteDialog, "Show the download complete dialog", st.Config.ShowCompleteDialog)
+	check(cmdShowProgressDialog, "Show a progress window for each download", st.Config.ShowProgressDialog)
 
 	fin, _, _ := procCreatePopupMenu.Call()
 	cur := st.Config.OnComplete
@@ -461,7 +484,7 @@ func (a *App) refresh() {
 			}
 		}
 		rw := row{
-			ID: r.ID, Name: r.Filename, Size: r.Size, Done: r.Downloaded,
+			ID: r.ID, Name: r.Filename, URL: r.URL, Size: r.Size, Done: r.Downloaded,
 			State: r.State, Path: r.Path, Created: r.Created,
 		}
 		if rw.Name == "" {
@@ -486,6 +509,24 @@ func (a *App) refresh() {
 				if segTotal, ok := p["segmentsTotal"].(float64); ok && segTotal > 0 {
 					if segDone, ok := p["segmentsDone"].(float64); ok {
 						rw.Pct = segDone / segTotal * 100
+					}
+				}
+				if v, ok := p["conns"].(float64); ok {
+					rw.Conns = int(v)
+				}
+				if segs, ok := p["segments"].([]any); ok {
+					for _, raw := range segs {
+						m, ok := raw.(map[string]any)
+						if !ok {
+							continue
+						}
+						num := func(k string) int64 {
+							v, _ := m[k].(float64)
+							return int64(v)
+						}
+						rw.Segments = append(rw.Segments, segment{
+							Start: num("start"), Cur: num("cur"), End: num("end"),
+						})
 					}
 				}
 			}
@@ -621,6 +662,7 @@ func (a *App) applyPending() {
 	a.dirty = false
 	a.mu.Unlock()
 	a.setRows(rows)
+	a.syncProgressWindows(rows)
 }
 
 func (a *App) setRows(rows []row) {

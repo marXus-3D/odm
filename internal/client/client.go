@@ -245,6 +245,7 @@ type Flags struct {
 	StartWithWindows         *bool `json:"startWithWindows,omitempty"`
 	ShowStartDialog          *bool `json:"showStartDialog,omitempty"`
 	ShowCompleteDialog       *bool `json:"showCompleteDialog,omitempty"`
+	ShowProgressDialog       *bool `json:"showProgressDialog,omitempty"`
 	ExtensionPromptDismissed *bool `json:"extensionPromptDismissed,omitempty"`
 }
 

@@ -61,6 +61,10 @@ type Config struct {
 	ShowStartDialog    bool `json:"showStartDialog"`
 	ShowCompleteDialog bool `json:"showCompleteDialog"`
 
+	// ShowProgressDialog gives every running download its own small window
+	// with a progress bar and pause and cancel buttons, the way IDM does.
+	ShowProgressDialog bool `json:"showProgressDialog"`
+
 	// Theme is "system", "light" or "dark".
 	Theme string `json:"theme"`
 
@@ -98,6 +102,7 @@ func DefaultConfig(downloadDir string) Config {
 		StartWithWindows:   false,
 		ShowStartDialog:    true,
 		ShowCompleteDialog: true,
+		ShowProgressDialog: true,
 		ConfigVersion:      currentConfigVersion,
 		Theme:              "system",
 		OnComplete:         "none",
@@ -145,6 +150,7 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 			ExtensionPromptDismissed *bool `json:"extensionPromptDismissed"`
 			ShowStartDialog          *bool `json:"showStartDialog"`
 			ShowCompleteDialog       *bool `json:"showCompleteDialog"`
+			ShowProgressDialog       *bool `json:"showProgressDialog"`
 		}
 		json.Unmarshal(b, &flags)
 
@@ -183,6 +189,9 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 			}
 			if flags.ShowCompleteDialog != nil {
 				s.cfg.ShowCompleteDialog = *flags.ShowCompleteDialog
+			}
+			if flags.ShowProgressDialog != nil {
+				s.cfg.ShowProgressDialog = *flags.ShowProgressDialog
 			}
 			s.cfg.ConfigVersion = c.ConfigVersion
 			s.migrate()
@@ -303,6 +312,7 @@ type Flags struct {
 	StartWithWindows         *bool
 	ShowStartDialog          *bool
 	ShowCompleteDialog       *bool
+	ShowProgressDialog       *bool
 	ExtensionPromptDismissed *bool
 }
 
@@ -317,6 +327,9 @@ func (s *Store) SetFlags(f Flags) error {
 	}
 	if f.ShowCompleteDialog != nil {
 		s.cfg.ShowCompleteDialog = *f.ShowCompleteDialog
+	}
+	if f.ShowProgressDialog != nil {
+		s.cfg.ShowProgressDialog = *f.ShowProgressDialog
 	}
 	if f.ExtensionPromptDismissed != nil {
 		s.cfg.ExtensionPromptDismissed = *f.ExtensionPromptDismissed

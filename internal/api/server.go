@@ -297,6 +297,7 @@ func (s *Server) handleSetFlags(w http.ResponseWriter, r *http.Request) {
 		StartWithWindows         *bool `json:"startWithWindows,omitempty"`
 		ShowStartDialog          *bool `json:"showStartDialog,omitempty"`
 		ShowCompleteDialog       *bool `json:"showCompleteDialog,omitempty"`
+		ShowProgressDialog       *bool `json:"showProgressDialog,omitempty"`
 		ExtensionPromptDismissed *bool `json:"extensionPromptDismissed,omitempty"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&f); err != nil {
@@ -307,6 +308,7 @@ func (s *Server) handleSetFlags(w http.ResponseWriter, r *http.Request) {
 		StartWithWindows:         f.StartWithWindows,
 		ShowStartDialog:          f.ShowStartDialog,
 		ShowCompleteDialog:       f.ShowCompleteDialog,
+		ShowProgressDialog:       f.ShowProgressDialog,
 		ExtensionPromptDismissed: f.ExtensionPromptDismissed,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
