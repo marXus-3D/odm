@@ -249,17 +249,19 @@ func copyFile(src, dst string) error {
 	return writeFileReplacing(dst, data)
 }
 
-// extensionVersion reads the version out of the packaged manifest.
+// extensionVersion reads the version out of the packaged manifest. It falls
+// back to the installer's own version rather than a literal, which would
+// otherwise go stale at every release.
 func extensionVersion(dir string) string {
 	b, err := os.ReadFile(filepath.Join(dir, "extension", "manifest.json"))
 	if err != nil {
-		return "0.1.0"
+		return Version
 	}
 	var m struct {
 		Version string `json:"version"`
 	}
 	if json.Unmarshal(b, &m) != nil || m.Version == "" {
-		return "0.1.0"
+		return Version
 	}
 	return m.Version
 }

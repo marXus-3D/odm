@@ -13,7 +13,7 @@ import (
 )
 
 // Version is stamped into the Add or remove programs entry and the window.
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 func main() {
 	uninstall := flag.Bool("uninstall", false, "remove ODM instead of installing it")
