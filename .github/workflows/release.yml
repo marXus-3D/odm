@@ -64,9 +64,14 @@ jobs:
       - name: Checksums
         shell: pwsh
         run: |
-          Get-ChildItem dist -File | ForEach-Object {
-            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
-          } | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+          $lines = Get-ChildItem dist -File |
+            Where-Object { $_.Name -ne "SHA256SUMS.txt" } |
+            ForEach-Object {
+              "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+            }
+          # Written with LF: Set-Content on Windows gives CRLF, and the stray
+          # carriage returns make "sha256sum -c" fail to find the files.
+          [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", ($lines -join "`n") + "`n")
           Get-Content dist/SHA256SUMS.txt
 
       - name: Publish the release
