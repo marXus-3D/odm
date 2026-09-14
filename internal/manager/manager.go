@@ -36,6 +36,11 @@ const StateConfirm = "confirm"
 type entry struct {
 	rec store.Record
 	job job
+	// What the caller pinned down itself, and so what the probe must not
+	// overwrite when it learns the real name of the file.
+	nameGiven bool
+	catGiven  bool
+	dirGiven  bool
 	// runQueue is the queue this download was started under. The record can
 	// be moved to another queue while it runs, so the slot has to be given
 	// back to the queue that lent it.
@@ -160,7 +165,10 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 	if req.Category != "" {
 		cat = cfg.CategoryByName(req.Category)
 	}
-	if req.Dir == "" {
+	// Noted before the default fills it in, so the probe knows whether the
+	// directory is the caller's choice or only ours.
+	dirGiven := req.Dir != ""
+	if !dirGiven {
 		req.Dir = cfg.DirFor(cat)
 	}
 
@@ -192,22 +200,103 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 	// same path, so a browser download gets the dialog too.
 	confirm := cfg.ShowStartDialog && !req.NoPrompt
 	if confirm {
-		rec.State = StateConfirm
+		// Ask the server what the file is called before asking the user
+		// where to put it. Without this the dialog can only offer the tail
+		// of the URL, and whatever it offers is what gets saved, so a
+		// signed CDN link became a file with a token for a name and no
+		// extension. resolve flips the state to StateConfirm when it is
+		// done, or when it gives up.
+		rec.State = string(engine.StateProbing)
 	}
 	m.st.Put(&rec)
 
 	m.mu.Lock()
-	m.entries[rec.ID] = &entry{rec: rec}
+	m.entries[rec.ID] = &entry{
+		rec:       rec,
+		nameGiven: req.Filename != "",
+		catGiven:  req.Category != "",
+		dirGiven:  dirGiven,
+	}
 	if !confirm {
 		m.queue = append(m.queue, rec.ID)
 	}
 	m.mu.Unlock()
 
 	m.broadcast(Event{Type: "added", Item: rec})
-	if !confirm {
+	if confirm {
+		go m.resolve(rec.ID)
+	} else {
 		m.pump()
 	}
 	return rec, nil
+}
+
+// resolveTimeout caps the wait before the Download File Info dialog opens
+// with whatever we know. A dead host must not leave the dialog unopened.
+const resolveTimeout = 20 * time.Second
+
+// resolve fills in the name and size of a download that is waiting for the
+// dialog, then hands it to the user.
+//
+// This is the step that makes the name right. The probe follows redirects
+// and reads Content-Disposition, which is where the real filename lives for
+// anything served from a CDN or behind a token endpoint; the URL path
+// frequently has no name in it at all.
+func (m *Manager) resolve(id string) {
+	m.mu.Lock()
+	e, ok := m.entries[id]
+	if !ok || e.rec.State != string(engine.StateProbing) {
+		m.mu.Unlock()
+		return
+	}
+	rec := e.rec
+	m.mu.Unlock()
+
+	var name string
+	var size int64
+	// A playlist URL names the video after its own directory; there is no
+	// file behind it to ask, so skip straight to the dialog.
+	if rec.Kind == KindFile {
+		ctx, cancel := context.WithTimeout(m.ctx, resolveTimeout)
+		p, err := engine.DoProbe(ctx, engine.Request{
+			URL:      rec.URL,
+			Headers:  rec.Headers,
+			Filename: rec.Filename,
+		}, engine.Options{})
+		cancel()
+		if err == nil {
+			name, size = p.Filename, p.Size
+		}
+	}
+
+	cfg := m.st.Config()
+	m.mu.Lock()
+	e, ok = m.entries[id]
+	if !ok || e.rec.State != string(engine.StateProbing) {
+		m.mu.Unlock()
+		return // cancelled, or answered by hand, while we were asking
+	}
+	if name != "" && !e.nameGiven {
+		e.rec.Filename = name
+		// The category follows the extension, and it was guessed from the
+		// URL a moment ago with no extension to go on.
+		if !e.catGiven {
+			cat := cfg.CategoryFor(name)
+			e.rec.Category = cat.Name
+			if !e.dirGiven {
+				e.rec.Dir = cfg.DirFor(cat)
+			}
+		}
+	}
+	if size > 0 {
+		e.rec.Size = size
+	}
+	e.rec.State = StateConfirm
+	rec = e.rec
+	m.mu.Unlock()
+
+	m.st.Put(&rec)
+	m.broadcast(Event{Type: "updated", Item: rec})
 }
 
 // Confirmation is the answer to the Download File Info dialog.

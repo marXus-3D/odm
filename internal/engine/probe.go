@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"mime"
 	"net/http"
 	"net/url"
 	"path"
@@ -103,45 +102,31 @@ func parseContentRangeTotal(v string) (int64, bool) {
 	return n, true
 }
 
-// pickFilename resolves the name to save as, in order of trust:
-// caller override, Content-Disposition, URL path, then a generic fallback.
+// pickFilename resolves the name to save as, in order of trust: caller
+// override, Content-Disposition, the path of the final URL, then a generic
+// fallback. Whatever comes out is then held against the Content-Type, so a
+// name taken from a URL like /videoplayback still ends in .mp4 rather than
+// in nothing at all. See naming.go.
 func pickFilename(override string, resp *http.Response) string {
+	ct := resp.Header.Get("Content-Type")
 	if override != "" {
-		return SanitizeFilename(override)
+		return withExtension(SanitizeFilename(override), ct)
 	}
-	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
-		if _, params, err := mime.ParseMediaType(cd); err == nil {
-			// filename* (RFC 5987) wins over plain filename when both exist.
-			if v := params["filename*"]; v != "" {
-				if dec, err := decodeExtValue(v); err == nil && dec != "" {
-					return SanitizeFilename(dec)
-				}
-			}
-			if v := params["filename"]; v != "" {
-				return SanitizeFilename(v)
-			}
-		}
+	if name := FilenameFromDisposition(resp.Header.Get("Content-Disposition")); name != "" {
+		return withExtension(SanitizeFilename(name), ct)
 	}
+	// resp.Request.URL is the URL after redirects: a download link that
+	// bounces through a token endpoint to the real file is named by the
+	// file, not by the endpoint.
 	if u := resp.Request.URL; u != nil {
 		if base := path.Base(u.Path); base != "" && base != "/" && base != "." {
 			if unesc, err := url.PathUnescape(base); err == nil {
 				base = unesc
 			}
-			return SanitizeFilename(base)
+			if name := SanitizeFilename(base); name != "download" {
+				return withExtension(name, ct)
+			}
 		}
 	}
-	return "download"
-}
-
-// decodeExtValue decodes an RFC 5987 ext-value: charset'lang'pct-encoded.
-func decodeExtValue(v string) (string, error) {
-	parts := strings.SplitN(v, "'", 3)
-	if len(parts) != 3 {
-		return url.PathUnescape(v)
-	}
-	dec, err := url.PathUnescape(parts[2])
-	if err != nil {
-		return "", err
-	}
-	return dec, nil
+	return withExtension("download", ct)
 }

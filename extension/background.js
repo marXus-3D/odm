@@ -66,6 +66,21 @@ function extensionOf(name) {
   return i > 0 ? base.slice(i + 1).toLowerCase() : "";
 }
 
+// suggestedName is the name Chrome had worked out by the time onCreated
+// fired, or "" when it had not worked one out yet.
+//
+// Send nothing rather than a guess: ODM treats a name it is given as final,
+// and at this point Chrome usually has only a placeholder -- an empty string,
+// or a temporary "Unconfirmed 123456.crdownload" it has not yet renamed.
+// With no name ODM asks the server itself, which is the better answer.
+function suggestedName(item) {
+  const base = item.filename ? item.filename.split(/[\\/]/).pop() : "";
+  if (!base) return "";
+  if (/\.crdownload$/i.test(base)) return "";
+  if (/^Unconfirmed \d+/i.test(base)) return "";
+  return base;
+}
+
 function isFetchable(url) {
   return /^https?:\/\//i.test(url);
 }
@@ -78,7 +93,7 @@ async function shouldCapture(item, cfg) {
   if (item.fileSize > 0 && item.fileSize < cfg.minSize) return false;
   if (item.fileSize <= 0 && !cfg.captureUnknownSize) return false;
 
-  const ext = extensionOf(item.filename) || extensionOf(item.url.split("?")[0]);
+  const ext = extensionOf(suggestedName(item)) || extensionOf(item.url.split("?")[0]);
   if (ext && cfg.skipExtensions.includes(ext)) return false;
   return true;
 }
@@ -99,7 +114,7 @@ chrome.downloads.onCreated.addListener(async (item) => {
     return; // Chrome already finished it; leave it alone.
   }
 
-  const filename = item.filename ? item.filename.split(/[\\/]/).pop() : "";
+  const filename = suggestedName(item);
   try {
     await sendNative({
       type: "add",
