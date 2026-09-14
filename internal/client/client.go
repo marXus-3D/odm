@@ -39,6 +39,7 @@ type AddRequest struct {
 	Kind        string            `json:"kind,omitempty"`
 	Category    string            `json:"category,omitempty"`
 	Description string            `json:"description,omitempty"`
+	QueueID     string            `json:"queueId,omitempty"`
 	NoPrompt    bool              `json:"noPrompt,omitempty"`
 }
 
@@ -48,6 +49,7 @@ type Confirmation struct {
 	Filename    string `json:"filename,omitempty"`
 	Category    string `json:"category,omitempty"`
 	Description string `json:"description,omitempty"`
+	QueueID     string `json:"queueId,omitempty"`
 	Start       bool   `json:"start"`
 }
 
@@ -56,6 +58,8 @@ type State struct {
 	Downloads []store.Record `json:"downloads"`
 	Config    store.Config   `json:"config"`
 	FFmpeg    string         `json:"ffmpeg"`
+
+	Queues []QueueStatus `json:"queues"`
 
 	StartWithWindows          bool `json:"startWithWindows"`
 	StartWithWindowsSupported bool `json:"startWithWindowsSupported"`
@@ -269,4 +273,60 @@ func (c *Client) SetConfig(cfg store.Config) (*store.Config, error) {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// QueueStatus is a queue plus how busy it is, as the daemon reports it.
+type QueueStatus struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	MaxConcurrent int    `json:"maxConcurrent"`
+	Running       int    `json:"running"`
+	Waiting       int    `json:"waiting"`
+}
+
+// Queues lists the download queues.
+func (c *Client) Queues() ([]QueueStatus, error) {
+	var out []QueueStatus
+	if err := c.do(http.MethodGet, "/api/queues", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AddQueue creates a queue.
+func (c *Client) AddQueue(name string, maxConcurrent int) (*store.Queue, error) {
+	var out store.Queue
+	body := map[string]any{"name": name, "maxConcurrent": maxConcurrent}
+	if err := c.do(http.MethodPost, "/api/queues", body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateQueue renames a queue or changes how many of its downloads run at
+// once. An empty name or a zero limit leaves that field alone.
+func (c *Client) UpdateQueue(id, name string, maxConcurrent int) (*store.Queue, error) {
+	var out store.Queue
+	body := map[string]any{}
+	if name != "" {
+		body["name"] = name
+	}
+	if maxConcurrent > 0 {
+		body["maxConcurrent"] = maxConcurrent
+	}
+	if err := c.do(http.MethodPut, "/api/queues/"+id, body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RemoveQueue deletes a queue, moving its downloads to the default one.
+func (c *Client) RemoveQueue(id string) error {
+	return c.do(http.MethodDelete, "/api/queues/"+id, nil, nil)
+}
+
+// SetQueue moves a download to another queue.
+func (c *Client) SetQueue(id, queueID string) error {
+	return c.do(http.MethodPost, "/api/downloads/"+id+"/queue",
+		map[string]string{"queueId": queueID}, nil)
 }

@@ -455,7 +455,13 @@ func (a *App) onCommand(id uint32) {
 		a.toggleFlag(id)
 	case cmdPause, cmdResume, cmdOpen, cmdReveal, cmdRemove, cmdRemoveFile:
 		a.applyToSelection(id)
+	case cmdQueues:
+		a.showQueues()
 	default:
+		if idx := int(id) - cmdMoveQueueBase; idx >= 0 && idx < len(a.menuQueues) {
+			a.moveSelectionToQueue(a.menuQueues[idx])
+			return
+		}
 		acts := power.Actions()
 		if idx := int(id) - cmdOnFinishBase; idx >= 0 && idx < len(acts) {
 			a.setOnFinish(acts[idx])
@@ -594,6 +600,25 @@ func (a *App) showContextMenu() {
 	add(cmdRemove, "Remove from list", has)
 	add(cmdRemoveFile, "Remove and delete file", has)
 
+	// The queues are read fresh each time the menu opens, and remembered so
+	// the chosen id can be turned back into a queue when the command lands.
+	a.mu.Lock()
+	queues := append([]client.QueueStatus(nil), a.state.Queues...)
+	a.menuQueues = queues
+	a.mu.Unlock()
+	if has && len(queues) > 0 {
+		sub, _, _ := procCreatePopupMenu.Call()
+		if sub != 0 {
+			for i, q := range queues {
+				procAppendMenu.Call(sub, mfString, uintptr(cmdMoveQueueBase+i),
+					uintptr(unsafe.Pointer(utf16Ptr(q.Name))))
+			}
+			procAppendMenu.Call(menu, mfSeparator, 0, 0)
+			procAppendMenu.Call(menu, mfPopup, sub,
+				uintptr(unsafe.Pointer(utf16Ptr("Move to queue"))))
+		}
+	}
+
 	var pt point
 	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
 	procSetForegroundWindow.Call(uintptr(a.hwnd))
@@ -616,4 +641,26 @@ func iconPath() (string, error) {
 		return "", err
 	}
 	return p, nil
+}
+
+// moveSelectionToQueue sends the highlighted downloads to another queue.
+func (a *App) moveSelectionToQueue(q client.QueueStatus) {
+	rows := a.selected()
+	if len(rows) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.ID)
+	}
+	go func() {
+		for _, id := range ids {
+			if err := a.client.SetQueue(id, q.ID); err != nil {
+				messageBox(a.hwnd, "Move to queue",
+					"Could not move the download:\n\n"+err.Error(), mbOk|mbIconError)
+				break
+			}
+		}
+		a.refresh()
+	}()
 }

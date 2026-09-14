@@ -313,6 +313,30 @@ unknown-size downloads, file types to ignore, notifications.
 If the daemon cannot be reached the extension says so and lets Chrome do the
 download normally, rather than losing it.
 
+## Queues
+
+Every download waits in a queue, and each queue decides how many of its
+downloads run at once. One queue for a game, crawling along on a single
+connection, and another for videos three at a time:
+
+```
+odm queues                       list them, with what is running and waiting
+odm queue add -n 1 Games         create one
+odm queue set -n 3 Games         change how many run at once
+odm queue rm Games               delete it; its downloads move to the default
+odm add -q Videos <url>          add straight into a queue
+odm move <id>... Games           send existing downloads to another queue
+```
+
+In the app the same lives under **Download queues...** in the menu, the
+Download File Info form has a **Queue** picker, and the right-click menu on
+the list has **Move to queue**. A queue that is full does not hold up the
+others: the scheduler skips past its downloads and starts the next one
+whose own queue has room.
+
+The default queue, **Main**, cannot be removed; it catches downloads that
+arrive from the browser without a queue in mind.
+
 ## Streaming video
 
 Give ODM an `.m3u8` URL -- from the extension popup, the web UI or

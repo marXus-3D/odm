@@ -39,12 +39,17 @@ const (
 	cmdShowStartDialog
 	cmdShowCompleteDialog
 	cmdShowProgressDialog
+	cmdQueues
 	cmdSelectAll
 	cmdMenu
 )
 
 // cmdOnFinishBase is the first of a run of ids, one per completion action.
 const cmdOnFinishBase = 1200
+
+// cmdMoveQueueBase is the first of a run of ids, one per queue, used by the
+// "Move to queue" submenu.
+const cmdMoveQueueBase = 1300
 
 // wmAppRefresh asks the UI thread to apply rows fetched elsewhere.
 // wmAppQuit tears the window down for real, as opposed to hiding it.
@@ -117,6 +122,10 @@ type App struct {
 	// pendingComplete those whose completion has not been announced.
 	pendingConfirm  []store.Record
 	pendingComplete []store.Record
+
+	// menuQueues is the queue list the context menu was built from, so a
+	// chosen item can be mapped back to a queue.
+	menuQueues []client.QueueStatus
 
 	// extPrompted stops the extension prompt reappearing every refresh.
 	extPrompted bool
@@ -326,6 +335,9 @@ func (a *App) showMainMenu() {
 	}
 	procAppendMenu.Call(menu, mfPopup, fin,
 		uintptr(unsafe.Pointer(utf16Ptr("When everything finishes"))))
+
+	sep()
+	add(cmdQueues, "Download queues...")
 
 	sep()
 	add(cmdAbout, "About ODM")

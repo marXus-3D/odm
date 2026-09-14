@@ -102,6 +102,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `usage:
   odm [flags] <url>           download now, in this process
   odm add [flags] <url>...    queue in the daemon (starts it if needed)
+                             -q <queue> picks a queue, -now skips the dialog
   odm ls                      list what the daemon knows about
   odm pause|resume <id>...    control a queued download
   odm rm [-f] <id>...         forget one; -f also deletes the file
@@ -113,6 +114,11 @@ func usage() {
   odm on-finish [<action>]    what to do when everything finishes:
                              none exit sleep hibernate shutdown restart
                              (or "cancel" to call off a pending one)
+  odm queues                 list the download queues
+  odm queue add [-n N] <name>  create a queue
+  odm queue set [-n N] [-name NEW] <queue>
+  odm queue rm <queue>       delete one; its downloads move to the default
+  odm move <id>... <queue>   send downloads to another queue
   odm limit [<KiB/s>|off]     show or set the global speed limit
   odm ui                      print the web UI url
   odm daemon [stop]           daemon status, or stop it gracefully

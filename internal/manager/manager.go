@@ -36,6 +36,10 @@ const StateConfirm = "confirm"
 type entry struct {
 	rec store.Record
 	job job
+	// runQueue is the queue this download was started under. The record can
+	// be moved to another queue while it runs, so the slot has to be given
+	// back to the queue that lent it.
+	runQueue string
 }
 
 // Manager runs downloads subject to a concurrency limit and broadcasts
@@ -49,8 +53,12 @@ type Manager struct {
 
 	mu      sync.Mutex
 	entries map[string]*entry
-	queue   []string
-	running int
+	// queue is one ordered list of everything waiting, across all queues.
+	// Keeping a single line preserves the order downloads were added in;
+	// which of them may start is decided per queue in pump.
+	queue []string
+	// running counts what is in flight per queue id.
+	running map[string]int
 
 	subMu sync.Mutex
 	subs  map[chan Event]struct{}
@@ -64,6 +72,7 @@ func New(ctx context.Context, st *store.Store) *Manager {
 		st:      st,
 		ctx:     ctx,
 		entries: map[string]*entry{},
+		running: map[string]int{},
 		subs:    map[chan Event]struct{}{},
 		limiter: engine.NewLimiter(float64(st.Config().LimitKBps) * 1024),
 	}
@@ -104,6 +113,9 @@ type AddRequest struct {
 	// the user's note. Both come from the Download File Info dialog.
 	Category    string
 	Description string
+
+	// QueueID picks the queue to wait in. Empty means the default.
+	QueueID string
 
 	// NoPrompt skips the Download File Info dialog for this one download,
 	// however the setting is configured.
@@ -159,8 +171,10 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 	if kind == KindDASH {
 		return store.Record{}, ErrDASHUnsupported
 	}
+	q := cfg.QueueByID(req.QueueID)
 	rec := store.Record{
 		ID:          store.NewID(),
+		QueueID:     q.ID,
 		URL:         req.URL,
 		Kind:        kind,
 		Filename:    req.Filename,
@@ -202,6 +216,9 @@ type Confirmation struct {
 	Filename    string
 	Category    string
 	Description string
+	// QueueID moves the download to another queue before it starts. Empty
+	// leaves it where it is.
+	QueueID string
 	// Start now, or leave it paused for later.
 	Start bool
 }
@@ -229,6 +246,9 @@ func (m *Manager) Confirm(id string, c Confirmation) error {
 		e.rec.Category = c.Category
 	}
 	e.rec.Description = c.Description
+	if c.QueueID != "" {
+		e.rec.QueueID = m.st.Config().QueueByID(c.QueueID).ID
+	}
 	if c.Start {
 		e.rec.State = string(engine.StateQueued)
 		m.queue = append(m.queue, id)
@@ -410,36 +430,63 @@ func (m *Manager) Get(id string) (store.Record, error) {
 	return e.rec, nil
 }
 
-// pump starts queued downloads until the concurrency limit is reached.
+// pump starts waiting downloads until every queue is at its limit.
+//
+// The waiting list is shared, so a queue that is full does not block the
+// others: the scan skips past its downloads and starts the first one behind
+// them whose own queue has room.
 func (m *Manager) pump() {
 	cfg := m.st.Config()
 	for {
 		m.mu.Lock()
-		if len(m.queue) == 0 || m.running >= cfg.MaxConcurrent {
-			m.mu.Unlock()
-			return
+		idx, qid := -1, ""
+		for i, id := range m.queue {
+			e, ok := m.entries[id]
+			if !ok {
+				// Removed while waiting; drop it on the way past.
+				m.queue = append(m.queue[:i], m.queue[i+1:]...)
+				idx = -2 // rescan, the slice moved under us
+				break
+			}
+			q := cfg.QueueByID(e.rec.QueueID)
+			if m.running[q.ID] < q.MaxConcurrent {
+				idx, qid = i, q.ID
+				break
+			}
 		}
-		id := m.queue[0]
-		m.queue = m.queue[1:]
-		e, ok := m.entries[id]
-		if !ok {
+		if idx == -2 {
 			m.mu.Unlock()
 			continue
 		}
-		m.running++
+		if idx < 0 {
+			m.mu.Unlock()
+			return
+		}
+
+		id := m.queue[idx]
+		m.queue = append(m.queue[:idx], m.queue[idx+1:]...)
+		e := m.entries[id]
+		m.running[qid]++
+		e.runQueue = qid
 		j := m.newJob(e.rec, func() { m.onUpdate(id) })
 		e.job = j
 		m.mu.Unlock()
 
-		go m.run(id, j)
+		go m.run(id, qid, j)
 	}
 }
 
-func (m *Manager) run(id string, j job) {
+func (m *Manager) run(id, qid string, j job) {
 	err := j.Run(m.ctx)
 
 	m.mu.Lock()
-	m.running--
+	// The slot goes back to the queue that lent it, named here rather than
+	// read off the entry: the download may have been moved to another queue,
+	// or removed outright, while it was running.
+	m.running[qid]--
+	if e, ok := m.entries[id]; ok {
+		e.runQueue = ""
+	}
 	e, ok := m.entries[id]
 	if !ok {
 		// Removed while running.
@@ -494,7 +541,13 @@ func (m *Manager) maybeFinishAction() {
 	}
 
 	m.mu.Lock()
-	busy := m.running > 0 || len(m.queue) > 0
+	busy := len(m.queue) > 0
+	for _, n := range m.running {
+		if n > 0 {
+			busy = true
+			break
+		}
+	}
 	if !busy {
 		for _, e := range m.entries {
 			switch e.rec.State {
@@ -662,3 +715,61 @@ func (m *Manager) StartFlusher(ctx context.Context, every time.Duration) {
 		}
 	}()
 }
+
+// SetQueue moves a download to another queue. A waiting download simply
+// starts under the new queue's limit next time the scheduler looks; one that
+// is already running is left alone, because stopping it to re-queue would
+// throw away its connections for no gain.
+func (m *Manager) SetQueue(id, queueID string) error {
+	cfg := m.st.Config()
+	q := cfg.QueueByID(queueID)
+	if q.ID != queueID && queueID != "" {
+		return fmt.Errorf("no queue with id %q", queueID)
+	}
+
+	m.mu.Lock()
+	e, ok := m.entries[id]
+	if !ok {
+		m.mu.Unlock()
+		return ErrNotFound
+	}
+	e.rec.QueueID = q.ID
+	rec := e.rec
+	m.mu.Unlock()
+
+	m.st.Put(&rec)
+	m.broadcast(Event{Type: "updated", Item: rec})
+	m.pump()
+	return nil
+}
+
+// Queues returns the configured queues with a live count of what is running
+// and waiting in each, which is what the UI lists.
+type QueueStatus struct {
+	store.Queue
+	Running int `json:"running"`
+	Waiting int `json:"waiting"`
+}
+
+// QueueStatuses reports every queue and how busy it is.
+func (m *Manager) QueueStatuses() []QueueStatus {
+	cfg := m.st.Config()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	waiting := map[string]int{}
+	for _, id := range m.queue {
+		if e, ok := m.entries[id]; ok {
+			waiting[cfg.QueueByID(e.rec.QueueID).ID]++
+		}
+	}
+	out := make([]QueueStatus, 0, len(cfg.Queues))
+	for _, q := range cfg.Queues {
+		out = append(out, QueueStatus{Queue: q, Running: m.running[q.ID], Waiting: waiting[q.ID]})
+	}
+	return out
+}
+
+// Kick asks the scheduler to look again, after something outside the manager
+// changed a queue's limit or membership.
+func (m *Manager) Kick() { m.pump() }

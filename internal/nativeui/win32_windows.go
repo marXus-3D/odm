@@ -169,14 +169,22 @@ const (
 	odsFocus    = 0x0010
 
 	esAutoHScroll = 0x0080
+	esNumber      = 0x2000
 	esReadOnly    = 0x0800
 
 	// Combo box: a drop-down list the user cannot type into.
 	cbsDropDownList = 0x0003
-	cbAddString     = 0x0143
-	cbSetCurSel     = 0x014E
-	cbGetCurSel     = 0x0147
-	cbResetContent  = 0x014B
+
+	// List box, used by the Queues form.
+	lbsNotify      = 0x0001
+	lbAddString    = 0x0180
+	lbResetContent = 0x0184
+	lbGetCurSel    = 0x0188
+	lbnSelChange   = 1
+	cbAddString    = 0x0143
+	cbSetCurSel    = 0x014E
+	cbGetCurSel    = 0x0147
+	cbResetContent = 0x014B
 
 	bmGetCheck   = 0x00F0
 	bmSetCheck   = 0x00F1
@@ -301,11 +309,13 @@ const (
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
 
-	mbOk        = 0x0000
-	mbIconError = 0x0010
-	mbIconInfo  = 0x0040
-	mbYesNo     = 0x0004
-	idYes       = 6
+	mbOk           = 0x0000
+	mbOkCancel     = 0x0001
+	mbIconError    = 0x0010
+	mbIconQuestion = 0x0020
+	mbIconInfo     = 0x0040
+	mbYesNo        = 0x0004
+	idYes          = 6
 
 	dtLeft        = 0x0000
 	dtVCenter     = 0x0004

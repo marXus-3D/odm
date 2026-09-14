@@ -30,6 +30,10 @@ type Record struct {
 	Dir        string            `json:"dir,omitempty"`
 	MaxConns   int               `json:"maxConns,omitempty"`
 
+	// QueueID is the queue this download waits in. Empty means the default
+	// queue, which is how every record written before queues existed reads.
+	QueueID string `json:"queueId,omitempty"`
+
 	// Category groups the download for filing; Description is the user's
 	// own note, both shown in the Download File Info dialog.
 	Category    string    `json:"category,omitempty"`
@@ -51,6 +55,11 @@ type Config struct {
 
 	// Categories file finished downloads by type.
 	Categories []Category `json:"categories"`
+
+	// Queues are the named lines downloads wait in, each with its own limit
+	// on how many run at once. MaxConcurrent above is the fallback used when
+	// a queue does not name its own.
+	Queues []Queue `json:"queues"`
 
 	// StartWithWindows registers ODM to run at login.
 	StartWithWindows bool `json:"startWithWindows"`
@@ -88,7 +97,7 @@ type Config struct {
 // changed under it. Version 1 turned ShowStartDialog on: it shipped off,
 // which left the browser extension and the app starting downloads with no
 // dialog at all, and no clue that one existed.
-const currentConfigVersion = 1
+const currentConfigVersion = 2
 
 // DefaultConfig is used the first time the daemon starts.
 func DefaultConfig(downloadDir string) Config {
@@ -99,6 +108,7 @@ func DefaultConfig(downloadDir string) Config {
 		Port:               9111,
 		LimitKBps:          0,
 		Categories:         DefaultCategories(),
+		Queues:             DefaultQueues(3),
 		StartWithWindows:   false,
 		ShowStartDialog:    true,
 		ShowCompleteDialog: true,
@@ -175,6 +185,9 @@ func Open(dir string, defaultDownloadDir string) (*Store, error) {
 			if len(c.Categories) > 0 {
 				s.cfg.Categories = c.Categories
 			}
+			if len(c.Queues) > 0 {
+				s.cfg.Queues = c.Queues
+			}
 			if c.Theme != "" {
 				s.cfg.Theme = c.Theme
 			}
@@ -231,6 +244,14 @@ func (s *Store) migrate() {
 		// so against a config that already records version 1, so their
 		// choice is never overwritten.
 		s.cfg.ShowStartDialog = true
+	}
+	if s.cfg.ConfigVersion < 2 {
+		// Queues arrived after this config was written. Seed the default one
+		// from the single global limit it used to carry, so the machine
+		// behaves exactly as it did before.
+		if len(s.cfg.Queues) == 0 {
+			s.cfg.Queues = DefaultQueues(s.cfg.MaxConcurrent)
+		}
 	}
 	s.cfg.ConfigVersion = currentConfigVersion
 	if b, err := json.MarshalIndent(s.cfg, "", "  "); err == nil {
@@ -290,6 +311,9 @@ func (s *Store) SetConfig(c Config) error {
 	if len(c.Categories) > 0 {
 		s.cfg.Categories = c.Categories
 	}
+	if len(c.Queues) > 0 {
+		s.cfg.Queues = c.Queues
+	}
 	if c.Theme != "" {
 		s.cfg.Theme = c.Theme
 	}
@@ -299,6 +323,11 @@ func (s *Store) SetConfig(c Config) error {
 	cfg := s.cfg
 	s.mu.Unlock()
 
+	return s.writeConfig(cfg)
+}
+
+// writeConfig persists a config snapshot taken under the lock.
+func (s *Store) writeConfig(cfg Config) error {
 	b, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err

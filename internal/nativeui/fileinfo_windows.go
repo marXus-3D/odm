@@ -22,6 +22,7 @@ const (
 	idFILater
 	idFIStart
 	idFICancel
+	idFIQueue
 )
 
 // fileInfo is the "Download File Info" form: where a download is going,
@@ -34,9 +35,11 @@ type fileInfo struct {
 	saveAs   syscall.Handle
 	remember syscall.Handle
 	desc     syscall.Handle
+	queue    syscall.Handle
 
 	rec        store.Record
 	categories []store.Category
+	queues     []store.Queue
 	cfg        store.Config
 
 	done      bool
@@ -53,7 +56,7 @@ func (a *App) showFileInfo(rec store.Record, cfg store.Config) (client.Confirmat
 	inst, _, _ := procGetModuleHandle.Call(0)
 	className := dialogClass("DMFileInfo", syscall.NewCallback(fileInfoProc), inst)
 
-	d := &fileInfo{rec: rec, cfg: cfg, categories: cfg.Categories}
+	d := &fileInfo{rec: rec, cfg: cfg, categories: cfg.Categories, queues: cfg.Queues}
 	fileInfoDlg = d
 	defer func() { fileInfoDlg = nil }()
 
@@ -105,6 +108,22 @@ func (a *App) showFileInfo(rec store.Record, cfg store.Config) (client.Confirmat
 		}
 	}
 	procSendMessage.Call(uintptr(d.category), cbSetCurSel, uintptr(sel), 0)
+
+	// Which queue it waits in. Beside the category, because the two are the
+	// filing decisions and the rest of the form is about the file itself.
+	mk("STATIC", "Queue:", ssLeft, 330, 54, 56, 18, 0, 0)
+	d.queue = mk("COMBOBOX", "", wsTabStop|cbsDropDownList|wsVScroll,
+		392, 50, 170, 220, idFIQueue, 0)
+	qsel := 0
+	want := cfg.QueueByID(rec.QueueID).ID
+	for i, q := range d.queues {
+		procSendMessage.Call(uintptr(d.queue), cbAddString, 0,
+			uintptr(unsafe.Pointer(utf16Ptr(q.Name))))
+		if q.ID == want {
+			qsel = i
+		}
+	}
+	procSendMessage.Call(uintptr(d.queue), cbSetCurSel, uintptr(qsel), 0)
 
 	name := rec.Filename
 	if name == "" {
@@ -173,6 +192,7 @@ func (d *fileInfo) finish(accept, start bool) {
 			Filename:    filepath.Base(full),
 			Category:    d.selectedCategory(),
 			Description: windowText(d.desc),
+			QueueID:     d.selectedQueue(),
 			Start:       start,
 		}
 		d.answered = true
@@ -184,6 +204,16 @@ func (d *fileInfo) finish(accept, start bool) {
 		procDestroyWindow.Call(uintptr(d.hwnd))
 		d.hwnd = 0
 	}
+}
+
+// selectedQueue is the queue id the user picked.
+func (d *fileInfo) selectedQueue() string {
+	i, _, _ := procSendMessage.Call(uintptr(d.queue), cbGetCurSel, 0, 0)
+	idx := int(int32(i))
+	if idx >= 0 && idx < len(d.queues) {
+		return d.queues[idx].ID
+	}
+	return d.rec.QueueID
 }
 
 func (d *fileInfo) selectedCategory() string {

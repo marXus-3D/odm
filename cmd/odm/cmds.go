@@ -20,7 +20,8 @@ func runCommand(args []string) bool {
 	switch args[0] {
 	case "add", "ls", "list", "pause", "resume", "rm", "remove",
 		"open", "show", "ui", "limit", "daemon",
-		"pause-all", "resume-all", "stop-all", "startup", "on-finish":
+		"pause-all", "resume-all", "stop-all", "startup", "on-finish",
+		"queue", "queues", "move":
 	default:
 		return false
 	}
@@ -62,6 +63,10 @@ func runCommand(args []string) bool {
 		cmdStartup(c, rest)
 	case "on-finish":
 		cmdOnFinish(c, rest)
+	case "queue", "queues":
+		cmdQueue(c, rest)
+	case "move":
+		cmdMove(c, rest)
 	}
 	return true
 }
@@ -74,15 +79,22 @@ func cmdAdd(c *client.Client, args []string) {
 	ref := fs.String("referer", "", "Referer header")
 	cook := fs.String("cookie", "", "Cookie header")
 	ua := fs.String("ua", "", "User-Agent header")
+	queue := fs.String("q", "", "queue to wait in (name or id)")
+	now := fs.Bool("now", false, "skip the Download File Info dialog and queue it straight away")
 	fs.Parse(args)
 
 	if fs.NArg() == 0 {
 		fail("usage: odm add [flags] <url>...")
 	}
+	qid := ""
+	if *queue != "" {
+		qid = resolveQueue(c, *queue)
+	}
 	for _, u := range fs.Args() {
 		rec, err := c.Add(client.AddRequest{
 			URL: u, Dir: *dir, Filename: *out, MaxConns: *conns,
-			Referer: *ref, Cookie: *cook, UA: *ua,
+			Referer: *ref, Cookie: *cook, UA: *ua, QueueID: qid,
+			NoPrompt: *now,
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "odm: add %s: %v\n", u, err)
@@ -285,4 +297,93 @@ func forEachID(ids []string, verb, done string, fn func(string) error) {
 func fail(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "odm: "+format+"\n", args...)
 	os.Exit(1)
+}
+
+// resolveQueue turns a name or an id from the command line into a queue id.
+func resolveQueue(c *client.Client, want string) string {
+	queues, err := c.Queues()
+	if err != nil {
+		fail("%v", err)
+	}
+	for _, q := range queues {
+		if strings.EqualFold(q.Name, want) || q.ID == want {
+			return q.ID
+		}
+	}
+	fail("no queue called %q; try 'odm queues'", want)
+	return ""
+}
+
+// cmdQueue lists queues, or adds, changes and removes one.
+func cmdQueue(c *client.Client, args []string) {
+	if len(args) == 0 || args[0] == "ls" || args[0] == "list" {
+		queues, err := c.Queues()
+		if err != nil {
+			fail("%v", err)
+		}
+		fmt.Printf("%-14s  %-20s  %-8s  %-8s  %s\n", "ID", "NAME", "RUNNING", "WAITING", "AT ONCE")
+		for _, q := range queues {
+			fmt.Printf("%-14s  %-20s  %-8d  %-8d  %d\n",
+				q.ID, q.Name, q.Running, q.Waiting, q.MaxConcurrent)
+		}
+		return
+	}
+
+	switch args[0] {
+	case "add", "new":
+		fs := flag.NewFlagSet("queue add", flag.ExitOnError)
+		n := fs.Int("n", 1, "how many of this queue's downloads run at once")
+		fs.Parse(args[1:])
+		if fs.NArg() == 0 {
+			fail("usage: odm queue add [-n N] <name>")
+		}
+		q, err := c.AddQueue(strings.Join(fs.Args(), " "), *n)
+		if err != nil {
+			fail("%v", err)
+		}
+		fmt.Printf("%s  %s  %d at once\n", q.ID, q.Name, q.MaxConcurrent)
+
+	case "set":
+		fs := flag.NewFlagSet("queue set", flag.ExitOnError)
+		n := fs.Int("n", 0, "how many of this queue's downloads run at once")
+		name := fs.String("name", "", "rename the queue")
+		fs.Parse(args[1:])
+		if fs.NArg() == 0 {
+			fail("usage: odm queue set [-n N] [-name NEW] <queue>")
+		}
+		id := resolveQueue(c, strings.Join(fs.Args(), " "))
+		q, err := c.UpdateQueue(id, *name, *n)
+		if err != nil {
+			fail("%v", err)
+		}
+		fmt.Printf("%s  %s  %d at once\n", q.ID, q.Name, q.MaxConcurrent)
+
+	case "rm", "remove":
+		if len(args) < 2 {
+			fail("usage: odm queue rm <queue>")
+		}
+		id := resolveQueue(c, strings.Join(args[1:], " "))
+		if err := c.RemoveQueue(id); err != nil {
+			fail("%v", err)
+		}
+		fmt.Println("removed; its downloads moved to the default queue")
+
+	default:
+		fail("usage: odm queue [ls|add|set|rm] ...")
+	}
+}
+
+// cmdMove sends downloads to another queue.
+func cmdMove(c *client.Client, args []string) {
+	if len(args) < 2 {
+		fail("usage: odm move <id>... <queue>")
+	}
+	qid := resolveQueue(c, args[len(args)-1])
+	for _, id := range args[:len(args)-1] {
+		if err := c.SetQueue(id, qid); err != nil {
+			fmt.Fprintf(os.Stderr, "odm: move %s: %v\n", id, err)
+			continue
+		}
+		fmt.Printf("%s  moved\n", id)
+	}
 }

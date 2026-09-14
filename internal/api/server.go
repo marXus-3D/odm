@@ -50,6 +50,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/downloads/{id}/reveal", s.guard(s.handleReveal))
 	mux.HandleFunc("POST /api/downloads/{id}/open", s.guard(s.handleOpen))
 	mux.HandleFunc("PUT /api/config", s.guard(s.handleSetConfig))
+	mux.HandleFunc("GET /api/queues", s.guard(s.handleQueues))
+	mux.HandleFunc("POST /api/queues", s.guard(s.handleAddQueue))
+	mux.HandleFunc("PUT /api/queues/{id}", s.guard(s.handleUpdateQueue))
+	mux.HandleFunc("DELETE /api/queues/{id}", s.guard(s.handleRemoveQueue))
+	mux.HandleFunc("POST /api/downloads/{id}/queue", s.guard(s.handleSetQueue))
 	mux.HandleFunc("POST /api/all/pause", s.guard(s.handlePauseAll))
 	mux.HandleFunc("POST /api/all/resume", s.guard(s.handleResumeAll))
 	mux.HandleFunc("POST /api/all/stop", s.guard(s.handleStopAll))
@@ -137,6 +142,7 @@ type addRequest struct {
 
 	Category    string `json:"category,omitempty"`
 	Description string `json:"description,omitempty"`
+	QueueID     string `json:"queueId,omitempty"`
 	NoPrompt    bool   `json:"noPrompt,omitempty"`
 }
 
@@ -180,6 +186,7 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 		Kind:        req.Kind,
 		Category:    req.Category,
 		Description: req.Description,
+		QueueID:     req.QueueID,
 		NoPrompt:    req.NoPrompt,
 	})
 	if err != nil {
@@ -202,6 +209,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		"startWithWindows":          startup.Enabled(),
 		"startWithWindowsSupported": startup.Supported(),
 		"extensionSeen":             s.st.ExtensionSeen(),
+		"queues":                    s.mgr.QueueStatuses(),
 	})
 }
 
@@ -245,6 +253,7 @@ func (s *Server) handleConfirm(w http.ResponseWriter, r *http.Request) {
 		Filename    string `json:"filename,omitempty"`
 		Category    string `json:"category,omitempty"`
 		Description string `json:"description,omitempty"`
+		QueueID     string `json:"queueId,omitempty"`
 		Start       bool   `json:"start"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&c); err != nil {
@@ -253,7 +262,7 @@ func (s *Server) handleConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.mgr.Confirm(r.PathValue("id"), manager.Confirmation{
 		Dir: c.Dir, Filename: c.Filename, Category: c.Category,
-		Description: c.Description, Start: c.Start,
+		Description: c.Description, QueueID: c.QueueID, Start: c.Start,
 	})
 	if err != nil {
 		status := http.StatusInternalServerError
@@ -417,4 +426,74 @@ func logRequests(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// --- queues ----------------------------------------------------------------
+
+func (s *Server) handleQueues(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.mgr.QueueStatuses())
+}
+
+func (s *Server) handleAddQueue(w http.ResponseWriter, r *http.Request) {
+	var q struct {
+		Name          string `json:"name"`
+		MaxConcurrent int    `json:"maxConcurrent"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&q); err != nil {
+		http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	created, err := s.st.AddQueue(q.Name, q.MaxConcurrent)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusCreated, created)
+}
+
+func (s *Server) handleUpdateQueue(w http.ResponseWriter, r *http.Request) {
+	var q struct {
+		Name          string `json:"name,omitempty"`
+		MaxConcurrent int    `json:"maxConcurrent,omitempty"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&q); err != nil {
+		http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	updated, err := s.st.UpdateQueue(r.PathValue("id"), q.Name, q.MaxConcurrent)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// A raised limit may let waiting downloads start straight away.
+	s.mgr.Kick()
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *Server) handleRemoveQueue(w http.ResponseWriter, r *http.Request) {
+	if err := s.st.RemoveQueue(r.PathValue("id")); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	s.mgr.Kick()
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleSetQueue(w http.ResponseWriter, r *http.Request) {
+	var q struct {
+		QueueID string `json:"queueId"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&q); err != nil {
+		http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.mgr.SetQueue(r.PathValue("id"), q.QueueID); err != nil {
+		status := http.StatusBadRequest
+		if err == manager.ErrNotFound {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
