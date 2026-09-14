@@ -24,6 +24,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # The release notes are built from the commits since the previous
+          # tag, so the whole history has to be here.
+          fetch-depth: 0
 
       - uses: actions/setup-go@v6
         with:
@@ -74,10 +78,45 @@ jobs:
           [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", ($lines -join "`n") + "`n")
           Get-Content dist/SHA256SUMS.txt
 
+      # --generate-notes lists merged pull requests, and there are none here:
+      # everything lands straight on master. Build the notes from the commit
+      # subjects instead, which are Conventional Commits, so they group.
+      - name: Write the release notes
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $prev = git describe --tags --abbrev=0 "$tag^" 2>$null
+          $range = if ($prev) { "$prev..$tag" } else { $tag }
+          Write-Host "notes from $range"
+
+          $added = @(); $fixed = @(); $other = @()
+          foreach ($s in (git log $range --no-merges --pretty=%s)) {
+            if ($s -match '^release:') { continue }
+            $text = ($s -replace '^[a-z]+(\([^)]*\))?!?:\s*', '')
+            $text = $text.Substring(0, 1).ToUpper() + $text.Substring(1)
+            switch -Regex ($s) {
+              '^feat'                     { $added += $text; break }
+              '^(fix|perf)'               { $fixed += $text; break }
+              '^(refactor|style|rename)'  { $other += $text; break }
+              default                     { }
+            }
+          }
+
+          $out = New-Object Collections.Generic.List[string]
+          if ($added.Count) { $out.Add("### Added"); $added | ForEach-Object { $out.Add("- $_") }; $out.Add("") }
+          if ($fixed.Count) { $out.Add("### Fixed"); $fixed | ForEach-Object { $out.Add("- $_") }; $out.Add("") }
+          if ($other.Count) { $out.Add("### Changed"); $other | ForEach-Object { $out.Add("- $_") }; $out.Add("") }
+          if ($out.Count -eq 0) { $out.Add("Maintenance release.") ; $out.Add("") }
+          if ($prev) {
+            $out.Add("**Full changelog**: https://github.com/${{ github.repository }}/compare/$prev...$tag")
+          }
+          [IO.File]::WriteAllText("$PWD/RELEASE_NOTES.md", ($out -join "`n") + "`n")
+          Get-Content RELEASE_NOTES.md
+
       - name: Publish the release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $files = Get-ChildItem dist -File | ForEach-Object { $_.FullName }
-          gh release create "${{ github.ref_name }}" @files --title "ODM ${{ github.ref_name }}" --generate-notes
+          gh release create "${{ github.ref_name }}" @files --title "ODM ${{ github.ref_name }}" --notes-file RELEASE_NOTES.md
