@@ -6,9 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 	"time"
@@ -127,21 +125,10 @@ type AddRequest struct {
 	NoPrompt bool
 }
 
-// filenameFromURL guesses a name from a URL path, for choosing a category
-// before the download has been probed.
+// filenameFromURL guesses a name from a URL, for choosing a category before
+// the download has been probed.
 func filenameFromURL(raw string) string {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return ""
-	}
-	base := path.Base(u.Path)
-	if base == "/" || base == "." {
-		return ""
-	}
-	if unesc, err := url.PathUnescape(base); err == nil {
-		base = unesc
-	}
-	return base
+	return engine.FilenameFromURL(raw)
 }
 
 // Add queues a new download and returns its record.

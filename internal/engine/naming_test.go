@@ -67,6 +67,45 @@ func TestWithExtension(t *testing.T) {
 	}
 }
 
+func TestFilenameFromURL(t *testing.T) {
+	cases := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{
+			// The name is four segments from the end; "cdn" is a routing verb.
+			"name mid-path, verb on the end",
+			"https://media-cdn.atlassian.com/file/f6233603-074b-4422-affc-a558b986e565" +
+				"/artifact/video_1280.mp4/binary/cdn?client=247fea4f&max-age=2592000&token=eyJhbGciOiJIUzI1NiJ9.abc",
+			"video_1280.mp4",
+		},
+		{"plain", "https://example.com/files/setup.exe", "setup.exe"},
+		{"query is ignored", "https://example.com/files/setup.exe?t=123", "setup.exe"},
+		{"escaped", "https://example.com/files/my%20song.mp3", "my song.mp3"},
+		{"trailing slash", "https://example.com/files/clip.mkv/", "clip.mkv"},
+		{
+			"presigned disposition",
+			"https://s3.amazonaws.com/b/9f8e7d?response-content-disposition=attachment%3B%20filename%3D%22Q3%20report.pdf%22",
+			"Q3 report.pdf",
+		},
+		{"filename parameter", "https://example.com/dl?id=99&filename=album.zip", "album.zip"},
+		{"parameter without an extension is not a name", "https://example.com/dl?name=42", "dl"},
+		{"nothing to go on", "https://example.com/d/7f3a9c1e", "7f3a9c1e"},
+		{"script endpoint", "https://example.com/get.php?id=12", "get.php"},
+		// A dotted path component is not a filename.
+		{"version segment", "https://example.com/v1.2/binary", "binary"},
+		{"no path at all", "https://example.com/", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := FilenameFromURL(c.url); got != c.want {
+				t.Errorf("FilenameFromURL = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
 // TestProbeFilename covers the whole chain through a real response, which is
 // where the pieces have to agree: a CDN URL with no name in its path, a
 // redirect, and a Content-Disposition that only the fallback parser reads.

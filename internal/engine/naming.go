@@ -105,6 +105,27 @@ var scriptExt = map[string]bool{
 // the hash on the end of a cache-busted path.
 var plausibleExt = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]{0,7}$`)
 
+// knownExt is the stricter test, for deciding whether a segment in the
+// middle of a URL path is a filename or just another path component. Every
+// extension the type table can produce, plus the ones that arrive under
+// application/octet-stream and so are never named by a content type.
+var knownExt = func() map[string]bool {
+	m := map[string]bool{}
+	for _, e := range typeExt {
+		m[strings.TrimPrefix(e, ".")] = true
+	}
+	for _, e := range []string{
+		"7z", "aac", "apk", "avi", "bin", "bz2", "cab", "dmg", "doc", "docx",
+		"epub", "exe", "flac", "flv", "gz", "img", "iso", "jar", "m4a", "m4v",
+		"mkv", "mobi", "mov", "mp3", "mp4", "mpg", "msi", "msix", "ogg", "opus",
+		"pdf", "pkg", "ppt", "pptx", "rar", "rpm", "tar", "tgz", "ts", "txt",
+		"vhd", "wav", "webm", "wma", "wmv", "xls", "xlsx", "xz", "zip", "zst",
+	} {
+		m[e] = true
+	}
+	return m
+}()
+
 // ExtForContentType returns the extension to use for a Content-Type header,
 // with the leading dot, or "" when the type does not pin one down.
 func ExtForContentType(contentType string) string {
@@ -220,6 +241,119 @@ func decodeName(v string) string {
 		}
 	}
 	return v
+}
+
+// nameParams are the query parameters that carry a filename. S3, GCS and
+// friends pass one to override Content-Disposition on a signed URL.
+var nameParams = map[string]bool{
+	"filename": true, "file_name": true, "fname": true, "name": true,
+	"title": true, "download": true, "attachment": true, "file": true,
+	"downloadname": true, "originalfilename": true,
+}
+
+// dispositionParams carry a whole Content-Disposition header in the query
+// string, which is how a presigned URL names its file.
+var dispositionParams = map[string]bool{
+	"response-content-disposition": true,
+	"rscd":                         true,
+	"content-disposition":          true,
+}
+
+// FilenameFromURL finds the name a URL is carrying, or "" when it carries
+// none. It is more than the last path segment, because a CDN routinely puts
+// the name in the middle of the path and a routing verb on the end:
+//
+//	/file/f6233603-074b-4422-affc-a558b986e565/artifact/video_1280.mp4/binary/cdn
+//
+// The name there is video_1280.mp4; the last segment is "cdn". So: a query
+// parameter first, then the last segment if it already looks like a file,
+// then any earlier segment ending in an extension we recognise, and only
+// then the last segment whatever it is.
+func FilenameFromURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return FilenameFromParsedURL(u)
+}
+
+// FilenameFromParsedURL is FilenameFromURL for a URL that is already parsed,
+// which is what the probe has after following redirects.
+func FilenameFromParsedURL(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	if n := nameFromQuery(u.Query()); n != "" {
+		return n
+	}
+
+	segs := strings.Split(u.Path, "/")
+	last := -1
+	for i := len(segs) - 1; i >= 0; i-- {
+		s := unescapeSegment(segs[i])
+		if s == "" || s == "." || s == ".." {
+			continue
+		}
+		if last < 0 {
+			last = i
+			// The end of the path is the usual place, and anything that
+			// looks like a file there is taken at face value.
+			ext := strings.ToLower(strings.TrimPrefix(path.Ext(s), "."))
+			if plausibleExt.MatchString(ext) && !scriptExt[ext] {
+				return s
+			}
+			continue
+		}
+		// Further in, the test is stricter: a path component may well have a
+		// dot in it without being a file, so only an extension we actually
+		// recognise counts.
+		if knownExt[strings.ToLower(strings.TrimPrefix(path.Ext(s), "."))] {
+			return s
+		}
+	}
+	if last >= 0 {
+		return unescapeSegment(segs[last])
+	}
+	return ""
+}
+
+// nameFromQuery reads a filename out of the query string, if one is there.
+func nameFromQuery(q url.Values) string {
+	for k, vs := range q {
+		key := strings.ToLower(k)
+		if !dispositionParams[key] {
+			continue
+		}
+		for _, v := range vs {
+			if n := FilenameFromDisposition(v); n != "" {
+				return n
+			}
+		}
+	}
+	for k, vs := range q {
+		if !nameParams[strings.ToLower(k)] {
+			continue
+		}
+		for _, v := range vs {
+			v = strings.TrimSpace(decodeName(v))
+			if i := strings.LastIndexAny(v, `/\`); i >= 0 {
+				v = v[i+1:]
+			}
+			// These parameters hold ids as often as names, so one is only
+			// believed when it ends in something recognisable.
+			if knownExt[strings.ToLower(strings.TrimPrefix(path.Ext(v), "."))] {
+				return v
+			}
+		}
+	}
+	return ""
+}
+
+func unescapeSegment(s string) string {
+	if un, err := url.PathUnescape(s); err == nil {
+		return un
+	}
+	return s
 }
 
 // decodeExtValue decodes an RFC 5987 ext-value: charset'lang'pct-encoded.

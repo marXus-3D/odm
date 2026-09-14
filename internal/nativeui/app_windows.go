@@ -4,8 +4,6 @@ package nativeui
 
 import (
 	"fmt"
-	"net/url"
-	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +12,7 @@ import (
 	"unsafe"
 
 	"github.com/marXus-3D/odm/internal/client"
+	"github.com/marXus-3D/odm/internal/engine"
 	"github.com/marXus-3D/odm/internal/manager"
 	"github.com/marXus-3D/odm/internal/power"
 	"github.com/marXus-3D/odm/internal/store"
@@ -780,20 +779,10 @@ func humanDuration(seconds float64) string {
 	return fmt.Sprintf("%dh %02dm", s/3600, (s%3600)/60)
 }
 
-// filenameFromURL guesses a filename from a URL path.
+// filenameFromURL guesses a filename from a URL, for the Save As box before
+// the probe has answered.
 func filenameFromURL(raw string) string {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return ""
-	}
-	base := path.Base(u.Path)
-	if base == "/" || base == "." {
-		return ""
-	}
-	if unesc, err := url.PathUnescape(base); err == nil {
-		base = unesc
-	}
-	return base
+	return engine.FilenameFromURL(raw)
 }
 
 func shortURL(u string) string {

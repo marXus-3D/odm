@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
-	"path"
 	"strconv"
 	"strings"
 )
@@ -118,14 +116,9 @@ func pickFilename(override string, resp *http.Response) string {
 	// resp.Request.URL is the URL after redirects: a download link that
 	// bounces through a token endpoint to the real file is named by the
 	// file, not by the endpoint.
-	if u := resp.Request.URL; u != nil {
-		if base := path.Base(u.Path); base != "" && base != "/" && base != "." {
-			if unesc, err := url.PathUnescape(base); err == nil {
-				base = unesc
-			}
-			if name := SanitizeFilename(base); name != "download" {
-				return withExtension(name, ct)
-			}
+	if base := FilenameFromParsedURL(resp.Request.URL); base != "" {
+		if name := SanitizeFilename(base); name != "download" {
+			return withExtension(name, ct)
 		}
 	}
 	return withExtension("download", ct)
