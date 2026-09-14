@@ -494,34 +494,14 @@ runs `build.ps1`, and publishes `ODM-Setup.exe`, `odm-extension-<version>.zip`,
 so the extension keeps its id between releases; `build.ps1` passes the key
 to `odm-pack` through `DM_EXTENSION_KEY`. CI on every push builds and tests
 the Go code on Windows, cross-compiles for Linux and macOS, syntax-checks
-the extension and builds the landing page.
+the extension. The landing page has its own repository and its own CI.
 
 ## Landing page
 
-The landing page is a Next.js site in `landing/`, exported as static files
-and served by Vercel at <https://odm-landing.vercel.app>. Deploy from
-`landing/` with `vercel deploy --prod`; the project is linked as
-`odm-landing` and `.vercel/` is ignored.
-
-```
-cd landing
-npm install
-npm run dev        # http://localhost:3000
-npm run build      # writes the site to landing/out
-```
-
-It is draft 20 grown up: black, Geist, a lit hero over the download
-window, then numbers, how it works (the range split as an animated bar),
-six feature cells, the measurement drawn at real relative speed, four ways
-in, the browser hand-off as a log, a FAQ, an install band and a footer.
-Rules and backgrounds run edge to edge; text sits in a 1320 px column.
-
-Motion is GSAP, all in `components/Motion.tsx`, driven by data attributes
-on server-rendered markup: every animation is a `from`, so the page with
-JavaScript off or reduced motion on is the resting state.
-
-Twenty drafts are kept in `site/pages` and served by
-`go run ./cmd/odm-site` at <http://127.0.0.1:8090/1> through `/20`.
+The landing page lives in its own repository,
+<https://github.com/marXus-3D/odm-landing>, and is served by Vercel at
+<https://odm-landing.vercel.app>. It used to sit in `landing/` here; the
+history moved with it.
 
 ## License
 
