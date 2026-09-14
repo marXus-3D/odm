@@ -500,7 +500,7 @@ the extension. The landing page has its own repository and its own CI.
 
 The landing page lives in its own repository,
 <https://github.com/marXus-3D/odm-landing>, and is served by Vercel at
-<https://odm-landing.vercel.app>. It used to sit in `landing/` here; the
+<https://odm.marxus.dev>. It used to sit in `landing/` here; the
 history moved with it.
 
 ## License
