@@ -127,8 +127,12 @@ func (s *Server) originAllowed(origin string) bool {
 }
 
 type addRequest struct {
-	URL      string            `json:"url"`
-	Filename string            `json:"filename,omitempty"`
+	URL      string `json:"url"`
+	Filename string `json:"filename,omitempty"`
+	// Title is the name of the page the download came from. It is the
+	// fallback name for something the URL cannot name, which is every
+	// playlist served from a signed endpoint.
+	Title    string            `json:"title,omitempty"`
 	Dir      string            `json:"dir,omitempty"`
 	MaxConns int               `json:"maxConns,omitempty"`
 	Headers  map[string]string `json:"headers,omitempty"`
@@ -180,6 +184,7 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 	rec, err := s.mgr.Add(manager.AddRequest{
 		URL:         req.URL,
 		Filename:    req.Filename,
+		Title:       req.Title,
 		Dir:         req.Dir,
 		MaxConns:    req.MaxConns,
 		Headers:     headers,

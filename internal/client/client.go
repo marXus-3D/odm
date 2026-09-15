@@ -30,6 +30,7 @@ type Client struct {
 type AddRequest struct {
 	URL         string            `json:"url"`
 	Filename    string            `json:"filename,omitempty"`
+	Title       string            `json:"title,omitempty"`
 	Dir         string            `json:"dir,omitempty"`
 	MaxConns    int               `json:"maxConns,omitempty"`
 	Referer     string            `json:"referer,omitempty"`

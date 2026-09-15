@@ -85,10 +85,56 @@ function isFetchable(url) {
   return /^https?:\/\//i.test(url);
 }
 
+const PLAYLIST_MIMES = [
+  "application/vnd.apple.mpegurl", "application/x-mpegurl",
+  "application/mpegurl", "audio/mpegurl", "audio/x-mpegurl",
+  "video/x-mpegurl", "application/dash+xml",
+];
+
+// isPlaylist reports whether a download is a playlist rather than a file.
+//
+// Its own size says nothing: a playlist is a few hundred bytes of text that
+// stands for a whole video, so the size and extension filters have to be
+// skipped for one or the video is never captured at all.
+function isPlaylist(item) {
+  const url = (item.finalUrl || item.url || "").toLowerCase();
+  if (/\.m3u8|\.m3u(?![0-9a-z])|\.mpd(?![0-9a-z])/.test(url)) return true;
+  return PLAYLIST_MIMES.includes((item.mime || "").toLowerCase());
+}
+
+// titleName turns a page title into something usable as a filename. The
+// site's own name is trailing noise, and Windows rejects several of the
+// characters a title may contain.
+function titleName(raw) {
+  let s = (raw || "").trim();
+  const cut = s.split(/\s+[|–—-]\s+/);
+  if (cut.length > 1 && cut[0].length >= 8) s = cut[0];
+  s = s.replace(/[<>:"|?*\\/]+/g, " ").replace(/\s+/g, " ").trim();
+  s = s.replace(/[. ]+$/, "");
+  return s.length > 120 ? s.slice(0, 120).trim() : s;
+}
+
+// activeTabTitle is the title of the page the download almost certainly
+// came from. A DownloadItem does not say which tab started it, and the one
+// in front is the one the user just clicked in.
+async function activeTabTitle() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab ? titleName(tab.title) : "";
+  } catch (e) {
+    return "";
+  }
+}
+
 async function shouldCapture(item, cfg) {
   if (!cfg.enabled) return false;
   if (passthrough.has(item.url)) return false;
   if (!isFetchable(item.finalUrl || item.url)) return false;
+
+  // A playlist is tiny and stands for something large, so neither the size
+  // floor nor the extension list applies to it.
+  if (isPlaylist(item)) return true;
+
   // Chrome reports -1 or 0 before the response headers are parsed.
   if (item.fileSize > 0 && item.fileSize < cfg.minSize) return false;
   if (item.fileSize <= 0 && !cfg.captureUnknownSize) return false;
@@ -115,11 +161,13 @@ chrome.downloads.onCreated.addListener(async (item) => {
   }
 
   const filename = suggestedName(item);
+  const title = await activeTabTitle();
   try {
     await sendNative({
       type: "add",
       url,
       filename,
+      title,
       referer: item.referrer || "",
       cookie: await cookieHeader(url),
       userAgent: navigator.userAgent,
@@ -160,6 +208,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await sendNative({
       type: "add",
       url,
+      title: titleName(tab && tab.title),
       referer: info.pageUrl || (tab && tab.url) || "",
       cookie: await cookieHeader(url),
       userAgent: navigator.userAgent,

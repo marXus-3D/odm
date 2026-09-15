@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"mime"
 	"net/url"
+	"path"
 	"strings"
 
+	"github.com/marXus-3D/odm/internal/engine"
 	"github.com/marXus-3D/odm/internal/hls"
 )
 
@@ -111,6 +113,9 @@ func playlistName(name, rawURL string) string {
 			return name
 		}
 	}
+	if looksLikeToken(name) {
+		return ""
+	}
 	// No extension at all means the name came off a signed endpoint, where
 	// the last path segment is a verb rather than a title.
 	if !strings.Contains(name, ".") {
@@ -121,6 +126,116 @@ func playlistName(name, rawURL string) string {
 		}
 	}
 	return name
+}
+
+// titleAsName turns a page title into a filename, or "" when there is
+// nothing usable in it. The browser strips the worst of it already, but the
+// API and the command line are callers too.
+func titleAsName(title string) string {
+	s := strings.TrimSpace(title)
+	if s == "" {
+		return ""
+	}
+	s = trimSiteSuffix(s)
+	s = engine.SanitizeFilename(s)
+	if s == "download" { // what SanitizeFilename returns for nothing usable
+		return ""
+	}
+	// A title is prose, so it can be long. Leave room for " (2)" and an
+	// extension without running into the path limit.
+	if len(s) > 120 {
+		s = strings.TrimSpace(s[:120])
+	}
+	if s == "" {
+		return ""
+	}
+	return s
+}
+
+// trimSiteSuffix drops the site's own name off the end of a page title.
+// "Frieren Episode 12 | AnimeSite" is a title and a brand, and only the
+// first half belongs in a filename.
+//
+// The browser does this too, before sending the title, but the API and the
+// command line are callers as well and they send it raw.
+func trimSiteSuffix(s string) string {
+	for _, sep := range []string{" | ", " — ", " – ", " - "} {
+		// At least a few characters have to survive, or a title like
+		// "S1 - The Beginning" would be cut down to nothing useful.
+		if i := strings.Index(s, sep); i >= 8 {
+			return strings.TrimSpace(s[:i])
+		}
+	}
+	return s
+}
+
+// extensionOf returns the extension of a name, dot included, or "".
+func extensionOf(name string) string {
+	ext := path.Ext(name)
+	if len(ext) > 1 && len(ext) <= 8 {
+		return ext
+	}
+	return ""
+}
+
+// looksLikeToken reports whether a name is machine-generated rather than
+// something a person would recognise: a base64 blob, a hash, a UUID. These
+// turn up as the last path segment of every signed URL, and using one as a
+// filename is barely better than using nothing.
+func looksLikeToken(name string) bool {
+	stem := strings.TrimSuffix(name, path.Ext(name))
+	if len(stem) < 20 {
+		return false
+	}
+	// A title has spaces or punctuation a generator would not emit.
+	if strings.ContainsAny(stem, " ()[]'!,&") {
+		return false
+	}
+	var digits, letters, upper, other int
+	for _, r := range stem {
+		switch {
+		case r >= '0' && r <= '9':
+			digits++
+		case r >= 'a' && r <= 'z':
+			letters++
+		case r >= 'A' && r <= 'Z':
+			letters++
+			upper++
+		case r == '-' || r == '_' || r == '=' || r == '+' || r == '.' || r == '%':
+			other++
+		default:
+			// Anything else -- a letter with an accent, a CJK character --
+			// says this is a real title.
+			return false
+		}
+	}
+	if digits+letters+other != len([]rune(stem)) {
+		return false
+	}
+	// A UUID: hex and dashes, nothing else.
+	if isHexish(stem) {
+		return true
+	}
+	// Base64 and friends: a long run with digits mixed in and, usually, both
+	// cases present. Real titles that long are words, which have neither.
+	return digits > 0 && (upper > 0 || digits*4 >= len(stem))
+}
+
+// isHexish reports whether a string is only hex digits and dashes, which is
+// what a UUID or a checksum looks like.
+func isHexish(s string) bool {
+	digits := 0
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9':
+			digits++
+		case r >= 'a' && r <= 'f', r >= 'A' && r <= 'F':
+		case r == '-':
+		default:
+			return false
+		}
+	}
+	return digits > 0
 }
 
 // looksLikeYouTube reports whether a URL is a YouTube watch page, which ODM

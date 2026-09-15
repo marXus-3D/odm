@@ -1,6 +1,9 @@
 package manager
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDetectKind(t *testing.T) {
 	cases := []struct {
@@ -80,6 +83,57 @@ func TestPlaylistName(t *testing.T) {
 	for _, c := range cases {
 		if got := playlistName(c.in, c.url); got != c.want {
 			t.Errorf("playlistName(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestLooksLikeToken(t *testing.T) {
+	// Machine-generated: no use as a filename.
+	tokens := []string{
+		"aHR0cHM6Ly9oZ3BsYXljZG4uY29tL3BsL21hc3Rlci5tM3U4",
+		"H4sIAAAAAAAAAw3OW3KDIBQA0C1dEDNJ_5oxammlIxGI_AE3rfWV1DxMXH17VnDCl0eMAj2",
+		"4210c548-5e5e-41ce-acd6-2d1ef27c4b08",
+		"7f3a9c1e5b2d4f8a3b7c1e5d9f2a4b8c",
+		"pbH9FgRk2xQ7mN4vB8kL2wZ",
+	}
+	for _, s := range tokens {
+		if !looksLikeToken(s) {
+			t.Errorf("looksLikeToken(%q) = false, want true", s)
+		}
+	}
+	// Things a person would recognise, which must survive.
+	names := []string{
+		"Wallace and Gromit", "episode-04", "master.m3u8", "setup.exe",
+		"How steel is made", "annual-report-2026.pdf", "video_1280.mp4",
+		"Die Wiedervereinigung Deutschlands", "第一話",
+		"a-very-long-hyphenated-english-title-with-no-digits",
+	}
+	for _, s := range names {
+		if looksLikeToken(s) {
+			t.Errorf("looksLikeToken(%q) = true, want false", s)
+		}
+	}
+}
+
+func TestTitleAsName(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"Wallace and Gromit", "Wallace and Gromit"},
+		{"  spaced  ", "spaced"},
+		// The site's own name is not part of the title.
+		{"Frieren Episode 12 | AnimeSite", "Frieren Episode 12"},
+		{"How steel is made - Fabrication", "How steel is made"},
+		{"Episode 4 — SomeSite", "Episode 4"},
+		// Too little would survive the cut, so it is left whole.
+		{"S1 - The Beginning", "S1 - The Beginning"},
+		{`bad<>:"|?*chars`, "bad_______chars"},
+		{"a/b\\c", "c"}, // path separators cannot survive in a filename
+		{"", ""},
+		{"...", ""},
+		{strings.Repeat("x", 300), strings.Repeat("x", 120)},
+	}
+	for _, c := range cases {
+		if got := titleAsName(c.in); got != c.want {
+			t.Errorf("titleAsName(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

@@ -29,15 +29,13 @@
   // characters a title may contain.
   function titleName(raw) {
     let s = (raw || "").trim();
-    // "Some video - SiteName" and "Some video | SiteName": drop the tail,
-    // but only when what is left is still a reasonable title.
     const cut = s.split(/\s+[|–—-]\s+/);
     if (cut.length > 1 && cut[0].length >= 8) s = cut[0];
     s = s.replace(/[<>:"|?*\\/]+/g, " ").replace(/\s+/g, " ").trim();
     s = s.replace(/[. ]+$/, "");
-    if (s.length > 120) s = s.slice(0, 120).trim();
-    return s;
+    return s.length > 120 ? s.slice(0, 120).trim() : s;
   }
+
 
   function directSource(video) {
     if (isHttp(video.currentSrc)) return video.currentSrc;
@@ -154,9 +152,10 @@
             kind: target.kind,
             referer: location.href,
             // A playlist has no name of its own -- master.m3u8 says nothing
-            // about the video -- so the page's title is the best name going.
-            // A direct file is left to name itself from its own headers.
-            filename: target.kind === "hls" ? titleName(document.title) : "",
+            // about the video, and a signed endpoint says less -- so the
+            // page's title is the fallback. A file the server names keeps
+            // the server's name.
+            title: titleName(document.title),
           },
         });
         bar.classList.remove("busy");

@@ -33,6 +33,7 @@ type request struct {
 	Type     string            `json:"type"`
 	URL      string            `json:"url,omitempty"`
 	Filename string            `json:"filename,omitempty"`
+	Title    string            `json:"title,omitempty"`
 	Referer  string            `json:"referer,omitempty"`
 	Cookie   string            `json:"cookie,omitempty"`
 	UA       string            `json:"userAgent,omitempty"`
@@ -129,6 +130,7 @@ func (h *handler) handle(req request) response {
 		rec, err := h.c.Add(client.AddRequest{
 			URL:      req.URL,
 			Filename: req.Filename,
+			Title:    req.Title,
 			Referer:  req.Referer,
 			Cookie:   req.Cookie,
 			UA:       req.UA,

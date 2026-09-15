@@ -39,6 +39,9 @@ type entry struct {
 	nameGiven bool
 	catGiven  bool
 	dirGiven  bool
+	// title is the page the download came from, kept as the fallback name
+	// for a URL that cannot supply one.
+	title string
 	// runQueue is the queue this download was started under. The record can
 	// be moved to another queue while it runs, so the slot has to be given
 	// back to the queue that lent it.
@@ -107,6 +110,10 @@ func New(ctx context.Context, st *store.Store) *Manager {
 type AddRequest struct {
 	URL      string
 	Filename string
+	// Title is the title of the page the download came from, used to name
+	// what the URL cannot. A signed playlist endpoint carries no name at
+	// all, and the page's own title is what the user would have called it.
+	Title    string
 	Dir      string
 	MaxConns int
 	Headers  map[string]string
@@ -169,6 +176,12 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 	if kind == KindFile && looksLikeYouTube(req.URL) {
 		return store.Record{}, ErrNoFileBehindPage
 	}
+	title := titleAsName(req.Title)
+	if req.Filename == "" && kind == KindHLS && title != "" {
+		// A playlist has no name of its own and no probe will find one:
+		// the URL is a signed endpoint and the body is a list of segments.
+		req.Filename = title
+	}
 	q := cfg.QueueByID(req.QueueID)
 	rec := store.Record{
 		ID:          store.NewID(),
@@ -207,6 +220,7 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 		nameGiven: req.Filename != "",
 		catGiven:  req.Category != "",
 		dirGiven:  dirGiven,
+		title:     title,
 	}
 	if !resolving {
 		m.queue = append(m.queue, rec.ID)
@@ -244,6 +258,7 @@ func (m *Manager) resolve(id string, confirm bool) {
 		return
 	}
 	rec := e.rec
+	title := e.title
 	m.mu.Unlock()
 
 	var name string
@@ -281,6 +296,16 @@ func (m *Manager) resolve(id string, confirm bool) {
 		// of a few lines of text, so neither is worth keeping.
 		name = playlistName(name, rec.URL)
 		size = 0
+	}
+	// Nothing named it, or nothing named it usefully. The page it came from
+	// did have a title, and that is what the user would have called it.
+	if title != "" && (name == "" || name == "download" || looksLikeToken(name)) {
+		if kind == KindHLS {
+			name = title
+		} else {
+			// A file still needs its extension, which the title has not got.
+			name = title + extensionOf(name)
+		}
 	}
 
 	cfg := m.st.Config()

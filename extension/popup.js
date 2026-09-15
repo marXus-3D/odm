@@ -146,8 +146,10 @@ async function loadMedia() {
           url: m.url,
           kind: m.kind,
           referer: tab.url || "",
-          // master.m3u8 is not a name. The tab's title is.
-          filename: m.kind === "hls" ? titleName(tab.title) : "",
+          // master.m3u8 is not a name, and a signed endpoint has none at
+          // all. The daemon falls back to this when the URL and the server
+          // between them cannot name the file.
+          title: titleName(tab.title),
         },
       });
       btn.textContent = res && res.ok ? "Queued" : "Failed";
@@ -196,8 +198,7 @@ document.getElementById("opts").onclick = () => chrome.runtime.openOptionsPage()
 
 window.addEventListener("unload", () => {
   clearInterval(timer);
-  if (port) port.disloadMedia().catch(() => {});
-connect();
+  if (port) port.disconnect();
 });
 
 loadMedia().catch(() => {});
