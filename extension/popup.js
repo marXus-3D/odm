@@ -14,6 +14,35 @@ function human(n) {
   return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
 }
 
+// titleName turns a page title into something usable as a filename: the
+// site's own name is trailing noise, and Windows rejects several of the
+// characters a title may contain.
+function titleName(raw) {
+  let s = (raw || "").trim();
+  const cut = s.split(/\s+[|–—-]\s+/);
+  if (cut.length > 1 && cut[0].length >= 8) s = cut[0];
+  s = s.replace(/[<>:"|?*\\/]+/g, " ").replace(/\s+/g, " ").trim();
+  s = s.replace(/[. ]+$/, "");
+  return s.length > 120 ? s.slice(0, 120).trim() : s;
+}
+
+// buildsItsOwnStream reports whether a page is one of the sites that feed
+// their player from separately fetched audio and video parts. There is no
+// single URL to download on those, so an empty media list is the truth
+// rather than a failure.
+function buildsItsOwnStream(url) {
+  try {
+    const h = new URL(url).hostname.toLowerCase().replace(/^(www|m|music)\./, "");
+    return [
+      "youtube.com", "youtube-nocookie.com", "youtu.be",
+      "netflix.com", "spotify.com", "primevideo.com", "hulu.com",
+      "disneyplus.com", "max.com", "tidal.com",
+    ].includes(h);
+  } catch {
+    return false;
+  }
+}
+
 function message(text) {
   list.textContent = "";
   const d = document.createElement("div");
@@ -65,7 +94,20 @@ async function loadMedia() {
   const reply = await chrome.runtime.sendMessage({ scope: "odm-media", tabId: tab.id });
   const box = document.getElementById("media");
   box.textContent = "";
-  if (!reply || !reply.ok || !reply.media.length) return;
+  if (!reply || !reply.ok || !reply.media.length) {
+    // An empty panel on a video page reads as a bug. On the sites that
+    // build their stream in the player there is nothing to offer, and
+    // saying so is more use than showing nothing.
+    if (buildsItsOwnStream(tab.url)) {
+      const note = document.createElement("div");
+      note.className = "msg";
+      note.textContent =
+        "This site assembles video in the player, so there is no file for " +
+        "ODM to fetch. Sites that serve an .m3u8 playlist appear here.";
+      box.appendChild(note);
+    }
+    return;
+  }
 
   const head = document.createElement("div");
   head.className = "section";
@@ -99,7 +141,14 @@ async function loadMedia() {
       btn.textContent = "Sending...";
       const res = await chrome.runtime.sendMessage({
         scope: "odm",
-        payload: { type: "add", url: m.url, kind: m.kind, referer: tab.url || "" },
+        payload: {
+          type: "add",
+          url: m.url,
+          kind: m.kind,
+          referer: tab.url || "",
+          // master.m3u8 is not a name. The tab's title is.
+          filename: m.kind === "hls" ? titleName(tab.title) : "",
+        },
       });
       btn.textContent = res && res.ok ? "Queued" : "Failed";
       if (!res || !res.ok) {

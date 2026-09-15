@@ -63,6 +63,15 @@ const (
 var ErrDASHUnsupported = errors.New(
 	"DASH (.mpd) streams are not supported yet; only HLS (.m3u8) playlists are")
 
+// ErrNoFileBehindPage is for a page that plays video without serving one.
+// There is nothing at the URL to fetch, so the request is refused with a
+// reason instead of quietly saving the HTML of the page.
+var ErrNoFileBehindPage = errors.New(
+	"this is a video page, not a video file: the player assembles the " +
+		"stream from separate audio and video parts, so there is no single " +
+		"URL for ODM to fetch. Sites that serve an HLS (.m3u8) playlist do " +
+		"work -- the extension offers those automatically")
+
 // DetectKind guesses from the URL whether this is a streaming playlist.
 //
 // A cheap URL check is enough in practice: HLS URLs essentially always end
@@ -76,14 +85,17 @@ func DetectKind(rawURL string) string {
 		return KindFile
 	}
 	p := strings.ToLower(u.Path)
-	if strings.HasSuffix(p, ".m3u8") || strings.HasSuffix(p, ".m3u") {
+	// Contains rather than HasSuffix: the extension is regularly followed by
+	// something else, either a session parameter stuck on with a semicolon
+	// (/master.m3u8;s=abc) or more path after it (/master.m3u8/seg-1).
+	if strings.Contains(p, ".m3u8") || strings.Contains(p, ".m3u") {
 		return KindHLS
 	}
 	// Some CDNs put the playlist in a query parameter instead.
 	if strings.Contains(strings.ToLower(u.RawQuery), ".m3u8") {
 		return KindHLS
 	}
-	if strings.HasSuffix(p, ".mpd") {
+	if strings.Contains(p, ".mpd") || strings.Contains(strings.ToLower(u.RawQuery), ".mpd") {
 		return KindDASH
 	}
 	return KindFile

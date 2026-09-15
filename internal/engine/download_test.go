@@ -286,10 +286,13 @@ func TestStalledConnectionIsDetected(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Accept-Ranges", "bytes")
 		w.Header().Set("ETag", `"v1"`)
-		if r.Header.Get("Range") == "bytes=0-0" {
-			w.Header().Set("Content-Range", fmt.Sprintf("bytes 0-0/%d", len(body)))
+		// The probe asks for a short range; answer it properly, and stall
+		// only the real segment requests that follow.
+		if r.Header.Get("Range") == fmt.Sprintf("bytes=0-%d", HeadSize-1) {
+			w.Header().Set("Content-Range",
+				fmt.Sprintf("bytes 0-%d/%d", HeadSize-1, len(body)))
 			w.WriteHeader(http.StatusPartialContent)
-			w.Write(body[:1])
+			w.Write(body[:HeadSize])
 			return
 		}
 		// Send a token amount, then go silent forever.

@@ -166,6 +166,9 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 	if kind == KindDASH {
 		return store.Record{}, ErrDASHUnsupported
 	}
+	if kind == KindFile && looksLikeYouTube(req.URL) {
+		return store.Record{}, ErrNoFileBehindPage
+	}
 	q := cfg.QueueByID(req.QueueID)
 	rec := store.Record{
 		ID:          store.NewID(),
@@ -186,13 +189,14 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 	// for the user instead of starting. The extension goes through this
 	// same path, so a browser download gets the dialog too.
 	confirm := cfg.ShowStartDialog && !req.NoPrompt
-	if confirm {
-		// Ask the server what the file is called before asking the user
-		// where to put it. Without this the dialog can only offer the tail
-		// of the URL, and whatever it offers is what gets saved, so a
-		// signed CDN link became a file with a token for a name and no
-		// extension. resolve flips the state to StateConfirm when it is
-		// done, or when it gives up.
+
+	// Ask the server what this is before doing anything with it. The name
+	// lives in the response, not in the URL, and so does the answer to
+	// whether the URL is a video at all or a playlist listing one. Only a
+	// plain file is worth asking about: a playlist is already known to be
+	// one, and it has no size or name of its own to learn.
+	resolving := confirm || rec.Kind == KindFile
+	if resolving {
 		rec.State = string(engine.StateProbing)
 	}
 	m.st.Put(&rec)
@@ -204,32 +208,35 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 		catGiven:  req.Category != "",
 		dirGiven:  dirGiven,
 	}
-	if !confirm {
+	if !resolving {
 		m.queue = append(m.queue, rec.ID)
 	}
 	m.mu.Unlock()
 
 	m.broadcast(Event{Type: "added", Item: rec})
-	if confirm {
-		go m.resolve(rec.ID)
+	if resolving {
+		go m.resolve(rec.ID, confirm)
 	} else {
 		m.pump()
 	}
 	return rec, nil
 }
 
-// resolveTimeout caps the wait before the Download File Info dialog opens
-// with whatever we know. A dead host must not leave the dialog unopened.
+// resolveTimeout caps the wait before a download starts, or before the
+// Download File Info dialog opens with whatever we know. A dead host must
+// not leave either of them hanging.
 const resolveTimeout = 20 * time.Second
 
-// resolve fills in the name and size of a download that is waiting for the
-// dialog, then hands it to the user.
+// resolve asks the server what the download is, then either puts it to the
+// user or queues it.
 //
-// This is the step that makes the name right. The probe follows redirects
-// and reads Content-Disposition, which is where the real filename lives for
-// anything served from a CDN or behind a token endpoint; the URL path
-// frequently has no name in it at all.
-func (m *Manager) resolve(id string) {
+// Two things come out of the probe. The name, which lives in
+// Content-Disposition or in the path of the final URL rather than in the URL
+// we were given. And the kind: a streaming site signs its playlist URL until
+// no .m3u8 is left in it and labels the response octet-stream, so the only
+// reliable evidence that a URL is a playlist is the first line of the body.
+// Getting that wrong saved two kilobytes of text and called it a video.
+func (m *Manager) resolve(id string, confirm bool) {
 	m.mu.Lock()
 	e, ok := m.entries[id]
 	if !ok || e.rec.State != string(engine.StateProbing) {
@@ -241,8 +248,7 @@ func (m *Manager) resolve(id string) {
 
 	var name string
 	var size int64
-	// A playlist URL names the video after its own directory; there is no
-	// file behind it to ask, so skip straight to the dialog.
+	kind := rec.Kind
 	if rec.Kind == KindFile {
 		ctx, cancel := context.WithTimeout(m.ctx, resolveTimeout)
 		p, err := engine.DoProbe(ctx, engine.Request{
@@ -253,7 +259,28 @@ func (m *Manager) resolve(id string) {
 		cancel()
 		if err == nil {
 			name, size = p.Filename, p.Size
+			if k := KindFromResponse(p.ContentType, p.Head); k != "" {
+				kind = k
+			}
 		}
+		// A probe failure is not a download failure: plenty of servers
+		// dislike being asked. Queue it and let the engine find out.
+	}
+
+	// A manifest ODM cannot read must not be saved as though it were the
+	// video. Say so instead, on the download itself, where the user is
+	// looking.
+	if kind == KindDASH {
+		m.failNow(id, ErrDASHUnsupported)
+		return
+	}
+
+	if kind == KindHLS && rec.Kind != KindHLS {
+		// The URL looked like a file and turned out to be a playlist. The
+		// name the probe found is the playlist's, and its size is the size
+		// of a few lines of text, so neither is worth keeping.
+		name = playlistName(name, rec.URL)
+		size = 0
 	}
 
 	cfg := m.st.Config()
@@ -263,12 +290,20 @@ func (m *Manager) resolve(id string) {
 		m.mu.Unlock()
 		return // cancelled, or answered by hand, while we were asking
 	}
+	e.rec.Kind = kind
 	if name != "" && !e.nameGiven {
 		e.rec.Filename = name
-		// The category follows the extension, and it was guessed from the
-		// URL a moment ago with no extension to go on.
-		if !e.catGiven {
-			cat := cfg.CategoryFor(name)
+	}
+	if !e.catGiven {
+		// The category follows the extension, and when the guess was made
+		// there was no extension to go on. A playlist has no name yet, but
+		// its kind is enough: what lands on disk is a video.
+		pick := e.rec.Filename
+		if kind == KindHLS {
+			pick = "video.mp4"
+		}
+		if pick != "" {
+			cat := cfg.CategoryFor(pick)
 			e.rec.Category = cat.Name
 			if !e.dirGiven {
 				e.rec.Dir = cfg.DirFor(cat)
@@ -278,8 +313,35 @@ func (m *Manager) resolve(id string) {
 	if size > 0 {
 		e.rec.Size = size
 	}
-	e.rec.State = StateConfirm
+	if confirm {
+		e.rec.State = StateConfirm
+	} else {
+		e.rec.State = string(engine.StateQueued)
+		m.queue = append(m.queue, id)
+	}
 	rec = e.rec
+	m.mu.Unlock()
+
+	m.st.Put(&rec)
+	m.broadcast(Event{Type: "updated", Item: rec})
+	if !confirm {
+		m.pump()
+	}
+}
+
+// failNow parks a download in the error state with a reason. It is for the
+// things discovered before anything has run, where there is no job to carry
+// the error.
+func (m *Manager) failNow(id string, cause error) {
+	m.mu.Lock()
+	e, ok := m.entries[id]
+	if !ok {
+		m.mu.Unlock()
+		return
+	}
+	e.rec.State = string(engine.StateError)
+	e.rec.Error = cause.Error()
+	rec := e.rec
 	m.mu.Unlock()
 
 	m.st.Put(&rec)

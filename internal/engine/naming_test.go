@@ -191,6 +191,52 @@ func TestProbeFilename(t *testing.T) {
 	}
 }
 
+// TestProbeSurvivesAStalledBody checks the probe gives up on the body
+// rather than waiting on it.
+//
+// The client has no overall deadline, on purpose, and the transport's
+// timeouts do not cover reading a body. A server that answers and then goes
+// quiet would otherwise hold the probe open forever, and since nothing
+// starts until the probe returns, the download with it.
+func TestProbeSurvivesAStalledBody(t *testing.T) {
+	old := headTimeout
+	headTimeout = 150 * time.Millisecond
+	defer func() { headTimeout = old }()
+
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Accept-Ranges", "bytes")
+		w.Header().Set("Content-Range", "bytes 0-1023/4096")
+		w.Header().Set("Content-Type", "video/mp4")
+		w.WriteHeader(http.StatusPartialContent)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer srv.Close()
+	defer close(release)
+
+	start := time.Now()
+	p, err := DoProbe(context.Background(), Request{URL: srv.URL + "/clip"}, Options{})
+	if err != nil {
+		t.Fatalf("probe: %v", err)
+	}
+	if took := time.Since(start); took > 3*time.Second {
+		t.Errorf("probe waited %v on the body", took)
+	}
+	// Everything that matters came from the headers.
+	if p.Size != 4096 || !p.Resumable {
+		t.Errorf("size = %d, resumable = %v; want 4096, true", p.Size, p.Resumable)
+	}
+	if p.Filename != "clip.mp4" {
+		t.Errorf("filename = %q, want clip.mp4", p.Filename)
+	}
+}
+
 // TestProbeFilenameAfterRedirect checks the name comes from where the
 // request ended up, not from where it started.
 func TestProbeFilenameAfterRedirect(t *testing.T) {

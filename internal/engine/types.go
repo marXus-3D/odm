@@ -31,6 +31,10 @@ type Request struct {
 	MaxConns int               `json:"maxConns,omitempty"`
 }
 
+// HeadSize is how much of the body the probe reads, for telling what the
+// response actually is. A playlist's first line arrives well inside this.
+const HeadSize = 1024
+
 // Probe is what we learn about a URL before committing to a strategy.
 type Probe struct {
 	FinalURL     string `json:"finalUrl"`
@@ -41,6 +45,11 @@ type Probe struct {
 	LastModified string `json:"lastModified,omitempty"`
 	ContentType  string `json:"contentType,omitempty"`
 	Status       int    `json:"status"`
+
+	// Head is the first HeadSize bytes of the body, or fewer for a short
+	// file. It is how a playlist is told apart from the video it describes;
+	// content types are not trustworthy on media CDNs.
+	Head []byte `json:"-"`
 }
 
 // Segment is one contiguous byte range assigned to one worker.
