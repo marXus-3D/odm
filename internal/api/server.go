@@ -195,6 +195,12 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 		NoPrompt:    req.NoPrompt,
 	})
 	if err != nil {
+		// A refused add leaves no record behind, so without this line there
+		// is nothing to look at afterwards but the message the caller saw.
+		// The URL and the two kinds are what tell a genuine refusal apart
+		// from a URL that was read wrong.
+		log.Printf("add refused: %v (kind hint %q, detected %q) %s",
+			err, req.Kind, manager.DetectKind(req.URL), req.URL)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
