@@ -17,27 +17,124 @@ const DEFAULTS = {
 
 // URLs we deliberately let Chrome handle, so a fallback re-download does not
 // bounce straight back into us.
-const passthrough = new Set();
+//
+// Session storage rather than a Set in memory: the fallback download starts
+// moments before the service worker may be torn down, and a worker that came
+// back with an empty set would capture its own fallback and go round again.
+const PASSTHROUGH_KEY = "passthrough";
+const PASSTHROUGH_MS = 60_000;
+
+async function markPassthrough(url) {
+  const got = await chrome.storage.session.get(PASSTHROUGH_KEY);
+  const all = got[PASSTHROUGH_KEY] || {};
+  all[url] = Date.now() + PASSTHROUGH_MS;
+  await chrome.storage.session.set({ [PASSTHROUGH_KEY]: all });
+}
+
+async function isPassthrough(...urls) {
+  const got = await chrome.storage.session.get(PASSTHROUGH_KEY);
+  const all = got[PASSTHROUGH_KEY] || {};
+  const now = Date.now();
+  let expired = false;
+  for (const [u, deadline] of Object.entries(all)) {
+    if (deadline <= now) {
+      delete all[u];
+      expired = true;
+    }
+  }
+  if (expired) await chrome.storage.session.set({ [PASSTHROUGH_KEY]: all });
+  return urls.some((u) => u && all[u]);
+}
 
 async function settings() {
   const s = await chrome.storage.sync.get(DEFAULTS);
   return { ...DEFAULTS, ...s };
 }
 
+// --- native messaging -------------------------------------------------------
+//
+// One long-lived port, not a sendNativeMessage per download. Chrome starts a
+// fresh host process for every one-shot message, so a burst of downloads
+// becomes a burst of processes and the ones that lose that race come back as
+// "Specified native messaging host not found" even though the host is
+// installed and working. A single port is a single process, and the host
+// keeps its daemon connection alive across messages.
+
+const NATIVE_TIMEOUT = 15_000; // a host that has not answered by now is stuck
+const PORT_IDLE_MS = 30_000;   // let the host exit when nothing is going on
+
+let port = null;
+const pending = []; // FIFO: the host answers in the order it was asked
+let idleTimer = null;
+
+function nativePort() {
+  if (port) return port;
+
+  const p = chrome.runtime.connectNative(HOST);
+  port = p;
+
+  p.onMessage.addListener((reply) => {
+    touchPort();
+    const waiter = pending.shift();
+    if (!waiter) return; // a reply to something that already timed out
+    if (!reply) waiter.reject(new Error("no reply from the ODM native host"));
+    else if (!reply.ok) waiter.reject(new Error(reply.error || "unknown ODM error"));
+    else waiter.resolve(reply.data);
+  });
+
+  p.onDisconnect.addListener(() => {
+    const err = chrome.runtime.lastError;
+    const msg = (err && err.message) || "the ODM native host disconnected";
+    if (port === p) port = null;
+    while (pending.length) pending.shift().reject(new Error(msg));
+  });
+
+  touchPort();
+  return p;
+}
+
+// touchPort drops the port once it has been quiet for a while, so an idle
+// browser is not holding a host process open all day.
+function touchPort() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (pending.length) return touchPort();
+    const p = port;
+    port = null;
+    if (p) p.disconnect();
+  }, PORT_IDLE_MS);
+}
+
 function sendNative(msg) {
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendNativeMessage(HOST, msg, (reply) => {
-      const err = chrome.runtime.lastError;
-      if (err) return reject(new Error(err.message));
-      if (!reply) return reject(new Error("no reply from the ODM native host"));
-      if (!reply.ok) return reject(new Error(reply.error || "unknown ODM error"));
-      resolve(reply.data);
-    });
+    let settled = false;
+    const waiter = {
+      resolve(v) { if (!settled) { settled = true; clearTimeout(timer); resolve(v); } },
+      reject(e) { if (!settled) { settled = true; clearTimeout(timer); reject(e); } },
+    };
+    // A timed-out waiter stays in the queue so later replies keep lining up
+    // with the requests that are still waiting; its callbacks are no-ops.
+    const timer = setTimeout(
+      () => waiter.reject(new Error("the ODM native host did not answer")),
+      NATIVE_TIMEOUT);
+
+    pending.push(waiter);
+    try {
+      nativePort().postMessage(msg);
+      touchPort();
+    } catch (e) {
+      const i = pending.indexOf(waiter);
+      if (i >= 0) pending.splice(i, 1);
+      port = null;
+      waiter.reject(e instanceof Error ? e : new Error(String(e)));
+    }
   });
 }
 
-function notify(title, message) {
-  chrome.notifications.create({
+// notify reuses one notification id per kind, so a run of failures replaces
+// the banner instead of stacking a tower of them.
+function notify(title, message, id = "odm") {
+  chrome.notifications.create(id, {
     type: "basic",
     iconUrl: chrome.runtime.getURL("icons/icon48.png"),
     title,
@@ -126,10 +223,31 @@ async function activeTabTitle() {
   }
 }
 
+// REPLAY_GRACE_MS is how recently a download must have started for the
+// onCreated event to be about a download that is really starting now.
+const REPLAY_GRACE_MS = 60_000;
+
+// isStarting separates a download Chrome is about to make from one it made
+// weeks ago.
+//
+// Chrome replays onCreated for every item already in the download history
+// when the service worker starts, which happens every time the browser is
+// opened. Treating those as new is ruinous: the handler cancels them, erases
+// them from history, and downloads the whole lot again. A finished download
+// is not in_progress, and one that was interrupted by the browser closing
+// started long before this moment.
+function isStarting(item) {
+  if (item.state !== "in_progress" || item.paused) return false;
+  const started = Date.parse(item.startTime || "");
+  if (Number.isNaN(started)) return true; // no usable time: assume it is new
+  return Date.now() - started < REPLAY_GRACE_MS;
+}
+
 async function shouldCapture(item, cfg) {
   if (!cfg.enabled) return false;
-  if (passthrough.has(item.url)) return false;
+  if (!isStarting(item)) return false;
   if (!isFetchable(item.finalUrl || item.url)) return false;
+  if (await isPassthrough(item.url, item.finalUrl)) return false;
 
   // A playlist is tiny and stands for something large, so neither the size
   // floor nor the extension list applies to it.
@@ -149,6 +267,7 @@ chrome.downloads.onCreated.addListener(async (item) => {
   if (!(await shouldCapture(item, cfg))) return;
 
   const url = item.finalUrl || item.url;
+  const playlist = isPlaylist(item);
 
   // Cancel first: every millisecond of delay is bytes Chrome writes to a file
   // we are about to abandon.
@@ -172,16 +291,30 @@ chrome.downloads.onCreated.addListener(async (item) => {
       cookie: await cookieHeader(url),
       userAgent: navigator.userAgent,
     });
-    if (cfg.notify) notify("Sent to ODM", filename || url);
+    if (cfg.notify) notify("Sent to ODM", filename || url, "odm-sent");
   } catch (e) {
     console.error("ODM: handoff failed", e);
-    if (cfg.notify) notify("ODM unavailable", e.message + " -- downloading in Chrome instead");
-    // Do not silently lose the user's download.
-    passthrough.add(url);
-    chrome.downloads.download({ url }, () => {
-      setTimeout(() => passthrough.delete(url), 60_000);
-      void chrome.runtime.lastError;
-    });
+
+    // Handing a playlist back to Chrome is not a fallback. It saves a few
+    // hundred bytes of text named index-f2-v1-a1.m3u8 and calls that the
+    // video, which is worse than saving nothing, so say what went wrong
+    // instead of producing a file the user cannot play.
+    if (playlist) {
+      notify("ODM unavailable",
+        e.message + " -- the video was not downloaded", "odm-error");
+      return;
+    }
+
+    if (cfg.notify) {
+      notify("ODM unavailable",
+        e.message + " -- downloading in Chrome instead", "odm-error");
+    }
+    // Do not silently lose the user's download. The mark has to be on disk
+    // before Chrome is asked, or the new download's own onCreated can arrive
+    // first and be captured.
+    await markPassthrough(url);
+    if (item.url !== url) await markPassthrough(item.url);
+    chrome.downloads.download({ url }, () => void chrome.runtime.lastError);
   }
 });
 
@@ -201,7 +334,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== MENU_ID) return;
   const url = info.linkUrl || info.srcUrl || info.selectionText;
   if (!url || !isFetchable(url)) {
-    notify("ODM", "That is not a downloadable http(s) link.");
+    notify("ODM", "That is not a downloadable http(s) link.", "odm-error");
     return;
   }
   try {
@@ -213,9 +346,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       cookie: await cookieHeader(url),
       userAgent: navigator.userAgent,
     });
-    notify("Sent to ODM", url);
+    notify("Sent to ODM", url, "odm-sent");
   } catch (e) {
-    notify("ODM error", e.message);
+    notify("ODM error", e.message, "odm-error");
   }
 });
 
