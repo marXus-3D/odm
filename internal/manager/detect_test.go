@@ -1,8 +1,12 @@
 package manager
 
 import (
+	"context"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/marXus-3D/odm/internal/store"
 )
 
 func TestDetectKind(t *testing.T) {
@@ -19,6 +23,16 @@ func TestDetectKind(t *testing.T) {
 		{"https://cdn.example.com/get?src=https%3A%2F%2Fx%2Fa.m3u8", KindHLS},
 		{"https://cdn.example.com/dash/video.mpd", KindDASH},
 		{"https://cdn.example.com/dash/manifest.mpd?t=1", KindDASH},
+		{"https://cdn.example.com/dash/manifest.mpd;s=9f3a", KindDASH},
+		{"https://cdn.example.com/get?src=https%3A%2F%2Fx%2Fa.mpd&t=1", KindDASH},
+		// The extension has to sit at a boundary. Refusing a download is not
+		// a fallback the user can recover from, so ".mpd" inside a longer
+		// word must not be read as a manifest.
+		{"https://cdn.example.com/clip.mpdata", KindFile},
+		{"https://cdn.example.com/v/2024.mpd4", KindFile},
+		{"https://cdn.example.com/get?k=x.mpdqz9", KindFile},
+		{"https://cdn.example.com/v/tune.m3u", KindHLS},
+		{"https://cdn.example.com/v/tune.m3uz", KindFile},
 		// Nothing in the URL says playlist; only the response can.
 		{"https://cdn.example.com/api/video/hls", KindFile},
 		{"https://cdn.example.com/files/setup.exe", KindFile},
@@ -161,5 +175,45 @@ func TestLooksLikeYouTube(t *testing.T) {
 		if looksLikeYouTube(u) {
 			t.Errorf("looksLikeYouTube(%q) = true, want false", u)
 		}
+	}
+}
+
+// TestAddKeepsPlaylistKind pins down that a caller's kind hint cannot turn a
+// playlist into a plain file. The extension reads a <video> element's src and
+// reports "file" for whatever it finds there, and on an MSE player that src
+// is the playlist itself: honouring the hint saved the manifest, a few
+// hundred bytes of text, in place of the video.
+func TestAddKeepsPlaylistKind(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir, filepath.Join(dir, "downloads"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := New(ctx, st)
+
+	cases := []struct {
+		name string
+		url  string
+		hint string
+		want string
+	}{
+		{"playlist url, file hint", "https://cdn.example/hls/abc/master.m3u8", KindFile, KindHLS},
+		{"playlist in query, file hint", "https://cdn.example/proxy?url=https%3A%2F%2Fx%2Fmaster.m3u8", KindFile, KindHLS},
+		{"playlist url, no hint", "https://cdn.example/hls/abc/master.m3u8", "", KindHLS},
+		{"file url, hls hint", "https://cdn.example/stream/signed-token", KindHLS, KindHLS},
+		{"file url, no hint", "https://cdn.example/clip.mp4", "", KindFile},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec, err := m.Add(AddRequest{URL: c.url, Kind: c.hint, NoPrompt: true})
+			if err != nil {
+				t.Fatalf("add: %v", err)
+			}
+			if rec.Kind != c.want {
+				t.Errorf("kind = %q, want %q", rec.Kind, c.want)
+			}
+		})
 	}
 }

@@ -90,11 +90,11 @@ func looksLikeDASH(head []byte) bool {
 		bytes.Contains(lower, []byte("<period"))
 }
 
-// playlistName decides what to call an HLS download whose name was taken
-// from the playlist itself. "master.m3u8" and "index.m3u8" say nothing about
-// the video, and nor does the name of a signed endpoint, so in those cases
-// the name is dropped and the HLS engine names the file from the URL it
-// really came from.
+// playlistName decides what to call a stream whose name was taken from the
+// playlist or manifest itself. "master.m3u8", "index.mpd" and
+// "index_web.mpd" say nothing about the video, and nor does the name of a
+// signed endpoint, so in those cases the name is dropped and the engine
+// names the file from the URL it really came from.
 func playlistName(name, rawURL string) string {
 	if name == "" {
 		return ""
@@ -103,11 +103,13 @@ func playlistName(name, rawURL string) string {
 	if i := strings.LastIndex(stem, "."); i > 0 {
 		ext := stem[i+1:]
 		stem = stem[:i]
-		// A name that is only the playlist's own filename is no name.
-		if ext == "m3u8" || ext == "m3u" {
+		// A name that is only the playlist's or manifest's own filename is
+		// no name.
+		if ext == "m3u8" || ext == "m3u" || ext == "mpd" {
 			switch stem {
 			case "master", "index", "playlist", "manifest", "media", "main",
-				"chunklist", "prog_index", "hls", "video", "stream":
+				"chunklist", "prog_index", "hls", "video", "stream",
+				"index_web", "dash", "stream_web":
 				return ""
 			}
 			return name

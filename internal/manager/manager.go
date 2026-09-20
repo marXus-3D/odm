@@ -166,20 +166,24 @@ func (m *Manager) Add(req AddRequest) (store.Record, error) {
 		req.Dir = cfg.DirFor(cat)
 	}
 
+	// The caller's kind is a hint -- the extension sniffs a content type, or
+	// reads a <video> element's src -- so it may promote a URL that looked
+	// like a plain file. It must not do the reverse. A URL with .m3u8 in it
+	// is a playlist whatever the page thought its player was pointed at, and
+	// fetching one as a file saves a few hundred bytes of text in place of
+	// the video.
 	kind := DetectKind(req.URL)
-	if req.Kind != "" {
-		kind = req.Kind // the extension may have sniffed the content type
-	}
-	if kind == KindDASH {
-		return store.Record{}, ErrDASHUnsupported
+	if req.Kind != "" && kind == KindFile {
+		kind = req.Kind
 	}
 	if kind == KindFile && looksLikeYouTube(req.URL) {
 		return store.Record{}, ErrNoFileBehindPage
 	}
 	title := titleAsName(req.Title)
-	if req.Filename == "" && kind == KindHLS && title != "" {
-		// A playlist has no name of its own and no probe will find one:
-		// the URL is a signed endpoint and the body is a list of segments.
+	if req.Filename == "" && isStream(kind) && title != "" {
+		// A playlist or manifest has no name of its own and no probe will
+		// find one: the URL is a signed endpoint and the body is a list of
+		// segments.
 		req.Filename = title
 	}
 	q := cfg.QueueByID(req.QueueID)
@@ -282,25 +286,18 @@ func (m *Manager) resolve(id string, confirm bool) {
 		// dislike being asked. Queue it and let the engine find out.
 	}
 
-	// A manifest ODM cannot read must not be saved as though it were the
-	// video. Say so instead, on the download itself, where the user is
-	// looking.
-	if kind == KindDASH {
-		m.failNow(id, ErrDASHUnsupported)
-		return
-	}
-
-	if kind == KindHLS && rec.Kind != KindHLS {
-		// The URL looked like a file and turned out to be a playlist. The
-		// name the probe found is the playlist's, and its size is the size
-		// of a few lines of text, so neither is worth keeping.
+	if isStream(kind) && !isStream(rec.Kind) {
+		// The URL looked like a file and turned out to be a playlist or a
+		// manifest. The name the probe found is that document's, and its
+		// size is the size of a few lines of text, so neither is worth
+		// keeping.
 		name = playlistName(name, rec.URL)
 		size = 0
 	}
 	// Nothing named it, or nothing named it usefully. The page it came from
 	// did have a title, and that is what the user would have called it.
 	if title != "" && (name == "" || name == "download" || looksLikeToken(name)) {
-		if kind == KindHLS {
+		if isStream(kind) {
 			name = title
 		} else {
 			// A file still needs its extension, which the title has not got.
@@ -321,10 +318,10 @@ func (m *Manager) resolve(id string, confirm bool) {
 	}
 	if !e.catGiven {
 		// The category follows the extension, and when the guess was made
-		// there was no extension to go on. A playlist has no name yet, but
+		// there was no extension to go on. A stream has no name yet, but
 		// its kind is enough: what lands on disk is a video.
 		pick := e.rec.Filename
-		if kind == KindHLS {
+		if isStream(kind) {
 			pick = "video.mp4"
 		}
 		if pick != "" {

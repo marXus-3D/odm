@@ -47,20 +47,37 @@
     return null;
   }
 
+  // kindOf reads the kind out of a URL, or "" when the URL does not say.
+  // Sending nothing is better than sending a guess: ODM asks the server.
+  function kindOf(url) {
+    const path = (url || "").split("?")[0].toLowerCase();
+    if (path.includes(".m3u8") || path.includes(".m3u")) return "hls";
+    if (path.includes(".mpd")) return "dash";
+    return "";
+  }
+
   function pickTarget(video) {
     // This element's own source wins when it is fetchable, because it is
     // unambiguously the video the panel is sitting on. A playlist noticed
     // elsewhere on the page might belong to an ad or another player.
+    //
+    // What it is not is proof that the source is a file. Plenty of players
+    // point the element straight at a playlist, and calling that a file
+    // downloads the manifest instead of the video.
     const direct = directSource(video);
-    if (direct) return { url: direct, kind: "file" };
+    if (direct) return { url: direct, kind: kindOf(direct) };
 
     // No usable src means an MSE player feeding from a blob:, which is
     // exactly the case this panel exists for: the real address is the
-    // playlist the page fetched.
+    // playlist or manifest the page fetched.
+    //
+    // HLS first when there is a choice. Both are downloadable, but an HLS
+    // playlist usually carries audio and video together, where DASH needs
+    // ffmpeg to put them back together at the end.
     const playlist = detected.find((m) => m.kind === "hls");
     if (playlist) return { url: playlist.url, kind: "hls" };
 
-    const other = detected.find((m) => m.kind !== "dash");
+    const other = detected[0];
     if (other) return { url: other.url, kind: other.kind };
     return null;
   }
@@ -232,7 +249,8 @@
         document.body.appendChild(host);
         panels.set(video, host);
       }
-      host.__dmTag.textContent = target.kind === "hls" ? "hls" : "video";
+      host.__dmTag.textContent =
+        target.kind === "hls" || target.kind === "dash" ? target.kind : "video";
       reposition(video, host);
     }
   }

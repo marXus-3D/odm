@@ -6,14 +6,15 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/marXus-3D/odm/internal/dash"
 	"github.com/marXus-3D/odm/internal/engine"
 	"github.com/marXus-3D/odm/internal/hls"
 	"github.com/marXus-3D/odm/internal/store"
 )
 
-// job is what the queue actually runs. Byte-range downloads and HLS playlist
-// downloads have different innards but the same lifecycle, so the manager
-// only deals with this.
+// job is what the queue actually runs. Byte-range downloads, HLS playlists
+// and DASH manifests have different innards but the same lifecycle, so the
+// manager only deals with this.
 type job interface {
 	Run(ctx context.Context) error
 	Pause()
@@ -51,6 +52,19 @@ func (j hlsJob) Summary() (int64, int64, string) {
 	return s.Downloaded, s.Total, string(s.State)
 }
 
+// dashJob adapts a manifest download.
+type dashJob struct{ d *dash.Download }
+
+func (j dashJob) Run(ctx context.Context) error { return j.d.Run(ctx) }
+func (j dashJob) Pause()                        { j.d.Pause() }
+func (j dashJob) OutPath() string               { return j.d.Path }
+func (j dashJob) Snapshot() any                 { return j.d.Stats() }
+
+func (j dashJob) Summary() (int64, int64, string) {
+	s := j.d.Stats()
+	return s.Downloaded, s.Total, string(s.State)
+}
+
 // Kind labels how a download will be fetched.
 const (
 	KindFile = "file"
@@ -58,10 +72,12 @@ const (
 	KindDASH = "dash"
 )
 
-// ErrDASHUnsupported is returned rather than saving the manifest XML under a
-// video filename, which is what treating a .mpd as a plain file would do.
-var ErrDASHUnsupported = errors.New(
-	"DASH (.mpd) streams are not supported yet; only HLS (.m3u8) playlists are")
+// isStream reports whether a kind is one of the segmented formats, where
+// the URL names a document listing the media rather than the media itself.
+// The two want the same handling for naming, sizing and categorising.
+func isStream(kind string) bool {
+	return kind == KindHLS || kind == KindDASH
+}
 
 // ErrNoFileBehindPage is for a page that plays video without serving one.
 // There is nothing at the URL to fetch, so the request is refused with a
@@ -85,20 +101,47 @@ func DetectKind(rawURL string) string {
 		return KindFile
 	}
 	p := strings.ToLower(u.Path)
-	// Contains rather than HasSuffix: the extension is regularly followed by
-	// something else, either a session parameter stuck on with a semicolon
-	// (/master.m3u8;s=abc) or more path after it (/master.m3u8/seg-1).
-	if strings.Contains(p, ".m3u8") || strings.Contains(p, ".m3u") {
+	q := strings.ToLower(u.RawQuery)
+	if hasExt(p, ".m3u8") || hasExt(p, ".m3u") {
 		return KindHLS
 	}
 	// Some CDNs put the playlist in a query parameter instead.
-	if strings.Contains(strings.ToLower(u.RawQuery), ".m3u8") {
+	if hasExt(q, ".m3u8") {
 		return KindHLS
 	}
-	if strings.Contains(p, ".mpd") || strings.Contains(strings.ToLower(u.RawQuery), ".mpd") {
+	// DASH is a refusal rather than a fallback, so a loose match here costs
+	// the user a download that would otherwise have worked. Match only at a
+	// boundary: ".mpd" must not be the start of a longer word.
+	if hasExt(p, ".mpd") || hasExt(q, ".mpd") {
 		return KindDASH
 	}
 	return KindFile
+}
+
+// hasExt reports whether s carries ext as an extension rather than as a
+// fragment of some longer word.
+//
+// Not HasSuffix: the extension is regularly followed by something else,
+// either a session parameter stuck on with a semicolon (/master.m3u8;s=abc)
+// or more path after it (/master.m3u8/seg-1). Not Contains either, which
+// would read "clip.mpdata" as a DASH manifest.
+func hasExt(s, ext string) bool {
+	for i := 0; i+len(ext) <= len(s); {
+		j := strings.Index(s[i:], ext)
+		if j < 0 {
+			return false
+		}
+		end := i + j + len(ext)
+		if end == len(s) || !isWordByte(s[end]) {
+			return true
+		}
+		i += j + 1
+	}
+	return false
+}
+
+func isWordByte(b byte) bool {
+	return b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
 }
 
 // newJob builds the right kind of job for a record.
@@ -113,6 +156,18 @@ func (m *Manager) newJob(rec store.Record, onUpdate func()) job {
 		d.Path = rec.Path
 		d.OnUpdate = func(hls.Stats) { onUpdate() }
 		return hlsJob{d: d}
+	}
+
+	if rec.Kind == KindDASH {
+		d := dash.NewDownload(rec.ID, rec.URL)
+		d.Dir = rec.Dir
+		d.Filename = rec.Filename
+		d.Headers = rec.Headers
+		d.Limiter = m.limiter
+		d.Concurrency = rec.MaxConns
+		d.Path = rec.Path
+		d.OnUpdate = func(dash.Stats) { onUpdate() }
+		return dashJob{d: d}
 	}
 
 	req := engine.Request{

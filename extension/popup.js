@@ -131,11 +131,6 @@ async function loadMedia() {
 
     const btn = document.createElement("button");
     btn.textContent = "Download";
-    if (m.kind === "dash") {
-      // The daemon would reject it anyway; say so before the click.
-      btn.disabled = true;
-      btn.title = "DASH (.mpd) is not supported yet";
-    }
     btn.onclick = async () => {
       btn.disabled = true;
       btn.textContent = "Sending...";
