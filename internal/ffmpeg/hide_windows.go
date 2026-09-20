@@ -1,13 +1,13 @@
 //go:build windows
 
-package hls
+package ffmpeg
 
 import (
 	"os/exec"
 	"syscall"
 )
 
-// hideWindow keeps ffmpeg from flashing a console window on screen.
-func hideWindow(cmd *exec.Cmd) {
+// Hide keeps ffmpeg from flashing a console window on screen.
+func Hide(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 }

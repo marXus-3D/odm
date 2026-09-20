@@ -1,10 +1,10 @@
 //go:build !windows
 
-package hls
+package ffmpeg
 
 // wellKnownFFmpeg lists fallback locations for systems where PATH is
 // reliable enough that there is little to add.
-func wellKnownFFmpeg() []string {
+func wellKnown() []string {
 	return []string{
 		"/usr/bin/ffmpeg",
 		"/usr/local/bin/ffmpeg",

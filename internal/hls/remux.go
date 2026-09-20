@@ -8,46 +8,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
-)
 
-var (
-	ffmpegMu   sync.Mutex
-	ffmpegPath string
+	"github.com/marXus-3D/odm/internal/ffmpeg"
 )
 
 // FFmpegPath returns the ffmpeg binary to use, or "" when none is installed.
-//
-// A successful lookup is cached, a failed one is not: the daemon is
-// long-lived and may well be running when ffmpeg gets installed, and
-// remembering "no ffmpeg" forever would mean never noticing.
-func FFmpegPath() string {
-	ffmpegMu.Lock()
-	defer ffmpegMu.Unlock()
-	if ffmpegPath != "" {
-		return ffmpegPath
-	}
-	if p := os.Getenv("DM_FFMPEG"); p != "" {
-		if _, err := os.Stat(p); err == nil {
-			ffmpegPath = p
-			return ffmpegPath
-		}
-	}
-	if p, err := exec.LookPath("ffmpeg"); err == nil {
-		ffmpegPath = p
-		return ffmpegPath
-	}
-	// Not on PATH. That often just means this process was started before
-	// ffmpeg was installed, so check where installers actually put it.
-	for _, cand := range wellKnownFFmpeg() {
-		if st, err := os.Stat(cand); err == nil && !st.IsDir() {
-			ffmpegPath = cand
-			return ffmpegPath
-		}
-	}
-	return ffmpegPath
-}
+// The lookup lives in internal/ffmpeg because the DASH engine needs it too;
+// this stays as the name the API already reports.
+func FFmpegPath() string { return ffmpeg.Path() }
 
 // remuxTimeout bounds the conversion. It is a stream copy, so even a long
 // film is minutes, but a wedged ffmpeg must not pin the download queue.
@@ -136,7 +105,7 @@ func runFFmpeg(ctx context.Context, ff, in, out string, adtsFilter bool) error {
 	)
 
 	cmd := exec.CommandContext(ctx, ff, args...)
-	hideWindow(cmd)
+	ffmpeg.Hide(cmd)
 
 	outBytes, err := cmd.CombinedOutput()
 	if err != nil {

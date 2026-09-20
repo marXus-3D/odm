@@ -1,6 +1,6 @@
 //go:build windows
 
-package hls
+package ffmpeg
 
 import (
 	"os"
@@ -15,7 +15,7 @@ import (
 // so a browser that was already open when ffmpeg was installed hands us a
 // stale PATH and the conversion silently never happens. Looking in the
 // obvious places avoids telling the user to restart everything.
-func wellKnownFFmpeg() []string {
+func wellKnown() []string {
 	var dirs []string
 	if v := os.Getenv("LOCALAPPDATA"); v != "" {
 		dirs = append(dirs,
