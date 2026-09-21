@@ -135,6 +135,11 @@ if (-not $SkipExtension) {
     if (-not $manifest.browser_specific_settings.gecko.id) {
         Write-Host "  warning: manifest has no browser_specific_settings.gecko.id; Firefox cannot be given a stable add-on id"
     }
+    # AMO has refused submissions without this since 3 November 2025, and the
+    # refusal only shows up once the release workflow is already running.
+    if (-not $manifest.browser_specific_settings.gecko.data_collection_permissions.required) {
+        throw "manifest has no browser_specific_settings.gecko.data_collection_permissions.required; addons.mozilla.org will reject it"
+    }
 
     # Sign the extension so the installer can offer it to browsers as a
     # real .crx. This also writes the public key into manifest.json, which
