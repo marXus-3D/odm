@@ -53,7 +53,7 @@
     "webRequest",
     "tabs"
   ],
-  "version": "0.1.13",
+  "version": "0.1.14",
   "browser_specific_settings": {
     "gecko": {
       "id": "odm@marxus.dev",
