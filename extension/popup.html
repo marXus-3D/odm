@@ -28,6 +28,10 @@
                   text-align: left; }
   .tag { font-size: 10px; border: 1px solid #4f9cf9; color: #4f9cf9;
          border-radius: 999px; padding: 1px 6px; text-transform: uppercase; }
+  #perm { display: none; padding: 10px 12px; border-bottom: 1px solid #8884;
+          background: #f4a2591a; }
+  #perm.show { display: block; }
+  #perm p { margin: 0 0 8px; }
 </style>
 </head>
 <body>
@@ -37,6 +41,11 @@
   <button id="openUI">Open ODM</button>
   <button id="opts">Settings</button>
 </header>
+<div id="perm">
+  <p>ODM needs permission to read this site before it can capture downloads
+     or see the video a page is playing.</p>
+  <button id="grant">Grant access to all sites</button>
+</div>
 <div id="media"></div>
 <div id="list"><div class="msg">Connecting...</div></div>
 <script src="popup.js"></script>

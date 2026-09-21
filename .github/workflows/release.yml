@@ -10,6 +10,12 @@
 # %APPDATA%\odm\extension_key.pem so the extension keeps the same id from
 # release to release. Without it a fresh key is generated for the build and
 # the id changes, which browsers treat as a different extension.
+#
+# Set AMO_JWT_ISSUER and AMO_JWT_SECRET (from addons.mozilla.org, under Manage
+# API Keys) to have Mozilla sign the Firefox add-on. It is submitted to the
+# unlisted channel, which signs it without a public store listing. Without
+# these the Firefox build still happens but ships unsigned, and release
+# Firefox refuses to install an unsigned add-on.
 name: Release
 
 on:
@@ -22,6 +28,11 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    # Read at the job level so the signing step can decide whether to run:
+    # secrets are not visible to a step-level `if`.
+    env:
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -61,9 +72,39 @@ jobs:
             Write-Warning "EXTENSION_SIGNING_KEY is not set; the extension id will differ from other releases"
           }
 
+      # Before the build, not after: Mozilla can reject a submission, and a
+      # release that has already published its Chrome assets cannot be rerun
+      # cleanly. Failing here leaves nothing behind.
+      - name: Sign the Firefox add-on
+        if: env.AMO_JWT_ISSUER != ''
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/ffsign" | Out-Null
+          npx --yes web-ext@8 sign `
+            --source-dir extension `
+            --channel unlisted `
+            --api-key $env:AMO_JWT_ISSUER `
+            --api-secret $env:AMO_JWT_SECRET `
+            --artifacts-dir "$env:RUNNER_TEMP/ffsign"
+          if ($LASTEXITCODE -ne 0) { throw "web-ext sign failed" }
+          Get-ChildItem "$env:RUNNER_TEMP/ffsign" -Filter *.xpi | ForEach-Object { $_.Name }
+
       - name: Build
         shell: pwsh
         run: ./build.ps1
+
+      - name: Collect the signed add-on
+        if: env.AMO_JWT_ISSUER != ''
+        shell: pwsh
+        run: |
+          $signed = Get-ChildItem "$env:RUNNER_TEMP/ffsign" -Filter *.xpi | Select-Object -First 1
+          if (-not $signed) { throw "signing reported success but produced no .xpi" }
+          $version = (Get-Content extension/manifest.json -Raw | ConvertFrom-Json).version
+          # The unsigned copy build.ps1 makes is for about:debugging only, and
+          # shipping both invites installing the one that cannot be installed.
+          Remove-Item "dist/odm-firefox-$version-unsigned.xpi" -ErrorAction SilentlyContinue
+          Copy-Item $signed.FullName "dist/odm-firefox-$version.xpi"
+          Write-Host "signed add-on: $($signed.Name)"
 
       - name: Checksums
         shell: pwsh

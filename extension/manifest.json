@@ -10,7 +10,10 @@
     "default_title": "ODM"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
   },
   "content_scripts": [
     {
@@ -37,7 +40,7 @@
   },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA12MSaMN4QJnX8QWIvxmSHkyh/1UBDj2Ot/1xlVOsmtVkpEDHsqrdgFwiTP6/xfgcAuovWIpvqqsLcpVmeXDBKrhVkzbvm9lt1jKZcq1OS0b2rUPh1RivzNbLByV9Nl9TFYXLZVBytyyVOrGCGJiSPI7gmevJ2mCF3Yt3XV6q8AeaBO2UqwL69Gf7vDwOvhKvWdtVXF4mR9n4CfE2MI2A7Ywhkuheo2gxWJyhjbLSfzWMO84L7H3U/gtRWE/X4N/olsUP6So2Rta08P4MyyPQZevCtBZkW9/ce0oNbNtjW7+6TqpYyAGTi9VpUGZOeXU4ca9hL+p6nYJ3mEHMSJMfOQIDAQAB",
   "manifest_version": 3,
-  "minimum_chrome_version": "116",
+  "minimum_chrome_version": "121",
   "name": "ODM Integration",
   "options_page": "options.html",
   "permissions": [
@@ -50,5 +53,11 @@
     "webRequest",
     "tabs"
   ],
-  "version": "0.1.11"
+  "version": "0.1.11",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "odm@marxus.dev",
+      "strict_min_version": "121.0"
+    }
+  }
 }

@@ -5,6 +5,12 @@
 // would have used. Without the cookies, Referer and User-Agent, an
 // authenticated download fetched by an outside process just gets a 403.
 
+// Firefox exposes the promise-based WebExtension API as `browser`; Chrome
+// defines only `chrome`, whose MV3 methods return promises too. Taking
+// whichever exists gives one promise-based namespace on both, which matters
+// because Firefox's own `chrome` alias is callback-only.
+const api = globalThis.browser ?? globalThis.chrome;
+
 const HOST = "com.odm.host";
 
 const DEFAULTS = {
@@ -25,14 +31,14 @@ const PASSTHROUGH_KEY = "passthrough";
 const PASSTHROUGH_MS = 60_000;
 
 async function markPassthrough(url) {
-  const got = await chrome.storage.session.get(PASSTHROUGH_KEY);
+  const got = await api.storage.session.get(PASSTHROUGH_KEY);
   const all = got[PASSTHROUGH_KEY] || {};
   all[url] = Date.now() + PASSTHROUGH_MS;
-  await chrome.storage.session.set({ [PASSTHROUGH_KEY]: all });
+  await api.storage.session.set({ [PASSTHROUGH_KEY]: all });
 }
 
 async function isPassthrough(...urls) {
-  const got = await chrome.storage.session.get(PASSTHROUGH_KEY);
+  const got = await api.storage.session.get(PASSTHROUGH_KEY);
   const all = got[PASSTHROUGH_KEY] || {};
   const now = Date.now();
   let expired = false;
@@ -42,12 +48,12 @@ async function isPassthrough(...urls) {
       expired = true;
     }
   }
-  if (expired) await chrome.storage.session.set({ [PASSTHROUGH_KEY]: all });
+  if (expired) await api.storage.session.set({ [PASSTHROUGH_KEY]: all });
   return urls.some((u) => u && all[u]);
 }
 
 async function settings() {
-  const s = await chrome.storage.sync.get(DEFAULTS);
+  const s = await api.storage.sync.get(DEFAULTS);
   return { ...DEFAULTS, ...s };
 }
 
@@ -70,7 +76,7 @@ let idleTimer = null;
 function nativePort() {
   if (port) return port;
 
-  const p = chrome.runtime.connectNative(HOST);
+  const p = api.runtime.connectNative(HOST);
   port = p;
 
   p.onMessage.addListener((reply) => {
@@ -83,7 +89,8 @@ function nativePort() {
   });
 
   p.onDisconnect.addListener(() => {
-    const err = chrome.runtime.lastError;
+    // Chrome reports why on runtime.lastError, Firefox on the port itself.
+    const err = p.error || api.runtime.lastError;
     const msg = (err && err.message) || "the ODM native host disconnected";
     if (port === p) port = null;
     while (pending.length) pending.shift().reject(new Error(msg));
@@ -134,12 +141,12 @@ function sendNative(msg) {
 // notify reuses one notification id per kind, so a run of failures replaces
 // the banner instead of stacking a tower of them.
 function notify(title, message, id = "odm") {
-  chrome.notifications.create(id, {
+  api.notifications.create(id, {
     type: "basic",
-    iconUrl: chrome.runtime.getURL("icons/icon48.png"),
+    iconUrl: api.runtime.getURL("icons/icon48.png"),
     title,
     message,
-  }, () => void chrome.runtime.lastError);
+  }).catch(() => {}); // a notification that will not show is not worth reporting
 }
 
 // cookieHeader rebuilds the Cookie header the browser would have sent. The
@@ -147,7 +154,7 @@ function notify(title, message, id = "odm") {
 // logged-in downloads.
 async function cookieHeader(url) {
   try {
-    const jar = await chrome.cookies.getAll({ url });
+    const jar = await api.cookies.getAll({ url });
     if (!jar.length) return "";
     return jar.map((c) => `${c.name}=${c.value}`).join("; ");
   } catch (e) {
@@ -216,7 +223,7 @@ function titleName(raw) {
 // in front is the one the user just clicked in.
 async function activeTabTitle() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await api.tabs.query({ active: true, currentWindow: true });
     return tab ? titleName(tab.title) : "";
   } catch (e) {
     return "";
@@ -262,7 +269,7 @@ async function shouldCapture(item, cfg) {
   return true;
 }
 
-chrome.downloads.onCreated.addListener(async (item) => {
+api.downloads.onCreated.addListener(async (item) => {
   const cfg = await settings();
   if (!(await shouldCapture(item, cfg))) return;
 
@@ -272,8 +279,8 @@ chrome.downloads.onCreated.addListener(async (item) => {
   // Cancel first: every millisecond of delay is bytes Chrome writes to a file
   // we are about to abandon.
   try {
-    await chrome.downloads.cancel(item.id);
-    await chrome.downloads.erase({ id: item.id });
+    await api.downloads.cancel(item.id);
+    await api.downloads.erase({ id: item.id });
   } catch (e) {
     console.warn("ODM: could not cancel download", e);
     return; // Chrome already finished it; leave it alone.
@@ -314,7 +321,7 @@ chrome.downloads.onCreated.addListener(async (item) => {
     // first and be captured.
     await markPassthrough(url);
     if (item.url !== url) await markPassthrough(item.url);
-    chrome.downloads.download({ url }, () => void chrome.runtime.lastError);
+    api.downloads.download({ url }).catch(() => {});
   }
 });
 
@@ -322,15 +329,19 @@ chrome.downloads.onCreated.addListener(async (item) => {
 
 const MENU_ID = "odm-download";
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
+api.runtime.onInstalled.addListener(() => {
+  api.contextMenus.create({
     id: MENU_ID,
     title: "Download with ODM",
     contexts: ["link", "image", "video", "audio", "selection"],
-  }, () => void chrome.runtime.lastError);
+    // The one call here that keeps its callback: contextMenus.create returns
+    // the new id rather than a promise in both browsers, so there is nothing
+    // to catch. Creating a menu that already exists is the only likely
+    // failure and it does not matter.
+  }, () => void api.runtime.lastError);
 });
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+api.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== MENU_ID) return;
   const url = info.linkUrl || info.srcUrl || info.selectionText;
   if (!url || !isFetchable(url)) {
@@ -353,7 +364,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 
 // Let the popup and options page reuse the one-shot native channel.
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || msg.scope !== "odm") return false;
   sendNative(msg.payload)
     .then((data) => sendResponse({ ok: true, data }))
@@ -379,7 +390,7 @@ function classify(url) {
 }
 
 async function readMedia() {
-  const got = await chrome.storage.session.get(MEDIA_KEY);
+  const got = await api.storage.session.get(MEDIA_KEY);
   return got[MEDIA_KEY] || {};
 }
 
@@ -393,7 +404,7 @@ async function recordMedia(tabId, url, kind) {
   // by the player afterwards would just clutter the list.
   list.unshift({ url, kind, ts: Date.now() });
   all[String(tabId)] = list.slice(0, MEDIA_PER_TAB);
-  await chrome.storage.session.set({ [MEDIA_KEY]: all });
+  await api.storage.session.set({ [MEDIA_KEY]: all });
   updateBadge(tabId, all[String(tabId)].length);
   pushToTab(tabId, all[String(tabId)]);
 }
@@ -401,18 +412,20 @@ async function recordMedia(tabId, url, kind) {
 // pushToTab tells the in-page panel what we found, so the button can appear
 // the moment the player asks for its playlist rather than on the next scroll.
 function pushToTab(tabId, media) {
-  chrome.tabs.sendMessage(tabId, { scope: "odm-media-update", media },
-    () => void chrome.runtime.lastError); // no content script here is fine
+  // No content script in that tab is fine, and is what the rejection means.
+  api.tabs.sendMessage(tabId, { scope: "odm-media-update", media })
+    .catch(() => {});
 }
 
 function updateBadge(tabId, count) {
-  chrome.action.setBadgeText({ tabId, text: count ? String(count) : "" },
-    () => void chrome.runtime.lastError);
-  chrome.action.setBadgeBackgroundColor({ tabId, color: "#4f9cf9" },
-    () => void chrome.runtime.lastError);
+  // A tab that closed between the find and the badge rejects; that is fine.
+  api.action.setBadgeText({ tabId, text: count ? String(count) : "" })
+    .catch(() => {});
+  api.action.setBadgeBackgroundColor({ tabId, color: "#4f9cf9" })
+    .catch(() => {});
 }
 
-chrome.webRequest.onBeforeRequest.addListener(
+api.webRequest.onBeforeRequest.addListener(
   (details) => {
     const kind = classify(details.url);
     if (kind) void recordMedia(details.tabId, details.url, kind);
@@ -422,7 +435,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 // Some CDNs serve playlists from extension-less URLs, so fall back to the
 // content type the response actually declares.
-chrome.webRequest.onHeadersReceived.addListener(
+api.webRequest.onHeadersReceived.addListener(
   (details) => {
     if (classify(details.url)) return; // already recorded by URL
     const ct = (details.responseHeaders || [])
@@ -440,27 +453,27 @@ chrome.webRequest.onHeadersReceived.addListener(
 );
 
 // A new page means the old list is stale.
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+api.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   if (!changeInfo.url) return;
   const all = await readMedia();
   if (all[String(tabId)]) {
     delete all[String(tabId)];
-    await chrome.storage.session.set({ [MEDIA_KEY]: all });
+    await api.storage.session.set({ [MEDIA_KEY]: all });
   }
   updateBadge(tabId, 0);
   pushToTab(tabId, []);
 });
 
-chrome.tabs.onRemoved.addListener(async (tabId) => {
+api.tabs.onRemoved.addListener(async (tabId) => {
   const all = await readMedia();
   if (all[String(tabId)]) {
     delete all[String(tabId)];
-    await chrome.storage.session.set({ [MEDIA_KEY]: all });
+    await api.storage.session.set({ [MEDIA_KEY]: all });
   }
 });
 
 // The popup asks for a named tab's finds; a content script asks for its own.
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return false;
   if (msg.scope === "odm-media") {
     (async () => {

@@ -81,6 +81,9 @@ if (-not $SkipExtension) {
     # extension with an unhelpful error at load time.
     $referenced = New-Object System.Collections.Generic.List[string]
     if ($manifest.background.service_worker) { $referenced.Add($manifest.background.service_worker) }
+    # Firefox has no extension service workers and reads background.scripts
+    # instead. Both keys are declared, so both have to point at real files.
+    foreach ($bs in $manifest.background.scripts) { $referenced.Add($bs) }
     if ($manifest.action.default_popup)      { $referenced.Add($manifest.action.default_popup) }
     if ($manifest.options_page)              { $referenced.Add($manifest.options_page) }
     foreach ($set in @($manifest.icons, $manifest.action.default_icon)) {
@@ -119,6 +122,19 @@ if (-not $SkipExtension) {
     if (Test-Path $zip) { Remove-Item $zip -Force }
     Compress-Archive -Path (Join-Path $extDir "*") -DestinationPath $zip
     Write-Host "  packaged $zip"
+
+    # An .xpi is a zip with a different extension. This one is unsigned, which
+    # release Firefox refuses to install: the release workflow sends the same
+    # tree to Mozilla and ships the signed copy instead. Keeping an unsigned
+    # one here is still worth it for about:debugging.
+    $xpi = Join-Path $root "dist/odm-firefox-$($manifest.version)-unsigned.xpi"
+    if (Test-Path $xpi) { Remove-Item $xpi -Force }
+    Copy-Item $zip $xpi
+    Write-Host "  packaged $xpi"
+
+    if (-not $manifest.browser_specific_settings.gecko.id) {
+        Write-Host "  warning: manifest has no browser_specific_settings.gecko.id; Firefox cannot be given a stable add-on id"
+    }
 
     # Sign the extension so the installer can offer it to browsers as a
     # real .crx. This also writes the public key into manifest.json, which

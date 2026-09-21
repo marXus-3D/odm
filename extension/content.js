@@ -10,6 +10,9 @@
   if (window.__dmPanelLoaded) return; // survive a re-injection
   window.__dmPanelLoaded = true;
 
+  // See background.js: `browser` on Firefox, `chrome` on Chrome.
+  const api = globalThis.browser ?? globalThis.chrome;
+
   const MIN_SIZE = 120;      // ignore tracking pixels and tiny previews
   const REPOSITION_MS = 250;
 
@@ -161,7 +164,7 @@
       bar.classList.add("busy");
       label.textContent = "Sending to ODM...";
       try {
-        const res = await chrome.runtime.sendMessage({
+        const res = await api.runtime.sendMessage({
           scope: "odm",
           payload: {
             type: "add",
@@ -273,7 +276,7 @@
 
   // --- wiring --------------------------------------------------------------
 
-  chrome.runtime.onMessage.addListener((msg) => {
+  api.runtime.onMessage.addListener((msg) => {
     if (msg && msg.scope === "odm-media-update") {
       detected = msg.media || [];
       scheduleRefresh();
@@ -282,7 +285,7 @@
 
   async function loadDetected() {
     try {
-      const r = await chrome.runtime.sendMessage({ scope: "odm-media-self" });
+      const r = await api.runtime.sendMessage({ scope: "odm-media-self" });
       if (r && r.ok) detected = r.media || [];
     } catch {
       /* service worker asleep; the push message will arrive instead */

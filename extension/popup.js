@@ -1,6 +1,10 @@
 // The popup keeps one long-lived native port open while it is visible, so
 // polling for progress does not respawn the host process every tick.
 
+// See background.js: `browser` on Firefox, `chrome` on Chrome, promises on
+// both either way.
+const api = globalThis.browser ?? globalThis.chrome;
+
 const list = document.getElementById("list");
 let port = null;
 let timer = null;
@@ -86,12 +90,40 @@ function render(downloads) {
   }
 }
 
+// Firefox treats host_permissions in a Manifest V3 extension as optional, so
+// <all_urls> is not granted at install. Without it the cookie jar is empty
+// and webRequest sees nothing, and the extension looks installed and broken
+// rather than unauthorised. Ask for it instead, from a click, which is the
+// only context permissions.request may be called from.
+async function checkPermissions() {
+  const box = document.getElementById("perm");
+  let granted = true;
+  try {
+    granted = await api.permissions.contains({ origins: ["<all_urls>"] });
+  } catch {
+    return; // no permissions API to ask: nothing useful to show
+  }
+  if (granted) return;
+
+  box.classList.add("show");
+  document.getElementById("grant").onclick = async () => {
+    try {
+      if (await api.permissions.request({ origins: ["<all_urls>"] })) {
+        box.classList.remove("show");
+        loadMedia().catch(() => {});
+      }
+    } catch (e) {
+      message("Could not request permission: " + e.message);
+    }
+  };
+}
+
 // Streams the page fetched are not downloads Chrome ever started, so they
 // have to be offered explicitly.
 async function loadMedia() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await api.tabs.query({ active: true, currentWindow: true });
   if (!tab) return;
-  const reply = await chrome.runtime.sendMessage({ scope: "odm-media", tabId: tab.id });
+  const reply = await api.runtime.sendMessage({ scope: "odm-media", tabId: tab.id });
   const box = document.getElementById("media");
   box.textContent = "";
   if (!reply || !reply.ok || !reply.media.length) {
@@ -134,7 +166,7 @@ async function loadMedia() {
     btn.onclick = async () => {
       btn.disabled = true;
       btn.textContent = "Sending...";
-      const res = await chrome.runtime.sendMessage({
+      const res = await api.runtime.sendMessage({
         scope: "odm",
         payload: {
           type: "add",
@@ -160,7 +192,7 @@ async function loadMedia() {
 
 function connect() {
   try {
-    port = chrome.runtime.connectNative("com.odm.host");
+    port = api.runtime.connectNative("com.odm.host");
   } catch (e) {
     message("Native host not installed. Run odm-setup.");
     return;
@@ -174,7 +206,8 @@ function connect() {
     if (reply.data && reply.data.downloads) render(reply.data.downloads);
   });
   port.onDisconnect.addListener(() => {
-    const e = chrome.runtime.lastError;
+    // Chrome reports why on runtime.lastError, Firefox on the port itself.
+    const e = port.error || api.runtime.lastError;
     message(e ? e.message : "Disconnected from ODM.");
     clearInterval(timer);
     port = null;
@@ -187,14 +220,15 @@ function connect() {
 }
 
 document.getElementById("openUI").onclick = () => {
-  chrome.tabs.create({ url: uiBase || "http://127.0.0.1:9111/" });
+  api.tabs.create({ url: uiBase || "http://127.0.0.1:9111/" });
 };
-document.getElementById("opts").onclick = () => chrome.runtime.openOptionsPage();
+document.getElementById("opts").onclick = () => api.runtime.openOptionsPage();
 
 window.addEventListener("unload", () => {
   clearInterval(timer);
   if (port) port.disconnect();
 });
 
+checkPermissions().catch(() => {});
 loadMedia().catch(() => {});
 connect();

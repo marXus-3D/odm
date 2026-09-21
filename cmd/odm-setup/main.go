@@ -27,6 +27,17 @@ import (
 
 const hostName = "com.odm.host"
 
+// geckoBrowsers maps a display name to the registry key where a Gecko
+// browser looks for native messaging host manifests.
+//
+// Firefox wants a manifest of its own: it identifies the caller by add-on id
+// in allowed_extensions where Chromium uses a chrome-extension:// origin in
+// allowed_origins, so one file cannot serve both. The host binary is shared --
+// the stdio protocol either side of it is identical.
+var geckoBrowsers = map[string]string{
+	"Firefox": `HKCU\Software\Mozilla\NativeMessagingHosts\` + hostName,
+}
+
 // browsers maps a display name to the registry key where a Chromium-family
 // browser looks for native messaging host manifests.
 var browsers = map[string]string{
@@ -73,9 +84,10 @@ func main() {
 
 	nmh := filepath.Join(binDir, "odm-nmh.exe")
 	hostManifest := filepath.Join(*stateDir, hostName+".json")
+	geckoManifest := filepath.Join(*stateDir, hostName+".firefox.json")
 
 	if *check {
-		runCheck(ext, manifestPath, nmh, hostManifest)
+		runCheck(ext, manifestPath, nmh, hostManifest, geckoManifest)
 		return
 	}
 
@@ -121,6 +133,17 @@ func main() {
 	must(writeHostManifest(hostManifest, nmh, ids), "write the native host manifest")
 	registered := registerAll(hostManifest)
 
+	// Firefox fixes the add-on id in the manifest rather than deriving it
+	// from a key, so there is nothing to discover: what the manifest says is
+	// what Firefox will use.
+	gecko := geckoIDFromManifest(manifestPath)
+	var geckoRegistered []string
+	if gecko != "" {
+		must(writeGeckoManifest(geckoManifest, nmh, []string{gecko}),
+			"write the Firefox native host manifest")
+		geckoRegistered = registerGecko(geckoManifest)
+	}
+
 	fmt.Println("ODM browser integration installed.")
 	fmt.Println()
 	fmt.Printf("  extension id     %s\n", primary)
@@ -131,6 +154,12 @@ func main() {
 		fmt.Printf("  registered for   %s\n", strings.Join(registered, ", "))
 	} else {
 		fmt.Println("  registered for   (none -- no browser registry keys could be written)")
+	}
+	if gecko != "" {
+		fmt.Printf("  firefox add-on   %s\n", gecko)
+		if len(geckoRegistered) > 0 {
+			fmt.Printf("  firefox reg      %s\n", strings.Join(geckoRegistered, ", "))
+		}
 	}
 	if len(loaded) > 0 {
 		fmt.Println()
@@ -160,7 +189,7 @@ func main() {
 }
 
 // runCheck reports the state of an existing installation.
-func runCheck(extDir, manifestPath, nmh, hostManifest string) {
+func runCheck(extDir, manifestPath, nmh, hostManifest, geckoManifest string) {
 	fmt.Println("ODM browser integration check")
 	fmt.Println()
 
@@ -198,6 +227,37 @@ func runCheck(extDir, manifestPath, nmh, hostManifest string) {
 		}
 	}
 
+	// Firefox's side is independent: its own manifest, its own id, its own
+	// registry root. Reporting them together is what makes a half-installed
+	// setup obvious.
+	gecko := geckoIDFromManifest(manifestPath)
+	if gecko == "" {
+		fmt.Println("  firefox add-on     none (manifest has no browser_specific_settings)")
+	} else {
+		fmt.Printf("  firefox add-on     %s\n", gecko)
+		gb, err := os.ReadFile(geckoManifest)
+		if err != nil {
+			fmt.Printf("  firefox manifest   MISSING at %s\n", geckoManifest)
+		} else {
+			var gm geckoManifestFile
+			if json.Unmarshal(gb, &gm) != nil {
+				fmt.Printf("  firefox manifest   UNREADABLE at %s\n", geckoManifest)
+			} else {
+				fmt.Printf("  firefox manifest   %s\n", geckoManifest)
+				for _, id := range gm.AllowedExtensions {
+					marker := ""
+					if id != gecko {
+						marker = "  <- does not match the manifest"
+					}
+					fmt.Printf("     allows          %s%s\n", id, marker)
+				}
+				if gm.Path != nmh {
+					fmt.Printf("     WARNING         points at %s\n", gm.Path)
+				}
+			}
+		}
+	}
+
 	fmt.Println()
 	loaded := discoverLoadedIDs(extDir)
 	if len(loaded) == 0 {
@@ -215,8 +275,15 @@ func runCheck(extDir, manifestPath, nmh, hostManifest string) {
 	}
 
 	fmt.Println()
-	for _, name := range sortedBrowserNames() {
-		out, err := exec.Command("reg", "query", browsers[name], "/ve").CombinedOutput()
+	reg := map[string]string{}
+	for n, k := range browsers {
+		reg[n] = k
+	}
+	for n, k := range geckoBrowsers {
+		reg[n] = k
+	}
+	for _, name := range sortedNames(reg) {
+		out, err := exec.Command("reg", "query", reg[name], "/ve").CombinedOutput()
 		if err != nil {
 			fmt.Printf("  %-9s registry   not registered\n", name)
 			continue
@@ -237,9 +304,11 @@ func runCheck(extDir, manifestPath, nmh, hostManifest string) {
 	}
 }
 
-func sortedBrowserNames() []string {
-	names := make([]string, 0, len(browsers))
-	for n := range browsers {
+func sortedBrowserNames() []string { return sortedNames(browsers) }
+
+func sortedNames(m map[string]string) []string {
+	names := make([]string, 0, len(m))
+	for n := range m {
 		names = append(names, n)
 	}
 	sort.Strings(names)
@@ -331,6 +400,70 @@ func marshalNoEscape(v any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// geckoIDFromManifest reads the add-on id Firefox will use. Firefox ignores
+// the "key" that fixes the Chromium id and takes its own from here, so an
+// extension with no browser_specific_settings has no stable id and cannot be
+// allowed by name.
+func geckoIDFromManifest(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var m struct {
+		BSS struct {
+			Gecko struct {
+				ID string `json:"id"`
+			} `json:"gecko"`
+		} `json:"browser_specific_settings"`
+	}
+	if json.Unmarshal(b, &m) != nil {
+		return ""
+	}
+	return strings.TrimSpace(m.BSS.Gecko.ID)
+}
+
+// geckoManifestFile is Firefox's native messaging manifest. It differs from
+// the Chromium one in the last field only, but that field is the whole point:
+// Firefox names the callers it trusts by add-on id.
+type geckoManifestFile struct {
+	Name              string   `json:"name"`
+	Description       string   `json:"description"`
+	Path              string   `json:"path"`
+	Type              string   `json:"type"`
+	AllowedExtensions []string `json:"allowed_extensions"`
+}
+
+func writeGeckoManifest(path, exe string, ids []string) error {
+	m := geckoManifestFile{
+		Name:              hostName,
+		Description:       "Open Download Manager native host",
+		Path:              exe,
+		Type:              "stdio",
+		AllowedExtensions: ids,
+	}
+	b, err := marshalNoEscape(m)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, b, 0o644)
+}
+
+// registerGecko points every Gecko browser at the Firefox manifest.
+func registerGecko(manifestPath string) []string {
+	var ok []string
+	for _, name := range sortedNames(geckoBrowsers) {
+		cmd := exec.Command("reg", "add", geckoBrowsers[name], "/ve", "/t", "REG_SZ",
+			"/d", manifestPath, "/f")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not register for %s: %v: %s\n",
+				name, err, out)
+			continue
+		}
+		ok = append(ok, name)
+	}
+	return ok
+}
+
 type hostManifestFile struct {
 	Name           string   `json:"name"`
 	Description    string   `json:"description"`
@@ -392,8 +525,15 @@ func registerAll(manifestPath string) []string {
 }
 
 func removeRegistrations() {
-	for _, name := range sortedBrowserNames() {
-		if out, err := exec.Command("reg", "delete", browsers[name], "/f").CombinedOutput(); err != nil {
+	all := map[string]string{}
+	for n, k := range browsers {
+		all[n] = k
+	}
+	for n, k := range geckoBrowsers {
+		all[n] = k
+	}
+	for _, name := range sortedNames(all) {
+		if out, err := exec.Command("reg", "delete", all[name], "/f").CombinedOutput(); err != nil {
 			_ = out
 			fmt.Printf("%-9s not registered\n", name)
 			continue

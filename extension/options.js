@@ -1,3 +1,6 @@
+// See background.js: `browser` on Firefox, `chrome` on Chrome.
+const api = globalThis.browser ?? globalThis.chrome;
+
 const DEFAULTS = {
   enabled: true,
   minSize: 1024 * 1024,
@@ -9,7 +12,7 @@ const DEFAULTS = {
 const $ = (id) => document.getElementById(id);
 
 async function load() {
-  const cfg = { ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)) };
+  const cfg = { ...DEFAULTS, ...(await api.storage.sync.get(DEFAULTS)) };
   $("enabled").checked = cfg.enabled;
   $("minSize").value = (cfg.minSize / (1024 * 1024)).toFixed(1);
   $("captureUnknownSize").checked = cfg.captureUnknownSize;
@@ -19,7 +22,7 @@ async function load() {
 
 $("save").onclick = async () => {
   const mib = parseFloat($("minSize").value);
-  await chrome.storage.sync.set({
+  await api.storage.sync.set({
     enabled: $("enabled").checked,
     minSize: Math.max(0, Math.round((isNaN(mib) ? 1 : mib) * 1024 * 1024)),
     captureUnknownSize: $("captureUnknownSize").checked,
