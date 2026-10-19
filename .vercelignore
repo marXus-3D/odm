@@ -1,0 +1,13 @@
+# Only the landing pages are deployed.
+#
+# The rest of this repository is the download manager itself: Go sources, the
+# built binaries, and the installer payload staged into cmd/odm-installer.
+# A static host has no use for any of it, and without this file the CLI
+# uploads 91 MB in order to publish 260 KB of HTML.
+#
+# Allowlist rather than a list of exclusions, so a new directory of binaries
+# cannot quietly start being uploaded.
+*
+!vercel.json
+!site
+!site/**
