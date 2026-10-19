@@ -23,3 +23,6 @@ desktop.ini
 /.agents/
 /.claude/skills/
 /skills-lock.json
+
+# Vercel links this directory to a project; the id is per-machine.
+/.vercel/
