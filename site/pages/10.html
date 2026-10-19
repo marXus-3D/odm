@@ -99,7 +99,7 @@ pre i{color:var(--fg-3);font-style:normal}
 <section class="cells" id="features">
   <div class="cell"><div class="ic">×8</div><h3>Eight connections, one file</h3><p>Hosts cap the socket, not you. Ranges are split as the transfer runs and every byte is written to its final offset. No part files, no merge.</p></div>
   <div class="cell"><div class="ic">↺</div><h3>Exact resume</h3><p>Finished ranges are recorded as they land. Restart the app, the PC or the network and DM continues from the byte it stopped at.</p></div>
-  <div class="cell"><div class="ic">▶</div><h3>Streams to MP4</h3><p>HLS playlists are fetched segment by segment and, with ffmpeg present, written out as one MP4.</p></div>
+  <div class="cell"><div class="ic">▶</div><h3>Streams to MP4</h3><p>HLS and DASH streams are fetched segment by segment and, with ffmpeg present, written out as one MP4.</p></div>
   <div class="cell"><div class="ic">⌂</div><h3>Native window</h3><p>Dark Windows app with a tray icon, save-as and progress dialogs, and finish actions: open, open folder, sleep, shut down.</p></div>
   <div class="cell"><div class="ic">$</div><h3>Web UI and CLI</h3><p>The same list on localhost for the browser, and <span class="mono">dm add</span>, <span class="mono">dm ls</span>, <span class="mono">dm pause</span> for scripts.</p></div>
   <div class="cell"><div class="ic">◫</div><h3>No admin prompt</h3><p>Installs to your user folder. The same file uninstalls and keeps your download list unless told otherwise.</p></div>
@@ -108,7 +108,7 @@ pre i{color:var(--fg-3);font-style:normal}
 <section class="log" id="handoff">
   <div>
     <h2>The extension hands over the link.</h2>
-    <p>Chrome, Edge, Brave and Vivaldi. When the browser starts a download the extension intercepts it and passes URL and cookies to DM over native messaging. Files behind a login download the way they would in the browser, only faster. Video pages get a button.</p>
+    <p>Chrome, Edge, Brave, Vivaldi and Firefox. When the browser starts a download the extension intercepts it and passes URL and cookies to DM over native messaging. Files behind a login download the way they would in the browser, only faster. Video pages get a button.</p>
   </div>
   <div>
 <pre><i>12:04:01.203</i> <b>ext</b>   download intercepted  ubuntu-24.04.1-desktop-amd64.iso

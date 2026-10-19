@@ -87,8 +87,8 @@ a{color:inherit}
 
 <section class="man" id="man">
   <div><h3>Speed</h3><h4>Eight connections per file</h4><p>Hosts cap each socket, and TCP shares a busy link per flow. Ranges split as the transfer runs; every byte is written at its final offset, no part files. 83 MiB: 13.7 s in the browser, 6.5 s here.</p></div>
-  <div><h3>Resume</h3><h4>Exact, to the byte</h4><p>Finished ranges are recorded as they land. Crash, reboot, Wi-Fi drop: <code>dm resume</code> picks up at the byte it stopped at. Streams (<code>.m3u8</code>) come down segment by segment and become one MP4 with ffmpeg.</p></div>
-  <div><h3>Ways in</h3><h4>CLI, window, web, browser</h4><p><code>dm add</code>, <code>dm ls</code>, <code>dm pause</code> for scripts. A dark native window with a tray icon. The same list on <code>localhost</code>. An extension for Chrome, Edge, Brave and Vivaldi that hands links over with cookies.</p></div>
+  <div><h3>Resume</h3><h4>Exact, to the byte</h4><p>Finished ranges are recorded as they land. Crash, reboot, Wi-Fi drop: <code>dm resume</code> picks up at the byte it stopped at. Streams (<code>.m3u8</code>, <code>.mpd</code>) come down segment by segment and become one MP4 with ffmpeg.</p></div>
+  <div><h3>Ways in</h3><h4>CLI, window, web, browser</h4><p><code>dm add</code>, <code>dm ls</code>, <code>dm pause</code> for scripts. A dark native window with a tray icon. The same list on <code>localhost</code>. An extension for Chrome, Edge, Brave, Vivaldi and Firefox that hands links over with cookies.</p></div>
 </section>
 </div>
 <script>

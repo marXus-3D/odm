@@ -135,7 +135,7 @@ h1{font-size:clamp(38px,5.6vw,66px);font-weight:600;letter-spacing:-.03em;line-h
   <div class="card wide"><h2>13.7 s to 6.5 s on the same file</h2><div class="num">2.1×<small>faster, byte-identical output</small></div><p>An 83 MiB file from dl.google.com on one connection, then on eight. Most hosts cap each socket, not each person, and TCP gives every flow its own share of a busy link.</p></div>
   <div class="card"><h2>Idle at about 9 MB</h2><p>Written in Go with no third-party modules. It sits in the tray without you noticing it is there.</p></div>
   <div class="card"><h2>Resume after anything</h2><p>Finished ranges are recorded as they land. Restart the app, the PC or the router and it carries on from the same byte.</p></div>
-  <div class="card"><h2>Streaming video to MP4</h2><p>HLS playlists are fetched segment by segment and stitched into one MP4 when ffmpeg is installed.</p></div>
+  <div class="card"><h2>Streaming video to MP4</h2><p>HLS and DASH streams are fetched segment by segment and stitched into one MP4 when ffmpeg is installed.</p></div>
   <div class="card"><h2>When the queue empties</h2><p>Open the file or its folder, or have the PC sleep, shut down or restart once the last download is done.</p></div>
 </section>
 
@@ -156,7 +156,7 @@ h1{font-size:clamp(38px,5.6vw,66px);font-weight:600;letter-spacing:-.03em;line-h
   <h2>One setup file, and you are done</h2>
   <p>DM-Setup.exe installs the app to your user folder, registers the browser hook and offers the extension. The same file uninstalls, keeping your download list unless you ask it not to.</p>
   <div class="acts"><a class="btn" href="#">Download DM-Setup.exe</a></div>
-  <small style="display:block;margin-top:12px;color:var(--ink-2);font-size:14px">Chrome, Edge, Brave and Vivaldi. Optional ffmpeg for MP4.</small>
+  <small style="display:block;margin-top:12px;color:var(--ink-2);font-size:14px">Chrome, Edge, Brave, Vivaldi and Firefox. Optional ffmpeg for MP4.</small>
 </section>
 </div>
 <script src="/shared/switcher.js"></script>

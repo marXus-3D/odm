@@ -174,7 +174,7 @@ figcaption b{font-family:"Barlow Semi Condensed",sans-serif;text-transform:upper
       <figure>
         <svg viewBox="0 0 560 130" role="img" aria-label="Browser, extension and DM as three boxes joined by a signal path">
           <g fill="none" stroke="#e3ecff" stroke-width="1.2" font-family="Barlow Semi Condensed, sans-serif" font-size="11" letter-spacing=".06em">
-            <rect x="0" y="30" width="150" height="60"/><text x="75" y="56" fill="#e3ecff" stroke="none" text-anchor="middle">BROWSER</text><text x="75" y="74" fill="#e3ecff" stroke="none" text-anchor="middle" opacity=".7">CHROME, EDGE, BRAVE</text>
+            <rect x="0" y="30" width="150" height="60"/><text x="75" y="56" fill="#e3ecff" stroke="none" text-anchor="middle">BROWSER</text><text x="75" y="74" fill="#e3ecff" stroke="none" text-anchor="middle" opacity=".7">CHROME, FIREFOX, EDGE</text>
             <rect x="205" y="30" width="150" height="60"/><text x="280" y="56" fill="#e3ecff" stroke="none" text-anchor="middle">DM EXTENSION</text><text x="280" y="74" fill="#e3ecff" stroke="none" text-anchor="middle" opacity=".7">LINK + COOKIES</text>
             <rect x="410" y="30" width="150" height="60" stroke="#fff6c2"/><text x="485" y="56" fill="#fff6c2" stroke="none" text-anchor="middle">DM</text><text x="485" y="74" fill="#fff6c2" stroke="none" text-anchor="middle" opacity=".8">8 CONNECTIONS</text>
             <line x1="150" y1="60" x2="205" y2="60" marker-end="url(#tick)"/><line x1="355" y1="60" x2="410" y2="60" marker-end="url(#tick)"/>
@@ -191,7 +191,7 @@ figcaption b{font-family:"Barlow Semi Condensed",sans-serif;text-transform:upper
       <h2>General notes</h2>
       <ol>
         <li><b>Resume is exact.</b> Finished ranges are recorded as they land. After a restart of the app, the PC or the network, transfer continues from the byte it stopped at.</li>
-        <li><b>Streaming video becomes one file.</b> HLS playlists are fetched segment by segment and, with ffmpeg present, written out as MP4.</li>
+        <li><b>Streaming video becomes one file.</b> HLS and DASH streams are fetched segment by segment and, with ffmpeg present, written out as MP4.</li>
         <li><b>The window is native.</b> Dark Windows app with a tray icon, save-as and progress dialogs, a finished dialog, and finish actions: open the file, open the folder, sleep, shut down, restart.</li>
         <li><b>Other ways in.</b> A web page on localhost shows the same list. A command line adds, lists, pauses and resumes for scripts.</li>
         <li><b>Nothing to clean up.</b> The installer needs no administrator prompt and the uninstaller keeps your download list unless told otherwise.</li>
